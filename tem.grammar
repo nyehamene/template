@@ -1,0 +1,51 @@
+source := package { import } { using } { def } =:
+
+package      := ident ":" [ "package" ] ":" package_kind ";" =:
+package_kind := package_tag | package_list | package_html =:
+package_tag  := "package" "(" "tag"  "," string ")" =:
+package_list := "package" "(" "list" "," string ")" =:
+package_html := "package" "(" "html" "," string ")" =:
+
+import := ident ":" [ "import" ] ":" "import" "(" string ")" ";" =:
+using  := idents ":" [ "using" ]  ":" "using"  "(" ident ")"  ";" =:
+
+def := ( doc | metatable | type | templ ) ";" =:
+
+doc               := ident ":" doctext ";" =:
+doctext           := string | text_block =:
+
+metatable       := ident ":" "{" metetable_attrs [ "," ] "}" ";" =:
+metatable_attrs := metetable_attr { "," metetable_attr } =:
+metatable_attr  := ident "=" string =:
+
+type        := idents  ":"    [ "type"  ] ":" ( alias | record ) =:
+alias       := "alias" ident =:
+record      := "record" "{" record_body "}" =:
+record_body := record_def { record_def } :=
+record_def  := ( doc | metatable | record_comp ) =:
+record_comp := vars ";" =:
+
+templ       := ident ":" [ "templ" ] ":" templ_block =:
+templ_block := "(" var ")" "{" templ_body "}" =:
+templ_body  := { element } =:
+
+var  := ident ":" ident =:
+vars := ident { "," ident } ":" ident =:
+
+idents := ident { "," ident } =:
+fslash := "/" =:
+dquote := "\"" =:
+
+text_block        := text_block_line { text_block_line } =:
+text_block_line   := text_block_marker text_block_text =:
+text_block_marker := dquote dquote dquote :=
+text_block_text   := /[^\n]*/ eol =:
+
+comment        :* comment_line { eol comment_line } *:
+comment_line   := comment_marker /[^\n]*/ =:
+comment_marker := fslash fslash :=
+
+ident   := $ident
+string  := $string
+eol     := $eol
+element := $element
