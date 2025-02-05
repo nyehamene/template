@@ -23,8 +23,9 @@ type TokenType string
 
 const (
 	TokenUndefined TokenType = "<>"
-	TokenColon               = "<colon>"
-	TokenEqual               = "<eq>"
+	TokenColon               = ":"
+	TokenEqual               = "="
+	TokenPeriod              = "."
 )
 
 type Token struct {
@@ -61,6 +62,8 @@ func (t Token) Next() (Token, int, error) {
 		kind = TokenColon
 	case '=':
 		kind = TokenEqual
+	case '.':
+		kind = TokenPeriod
 	default:
 		err = ErrInvalid
 	}
