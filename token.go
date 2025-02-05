@@ -22,11 +22,13 @@ func Tokenize(s *string, offset int) (Token, int, error) {
 type TokenType string
 
 const (
-	TokenUndefined TokenType = "<>"
-	TokenColon               = ":"
-	TokenEqual               = "="
-	TokenPeriod              = "."
-	TokenSemicolon           = ";"
+	TokenUndefined  TokenType = "<>"
+	TokenColon                = ":"
+	TokenEqual                = "="
+	TokenPeriod               = "."
+	TokenSemicolon            = ";"
+	TokenBraceLeft            = "{"
+	TokenBraceRight           = "}"
 )
 
 type Token struct {
@@ -67,6 +69,10 @@ func (t Token) Next() (Token, int, error) {
 		kind = TokenPeriod
 	case ';':
 		kind = TokenSemicolon
+	case '{':
+		kind = TokenBraceLeft
+	case '}':
+		kind = TokenBraceRight
 	default:
 		err = ErrInvalid
 	}

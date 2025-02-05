@@ -13,12 +13,14 @@ import (
 // primary ident string
 
 func TestNext_Token(t *testing.T) {
-	source := ":=.;"
+	source := ":=.;{}"
 	expected := []Token{
 		{source: &source, kind: TokenColon, offset: 0},
 		{source: &source, kind: TokenEqual, offset: 1},
 		{source: &source, kind: TokenPeriod, offset: 2},
 		{source: &source, kind: TokenSemicolon, offset: 3},
+		{source: &source, kind: TokenBraceLeft, offset: 4},
+		{source: &source, kind: TokenBraceRight, offset: 5},
 	}
 
 	got := []Token{}
