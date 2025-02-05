@@ -1,0 +1,60 @@
+template := page
+	| component
+   =:
+
+page :=
+    ident ":" [ "package" ] "=" "package" package_name ";"
+    [ { record | fn_templ } { templ } ]
+   =:
+
+component :=
+    ident ":" [ "package" ] "=" "component" package_name ";"
+    [ { record | fn_templ } ]
+   =:
+
+package_name := "tag"  "(" string ")"
+    | "list" "(" string ")"
+	| "list" "(" string ")"
+   =:
+
+ident := /[a-zA-Z_][a-zA-Z0-9_]*/ =:
+
+string := dquote /.*/ dquote =:
+
+dquote : "double quote"
+dquote := "\"" :=
+
+record :=
+	type_ident ":" [ "type" ] "=" "record" "{" [ { var } ] "}"
+   =:
+
+type_ident : "a type name must be in upper camel case"
+type_ident := /[A-Z]/ nsp ident =:
+
+var := ident ":" type_ident ";" =:
+
+# must not be a space
+nsp :- /\s/ -:
+nsp : "no white space"
+
+fn_templ : "function template"
+fn_templ :=
+    ident ":" [ "templ" ] "=" "(" type_ident ")" [ { templ | content } ] "end"
+   =:
+
+templ := tag
+    | list
+	| html
+   =:
+
+tag  := "<" nsp any_ident [ { attr } [ { tag  | content } ] ] "/" ">" =: 
+list := "[" nsp any_ident [ { attr } [ { list | content } ] ] "]" =: 
+
+any_ident := ident | type_ident =:
+
+html : "external html grammar"
+html := $html =:
+
+content : "anything that is not a tag"
+content := $content =:
+content := "TODO: add a proper production later"

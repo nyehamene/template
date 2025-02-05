@@ -1,0 +1,66 @@
+p : "define a package"
+p :package = package tag("home");
+p :package = package list("home");
+p :package = package html("home");
+p := package html("home");
+
+// use a type define in another namespace in the same package
+Button :type = p.namespace.Type;
+
+User : "define a model"
+User :type = record {
+	name: string;
+	email: string;
+	password: string;
+	}
+
+User := record {
+	name: string;
+	email: string;
+	password: string;
+	}
+
+// User :type = {
+// 	   name: string;
+// 	   email: string;
+// 	   password: string;
+//     }
+
+// User := {
+// 	   name: string;
+// 	   email: string;
+// 	   password: string;
+// 	   }
+
+render : "define a template"
+render :templ = (User)
+    <div
+    	<p Username: (name)/>
+    	<p Email:    (email)/>
+    	<p Password: (password)/>
+    	/>
+    end
+
+// render :templ = tag(User)
+// 	    <div
+// 	    	<p Username: (name)/>
+// 	    	<p Email:    (email)/>
+// 	    	<p Password: (password)/>
+// 	    	/>
+// 	    end
+
+// render :templ = list(User)
+// 	    [div
+// 	    	[p Username: (name)]
+// 	    	[p Email:    (email)]
+// 	    	[p Password: (password)]
+// 	    	]
+// 	    end
+
+// render :templ = html(User)
+// 	    <div>
+// 	    	<p>Username: (name)</p>
+// 	    	<p>Email:    (email)</p>
+// 	    	<p>Password: (password)</p>
+// 	    	</div>
+// 	    end
