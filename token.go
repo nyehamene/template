@@ -26,6 +26,7 @@ const (
 	TokenColon               = ":"
 	TokenEqual               = "="
 	TokenPeriod              = "."
+	TokenSemicolon           = ";"
 )
 
 type Token struct {
@@ -64,6 +65,8 @@ func (t Token) Next() (Token, int, error) {
 		kind = TokenEqual
 	case '.':
 		kind = TokenPeriod
+	case ';':
+		kind = TokenSemicolon
 	default:
 		err = ErrInvalid
 	}

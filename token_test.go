@@ -7,17 +7,18 @@ import (
 )
 
 // Tokens
-// chars : = ; { }
+// chars : = ; { } .
 // keywords package component tag list html
 //          type record templ
 // primary ident string
 
 func TestNext_Token(t *testing.T) {
-	source := ":=."
+	source := ":=.;"
 	expected := []Token{
 		{source: &source, kind: TokenColon, offset: 0},
 		{source: &source, kind: TokenEqual, offset: 1},
 		{source: &source, kind: TokenPeriod, offset: 2},
+		{source: &source, kind: TokenSemicolon, offset: 3},
 	}
 
 	got := []Token{}
