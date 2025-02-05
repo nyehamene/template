@@ -13,7 +13,7 @@ import (
 // primary ident string
 
 func TestNext_char(t *testing.T) {
-	source := ":=.;{}[]"
+	source := ":=.;{}[]()"
 	expected := []Token{
 		{source: &source, kind: TokenColon, offset: 0},
 		{source: &source, kind: TokenEqual, offset: 1},
@@ -23,6 +23,8 @@ func TestNext_char(t *testing.T) {
 		{source: &source, kind: TokenBraceRight, offset: 5},
 		{source: &source, kind: TokenBracketLeft, offset: 6},
 		{source: &source, kind: TokenBracketRight, offset: 7},
+		{source: &source, kind: TokenParLeft, offset: 8},
+		{source: &source, kind: TokenParRight, offset: 9},
 	}
 
 	got := []Token{}

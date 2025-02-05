@@ -31,6 +31,8 @@ const (
 	TokenBraceRight             = "}"
 	TokenBracketLeft            = "{"
 	TokenBracketRight           = "}"
+	TokenParLeft                = "("
+	TokenParRight               = ")"
 )
 
 type Token struct {
@@ -79,6 +81,10 @@ func (t Token) Next() (Token, int, error) {
 		kind = TokenBracketLeft
 	case ']':
 		kind = TokenBracketRight
+	case '(':
+		kind = TokenParLeft
+	case ')':
+		kind = TokenParRight
 	default:
 		err = ErrInvalid
 	}
