@@ -12,8 +12,8 @@ import (
 //          type record templ
 // primary ident string
 
-func TestNext_Token(t *testing.T) {
-	source := ":=.;{}"
+func TestNext_char(t *testing.T) {
+	source := ":=.;{}[]"
 	expected := []Token{
 		{source: &source, kind: TokenColon, offset: 0},
 		{source: &source, kind: TokenEqual, offset: 1},
@@ -21,6 +21,8 @@ func TestNext_Token(t *testing.T) {
 		{source: &source, kind: TokenSemicolon, offset: 3},
 		{source: &source, kind: TokenBraceLeft, offset: 4},
 		{source: &source, kind: TokenBraceRight, offset: 5},
+		{source: &source, kind: TokenBracketLeft, offset: 6},
+		{source: &source, kind: TokenBracketRight, offset: 7},
 	}
 
 	got := []Token{}
