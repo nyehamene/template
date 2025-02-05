@@ -24,6 +24,7 @@ type TokenType string
 const (
 	TokenUndefined TokenType = "<>"
 	TokenColon               = "<colon>"
+	TokenEqual               = "<eq>"
 )
 
 type Token struct {
@@ -43,17 +44,33 @@ func (t Token) Equal(o Token) bool {
 }
 
 func (t Token) Next() (Token, int, error) {
+	kind := TokenUndefined
+	offset := t.offset
+	var err error
+
 	src := *t.source
-	char := src[t.offset]
-	if char == ':' {
-		next := Token{
-			source: t.source,
-			kind:   TokenColon,
-			offset: t.offset,
-		}
-		return next, t.offset + 1, EOF
+
+	if t.offset >= len(src) {
+		return t.undefined(), t.offset, EOF
 	}
-	return t.undefined(), t.offset, ErrInvalid
+
+	char := src[t.offset]
+
+	switch char {
+	case ':':
+		kind = TokenColon
+	case '=':
+		kind = TokenEqual
+	default:
+		err = ErrInvalid
+	}
+
+	next := Token{
+		source: t.source,
+		kind:   kind,
+		offset: t.offset,
+	}
+	return next, offset + 1, err
 }
 
 func (t Token) undefined() Token {

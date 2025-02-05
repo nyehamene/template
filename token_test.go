@@ -13,20 +13,37 @@ import (
 // primary ident string
 
 func TestNext_Token(t *testing.T) {
-	source := ":"
-	expected := Token{
-		source: new(string),
-		kind:   TokenColon,
-		offset: 0,
-	}
-	got, n, err := Tokenize(&source, 0)
-
-	if err != EOF {
-		t.Error(err)
+	source := ":="
+	expected := []Token{
+		{source: &source, kind: TokenColon, offset: 0},
+		{source: &source, kind: TokenEqual, offset: 1},
 	}
 
-	if n != 1 {
-		t.Errorf("expected 1 got %d", n)
+	got := []Token{}
+	offset := 0
+
+	for {
+		var err error
+		var token Token
+		var end int
+
+		token, end, err = Tokenize(&source, offset)
+
+		if err == EOF {
+			break
+		}
+
+		if err != nil {
+			t.Fatal(err)
+			break // unreachable
+		}
+
+		got = append(got, token)
+		offset = end
+	}
+
+	if offset != 2 {
+		t.Errorf("expected 2 got %d", offset)
 	}
 
 	if diff := cmp.Diff(expected, got); diff != "" {
