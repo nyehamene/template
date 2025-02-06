@@ -135,5 +135,19 @@ func TestNext_ident(t *testing.T) {
 }
 
 func TestNext_keyword(t *testing.T) {
+	source := "package"
+	expected := Token{source: &source, kind: TokenPackage, offset: 0}
+	got, offset, err := Tokenize(&source, 0)
 
+	if err != nil && err != EOF {
+		t.Error(err)
+	}
+
+	if offset != len(source) {
+		t.Errorf("expected %d got %d", len(source), offset)
+	}
+
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Error(diff)
+	}
 }

@@ -44,6 +44,7 @@ const (
 	TokenSpace                  = "<spc>"
 	TokenEOL                    = "<eol>"
 	TokenIdent                  = "ident"
+	TokenPackage                = "package"
 )
 
 type Token struct {
@@ -110,6 +111,12 @@ func (t Token) next() (Token, int, error) {
 			break
 		}
 		kind, end, err = t.ident()
+		// check for keyword
+		offset := end + 1
+		lexeme := src[start:offset]
+		if lexeme == "package" {
+			kind = TokenPackage
+		}
 	}
 
 ret:
