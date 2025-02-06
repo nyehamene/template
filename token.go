@@ -10,13 +10,21 @@ var (
 	ErrInvalid       = errors.New("Invalid token")
 )
 
+var whitespaces = map[byte]bool{
+	' ':  true,
+	'\t': true,
+	'\r': true,
+	'\v': true,
+	'\f': true,
+}
+
 func Tokenize(s *string, offset int) (Token, int, error) {
 	t := Token{
 		kind:   TokenUndefined,
 		source: s,
 		offset: offset,
 	}
-	return t.Next()
+	return t.next()
 }
 
 type TokenType string
@@ -33,6 +41,9 @@ const (
 	TokenBracketRight           = "}"
 	TokenParLeft                = "("
 	TokenParRight               = ")"
+	TokenSpace                  = "<spc>"
+	TokenEOL                    = "<eol>"
+	TokenIdent                  = "ident"
 )
 
 type Token struct {
@@ -51,18 +62,21 @@ func (t Token) Equal(o Token) bool {
 	return offset && kind
 }
 
-func (t Token) Next() (Token, int, error) {
+// TODO: next should not be a method on Token
+func (t Token) next() (Token, int, error) {
+	src := *t.source
 	kind := TokenUndefined
-	offset := t.offset
+	start := t.offset
+	end := t.offset
+	var char byte
 	var err error
 
-	src := *t.source
-
-	if t.offset >= len(src) {
-		return t.undefined(), t.offset, EOF
+	if t.isEnd() {
+		err = EOF
+		goto ret
 	}
 
-	char := src[t.offset]
+	char = src[start]
 
 	switch char {
 	case ':':
@@ -86,21 +100,97 @@ func (t Token) Next() (Token, int, error) {
 	case ')':
 		kind = TokenParRight
 	default:
-		err = ErrInvalid
+		if whitespaces[char] {
+			kind, end, err = t.space()
+			break
+		}
+		if char == '\n' {
+			end = t.eol()
+			kind = TokenEOL
+			break
+		}
+		kind, end, err = t.ident()
 	}
 
+ret:
+	offset := end + 1
 	next := Token{
 		source: t.source,
 		kind:   kind,
-		offset: t.offset,
+		offset: start,
 	}
-	return next, offset + 1, err
+	return next, offset, err
 }
 
-func (t Token) undefined() Token {
-	return Token{
-		source: t.source,
-		kind:   TokenUndefined,
-		offset: t.offset,
+func (t Token) ident() (TokenType, int, error) {
+	isAlpha := func(c byte) bool {
+		lowercase := c >= 'a' && c <= 'z'
+		uppercase := c >= 'A' && c <= 'Z'
+		underscore := c == '_'
+		return lowercase || uppercase || underscore
 	}
+
+	isNumeric := func(c byte) bool {
+		return c >= '0' && c <= '9'
+	}
+
+	isAlphaNumeric := func(c byte) bool {
+		return isAlpha(c) || isNumeric(c)
+	}
+
+	src := *t.source
+	char := src[t.offset]
+	if !isAlpha(char) {
+		return TokenUndefined, t.offset, ErrInvalid
+	}
+
+	offset := t.offset + 1
+	for !t.isEndAt(offset) {
+		char = src[offset]
+		if !isAlphaNumeric(char) {
+			break
+		}
+		offset += 1
+	}
+
+	end := offset - 1
+	return TokenIdent, end, nil
+}
+
+func (t Token) eol() int {
+	src := *t.source
+	offset := t.offset + 1
+	var char byte
+	for !t.isEndAt(offset) {
+		char = src[offset]
+		if char != '\n' {
+			break
+		}
+		offset += 1
+	}
+	end := offset - 1
+	return end
+}
+
+func (t Token) space() (TokenType, int, error) {
+	offset := t.offset + 1
+	src := *t.source
+	var char byte
+	for !t.isEndAt(offset) {
+		char = src[offset]
+		if !whitespaces[char] {
+			break
+		}
+		offset += 1
+	}
+	end := offset - 1
+	return TokenSpace, end, nil
+}
+
+func (t Token) isEnd() bool {
+	return t.isEndAt(t.offset)
+}
+
+func (t Token) isEndAt(i int) bool {
+	return i >= len(*t.source)
 }

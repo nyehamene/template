@@ -9,7 +9,7 @@ import (
 // Tokens
 // chars : = ; { } .
 // keywords package component tag list html
-//          type record templ
+//          type record templ end
 // primary ident string
 
 func TestNext_char(t *testing.T) {
@@ -28,14 +28,14 @@ func TestNext_char(t *testing.T) {
 	}
 
 	got := []Token{}
-	offset := 0
+	end := 0
 
 	for {
 		var err error
 		var token Token
-		var end int
+		var offset int
 
-		token, end, err = Tokenize(&source, offset)
+		token, offset, err = Tokenize(&source, end)
 
 		if err == EOF {
 			break
@@ -47,14 +47,93 @@ func TestNext_char(t *testing.T) {
 		}
 
 		got = append(got, token)
-		offset = end
+		end = offset
 	}
 
-	if offset != len(expected) {
-		t.Errorf("expected %d got %d", len(expected), offset)
+	if end != len(expected) {
+		t.Errorf("expected %d got %d", len(expected), end)
 	}
 
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Error(diff)
 	}
+}
+
+func TestNext_space(t *testing.T) {
+	source := " \t\r\v\f"
+	expected := Token{source: &source, kind: TokenSpace, offset: 0}
+	got, n, err := Tokenize(&source, 0)
+
+	if n != len(source) {
+		t.Errorf("expected %d got %d", len(source), n)
+	}
+
+	if err != nil && err != EOF {
+		t.Error(err)
+	}
+
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
+func TestNext_newline(t *testing.T) {
+	source := "\n\n"
+	expected := Token{source: &source, kind: TokenEOL, offset: 0}
+
+	got, end, err := Tokenize(&source, 0)
+
+	if err != nil && err != EOF {
+		t.Error(err)
+	}
+
+	if end != len(source) {
+		t.Errorf("expected %d got %d", len(source), end)
+	}
+
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
+func TestNext_ident(t *testing.T) {
+	source := "foo bar"
+	expected := []Token{
+		{source: &source, kind: TokenIdent, offset: 0},
+		{source: &source, kind: TokenSpace, offset: 3},
+		{source: &source, kind: TokenIdent, offset: 4},
+	}
+
+	got := []Token{}
+	end := 0
+	for {
+		var token Token
+		var err error
+		var offset int
+		token, offset, err = Tokenize(&source, end)
+
+		if err == EOF {
+			break
+		}
+
+		if err != nil {
+			t.Error(err)
+			break
+		}
+
+		got = append(got, token)
+		end = offset
+	}
+
+	if end != len(source) {
+		t.Errorf("expected %d got %d", len(source), end)
+	}
+
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
+func TestNext_keyword(t *testing.T) {
+
 }
