@@ -185,21 +185,43 @@ func TestNext_keyword(t *testing.T) {
 }
 
 func TestNext_string(t *testing.T) {
-	source := `""`
-	expected := Token{source: &source, kind: TokenString, offset: 0}
-	var got Token
-	var token Token
-	var offset int
-	var err error
-	token, offset, err = Tokenize(&source, offset)
-	got = token
-
-	if err != nil && nil != EOF {
-		t.Error(err)
+	source := `"" ":" "package" "foo" "\n"`
+	//         012345678901234567890123 45
+	expected := []Token{
+		{source: &source, kind: TokenString, offset: 0},
+		{source: &source, kind: TokenSpace, offset: 2},
+		{source: &source, kind: TokenString, offset: 3},
+		{source: &source, kind: TokenSpace, offset: 6},
+		{source: &source, kind: TokenString, offset: 7},
+		{source: &source, kind: TokenSpace, offset: 16},
+		{source: &source, kind: TokenString, offset: 17},
+		{source: &source, kind: TokenSpace, offset: 22},
+		{source: &source, kind: TokenString, offset: 23},
 	}
 
-	if l := len(source); offset != l {
-		t.Errorf("expected %d got %d", l, offset)
+	got := []Token{}
+	end := 0
+	for {
+		var token Token
+		var offset int
+		var err error
+		token, offset, err = Tokenize(&source, end)
+
+		if err == EOF {
+			break
+		}
+
+		if err != nil {
+			t.Error(err)
+			break
+		}
+
+		got = append(got, token)
+		end = offset
+	}
+
+	if l := len(source); end != l {
+		t.Errorf("expected %d got %d", l, end)
 	}
 
 	if diff := cmp.Diff(expected, got); diff != "" {
