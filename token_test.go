@@ -183,3 +183,26 @@ func TestNext_keyword(t *testing.T) {
 		t.Error(diff)
 	}
 }
+
+func TestNext_string(t *testing.T) {
+	source := `""`
+	expected := Token{source: &source, kind: TokenString, offset: 0}
+	var got Token
+	var token Token
+	var offset int
+	var err error
+	token, offset, err = Tokenize(&source, offset)
+	got = token
+
+	if err != nil && nil != EOF {
+		t.Error(err)
+	}
+
+	if l := len(source); offset != l {
+		t.Errorf("expected %d got %d", l, offset)
+	}
+
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Error(diff)
+	}
+}

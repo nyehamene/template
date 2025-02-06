@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	EOF        error = errors.New("end of file")
-	ErrInvalid       = errors.New("Invalid token")
+	EOF                   error = errors.New("end of file")
+	ErrInvalid                  = errors.New("Invalid token")
+	ErrUnterminatedString       = errors.New("Unterminated string")
 )
 
 var whitespaces = map[byte]bool{
@@ -51,6 +52,7 @@ const (
 	TokenType                   = "<type>"
 	TokenTempl                  = "<templ>"
 	TokenEnd                    = "<end>"
+	TokenString                 = "<str>"
 )
 
 var keywords = map[string]TokenKind{
@@ -116,6 +118,8 @@ func (t Token) next() (Token, int, error) {
 		kind = TokenParLeft
 	case ')':
 		kind = TokenParRight
+	case '"':
+		kind, end, err = t.str()
 	default:
 		if whitespaces[char] {
 			kind, end, err = t.space()
@@ -180,6 +184,28 @@ func (t Token) ident() (TokenKind, int, error) {
 
 	end := offset - 1
 	return TokenIdent, end, nil
+}
+
+func (t Token) str() (TokenKind, int, error) {
+	src := *t.source
+	offset := t.offset + 1
+	var char byte
+	var err error
+	for !t.isEndAt(offset) {
+		char = src[offset]
+		if char == '"' {
+			offset += 1
+			break
+		}
+		offset += 1
+	}
+
+	end := offset - 1
+	if src[end] != '"' {
+		err = ErrUnterminatedString
+	}
+
+	return TokenString, end, err
 }
 
 func (t Token) eol() int {
