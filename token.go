@@ -27,10 +27,10 @@ func Tokenize(s *string, offset int) (Token, int, error) {
 	return t.next()
 }
 
-type TokenType string
+type TokenKind string
 
 const (
-	TokenUndefined    TokenType = "<>"
+	TokenUndefined    TokenKind = "<>"
 	TokenColon                  = ":"
 	TokenEqual                  = "="
 	TokenPeriod                 = "."
@@ -43,18 +43,34 @@ const (
 	TokenParRight               = ")"
 	TokenSpace                  = "<spc>"
 	TokenEOL                    = "<eol>"
-	TokenIdent                  = "ident"
-	TokenPackage                = "package"
+	TokenIdent                  = "<ident>"
+	TokenPackage                = "<package>"
+	TokenTag                    = "<tag>"
+	TokenList                   = "<list>"
+	TokenHtml                   = "<html>"
+	TokenType                   = "<type>"
+	TokenTempl                  = "<templ>"
+	TokenEnd                    = "<end>"
 )
+
+var keywords = map[string]TokenKind{
+	"package": TokenPackage,
+	"tag":     TokenTag,
+	"list":    TokenList,
+	"html":    TokenHtml,
+	"type":    TokenType,
+	"templ":   TokenTempl,
+	"end":     TokenEnd,
+}
 
 type Token struct {
 	source *string
-	kind   TokenType
+	kind   TokenKind
 	offset int
 }
 
 func (t Token) String() string {
-	return fmt.Sprintf("<%s %d>", t.kind, t.offset)
+	return fmt.Sprintf("(%s %d)", t.kind, t.offset)
 }
 
 func (t Token) Equal(o Token) bool {
@@ -111,11 +127,13 @@ func (t Token) next() (Token, int, error) {
 			break
 		}
 		kind, end, err = t.ident()
-		// check for keyword
-		offset := end + 1
-		lexeme := src[start:offset]
-		if lexeme == "package" {
-			kind = TokenPackage
+		{
+			// check for keyword
+			offset := end + 1
+			lexeme := src[start:offset]
+			if k := keywords[lexeme]; k != "" {
+				kind = k
+			}
 		}
 	}
 
@@ -129,7 +147,7 @@ ret:
 	return next, offset, err
 }
 
-func (t Token) ident() (TokenType, int, error) {
+func (t Token) ident() (TokenKind, int, error) {
 	isAlpha := func(c byte) bool {
 		lowercase := c >= 'a' && c <= 'z'
 		uppercase := c >= 'A' && c <= 'Z'
@@ -179,7 +197,7 @@ func (t Token) eol() int {
 	return end
 }
 
-func (t Token) space() (TokenType, int, error) {
+func (t Token) space() (TokenKind, int, error) {
 	offset := t.offset + 1
 	src := *t.source
 	var char byte

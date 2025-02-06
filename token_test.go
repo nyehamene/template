@@ -135,16 +135,48 @@ func TestNext_ident(t *testing.T) {
 }
 
 func TestNext_keyword(t *testing.T) {
-	source := "package"
-	expected := Token{source: &source, kind: TokenPackage, offset: 0}
-	got, offset, err := Tokenize(&source, 0)
-
-	if err != nil && err != EOF {
-		t.Error(err)
+	source := "package tag list html type templ end"
+	//         012345678901234567890123456789012345
+	expected := []Token{
+		{source: &source, kind: TokenPackage, offset: 0},
+		{source: &source, kind: TokenSpace, offset: 7},
+		{source: &source, kind: TokenTag, offset: 8},
+		{source: &source, kind: TokenSpace, offset: 11},
+		{source: &source, kind: TokenList, offset: 12},
+		{source: &source, kind: TokenSpace, offset: 16},
+		{source: &source, kind: TokenHtml, offset: 17},
+		{source: &source, kind: TokenSpace, offset: 21},
+		{source: &source, kind: TokenType, offset: 22},
+		{source: &source, kind: TokenSpace, offset: 26},
+		{source: &source, kind: TokenTempl, offset: 27},
+		{source: &source, kind: TokenSpace, offset: 32},
+		{source: &source, kind: TokenEnd, offset: 33},
 	}
 
-	if offset != len(source) {
-		t.Errorf("expected %d got %d", len(source), offset)
+	got := []Token{}
+	end := 0
+	for {
+		var token Token
+		var offset int
+		var err error
+
+		token, offset, err = Tokenize(&source, end)
+
+		if err == EOF {
+			break
+		}
+
+		if err != nil {
+			t.Error(err)
+			break
+		}
+
+		got = append(got, token)
+		end = offset
+	}
+
+	if end != len(source) {
+		t.Errorf("expected %d got %d", len(source), end)
 	}
 
 	if diff := cmp.Diff(expected, got); diff != "" {
