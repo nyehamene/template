@@ -53,6 +53,7 @@ const (
 	TokenTempl                  = "<templ>"
 	TokenEnd                    = "<end>"
 	TokenString                 = "<str>"
+	TokenComment                = "<comment>"
 )
 
 var keywords = map[string]TokenKind{
@@ -120,6 +121,34 @@ func (t Token) next() (Token, int, error) {
 		kind = TokenParRight
 	case '"':
 		kind, end, err = t.str()
+	case '/':
+		kind, end, err = t.comment()
+		{
+			// try parsing multi line comment
+			offset := end + 1
+			start := offset
+			for {
+				token, innerEnd, err := Tokenize(t.source, start)
+
+				if err != nil {
+					break
+				}
+
+				if token.kind == TokenSpace {
+					start = innerEnd
+					continue
+				}
+
+				if token.kind != TokenComment {
+					break
+				}
+
+				offset = innerEnd
+				start = offset
+			}
+
+			end = offset - 1
+		}
 	default:
 		if whitespaces[char] {
 			kind, end, err = t.space()
@@ -206,6 +235,43 @@ func (t Token) str() (TokenKind, int, error) {
 	}
 
 	return TokenString, end, err
+}
+
+func (t Token) comment() (TokenKind, int, error) {
+	var char byte
+	var err error
+
+	src := *t.source
+	markerEnd := t.offset + 1
+	end := t.offset
+
+	if t.isEndAt(markerEnd) {
+		err = ErrInvalid
+		goto ret
+	}
+
+	if src[markerEnd] != '/' {
+		err = ErrInvalid
+		goto ret
+	}
+
+	end = markerEnd + 1
+
+	for !t.isEndAt(end) {
+		char = src[end]
+		if char == '\n' {
+			break
+		}
+		end += 1
+	}
+
+	// I had to do this to make comment parse correctly
+	if t.isEndAt(end) {
+		end -= 1
+	}
+
+ret:
+	return TokenComment, end, err
 }
 
 func (t Token) eol() int {

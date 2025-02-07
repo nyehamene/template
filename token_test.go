@@ -96,6 +96,42 @@ func TestNext_newline(t *testing.T) {
 	}
 }
 
+func TestNext_newline2(t *testing.T) {
+	source := `foo
+bar`
+	expected := []Token{
+		{source: &source, kind: TokenIdent, offset: 0},
+		{source: &source, kind: TokenEOL, offset: 3},
+		{source: &source, kind: TokenIdent, offset: 4},
+	}
+
+	got := []Token{}
+	end := 0
+	for {
+		token, offset, err := Tokenize(&source, end)
+
+		if err == EOF {
+			break
+		}
+
+		if err != nil {
+			t.Error(err)
+			break
+		}
+
+		got = append(got, token)
+		end = offset
+	}
+
+	if end != len(source) {
+		t.Errorf("expected %d got %d", len(source), end)
+	}
+
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
 func TestNext_ident(t *testing.T) {
 	source := "foo bar"
 	expected := []Token{
@@ -221,6 +257,83 @@ func TestNext_string(t *testing.T) {
 	}
 
 	if l := len(source); end != l {
+		t.Errorf("expected %d got %d", l, end)
+	}
+
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
+func TestNext_comment(t *testing.T) {
+	source := `
+// line 1
+// line 2`
+	expected := []Token{
+		{source: &source, kind: TokenEOL, offset: 0},
+		{source: &source, kind: TokenComment, offset: 1},
+	}
+
+	got := []Token{}
+	end := 0
+	for {
+		var token Token
+		var offset int
+		var err error
+
+		token, offset, err = Tokenize(&source, end)
+
+		if err == EOF {
+			break
+		}
+
+		if err != nil {
+			t.Error(err)
+			break
+		}
+
+		got = append(got, token)
+		end = offset
+	}
+
+	if l := len(source); l != end {
+		t.Errorf("expected %d got %d", l, end)
+	}
+
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
+func TestNext_comment2(t *testing.T) {
+	source := `// line 1
+	           // line 2`
+	expected := []Token{
+		{source: &source, kind: TokenComment, offset: 0},
+	}
+	got := []Token{}
+	end := 0
+
+	for {
+		var token Token
+		var offset int
+		var err error
+
+		token, offset, err = Tokenize(&source, end)
+
+		if err == EOF {
+			break
+		}
+
+		if err != nil {
+			t.Error(err)
+			break
+		}
+
+		got = append(got, token)
+		end = offset
+	}
+	if l := len(source); l != end {
 		t.Errorf("expected %d got %d", l, end)
 	}
 
