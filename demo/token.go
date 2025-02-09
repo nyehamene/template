@@ -42,6 +42,7 @@ func tokenize(path string) {
 	}
 
 	for _, token := range tokens {
-		fmt.Printf("%v\n", token)
+		line, col := token.Pos()
+		fmt.Printf("(%v [%d, %d])\n", token, line, col)
 	}
 }

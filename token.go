@@ -42,18 +42,18 @@ const (
 	TokenBracketRight           = "}"
 	TokenParLeft                = "("
 	TokenParRight               = ")"
-	TokenSpace                  = "<spc>"
-	TokenEOL                    = "<eol>"
-	TokenIdent                  = "<ident>"
-	TokenPackage                = "<package>"
-	TokenTag                    = "<tag>"
-	TokenList                   = "<list>"
-	TokenHtml                   = "<html>"
-	TokenType                   = "<type>"
-	TokenTempl                  = "<templ>"
-	TokenEnd                    = "<end>"
-	TokenString                 = "<str>"
-	TokenComment                = "<comment>"
+	TokenSpace                  = ":spc"
+	TokenEOL                    = ":eol"
+	TokenIdent                  = ":ident"
+	TokenPackage                = ":package"
+	TokenTag                    = ":tag"
+	TokenList                   = ":list"
+	TokenHtml                   = ":html"
+	TokenType                   = ":type"
+	TokenTempl                  = ":templ"
+	TokenEnd                    = ":end"
+	TokenString                 = ":str"
+	TokenComment                = ":comment"
 )
 
 var keywords = map[string]TokenKind{
@@ -73,7 +73,7 @@ type Token struct {
 }
 
 func (t Token) String() string {
-	return fmt.Sprintf("(%s %d)", t.kind, t.offset)
+	return fmt.Sprintf("%s %d", t.kind, t.offset)
 }
 
 func (t Token) Equal(o Token) bool {
