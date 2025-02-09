@@ -341,3 +341,36 @@ func TestNext_comment2(t *testing.T) {
 		t.Error(diff)
 	}
 }
+
+func TestLineNumber(t *testing.T) {
+	source := "line1\nline2"
+	tokens := []Token{}
+	nextTokenOffset := 0
+
+	for {
+		var token Token
+		var end int
+		var err error
+
+		token, end, err = Tokenize(&source, nextTokenOffset)
+		if err == EOF {
+			break
+		}
+
+		if err != nil {
+			t.Error(err)
+			break
+		}
+
+		tokens = append(tokens, token)
+		nextTokenOffset = end
+	}
+
+	expected := 1
+	token := tokens[2]
+	got := token.lineNumber()
+
+	if expected != got {
+		t.Errorf("expected line number to be %d got %d", expected, got)
+	}
+}
