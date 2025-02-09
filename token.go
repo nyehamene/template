@@ -265,7 +265,7 @@ func (t Token) comment() (TokenKind, int, error) {
 		end += 1
 	}
 
-	// I had to do this to make comment parse correctly
+	// If is isEndAt return true
 	if isEndAt(src, end) {
 		end -= 1
 	}
