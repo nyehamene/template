@@ -203,7 +203,7 @@ func (t Token) ident() (TokenKind, int, error) {
 	}
 
 	offset := t.offset + 1
-	for !t.isEndAt(offset) {
+	for !isEndAt(src, offset) {
 		char = src[offset]
 		if !isAlphaNumeric(char) {
 			break
@@ -220,7 +220,7 @@ func (t Token) str() (TokenKind, int, error) {
 	offset := t.offset + 1
 	var char byte
 	var err error
-	for !t.isEndAt(offset) {
+	for !isEndAt(src, offset) {
 		char = src[offset]
 		if char == '"' {
 			offset += 1
@@ -245,7 +245,7 @@ func (t Token) comment() (TokenKind, int, error) {
 	markerEnd := t.offset + 1
 	end := t.offset
 
-	if t.isEndAt(markerEnd) {
+	if isEndAt(src, markerEnd) {
 		err = ErrInvalid
 		goto ret
 	}
@@ -257,7 +257,7 @@ func (t Token) comment() (TokenKind, int, error) {
 
 	end = markerEnd + 1
 
-	for !t.isEndAt(end) {
+	for !isEndAt(src, end) {
 		char = src[end]
 		if char == '\n' {
 			break
@@ -266,7 +266,7 @@ func (t Token) comment() (TokenKind, int, error) {
 	}
 
 	// I had to do this to make comment parse correctly
-	if t.isEndAt(end) {
+	if isEndAt(src, end) {
 		end -= 1
 	}
 
@@ -278,7 +278,7 @@ func (t Token) eol() int {
 	src := *t.source
 	offset := t.offset + 1
 	var char byte
-	for !t.isEndAt(offset) {
+	for !isEndAt(src, offset) {
 		char = src[offset]
 		if char != '\n' {
 			break
@@ -293,7 +293,7 @@ func (t Token) space() (TokenKind, int, error) {
 	offset := t.offset + 1
 	src := *t.source
 	var char byte
-	for !t.isEndAt(offset) {
+	for !isEndAt(src, offset) {
 		char = src[offset]
 		if !whitespaces[char] {
 			break
@@ -305,9 +305,9 @@ func (t Token) space() (TokenKind, int, error) {
 }
 
 func (t Token) isEnd() bool {
-	return t.isEndAt(t.offset)
+	return isEndAt(*t.source, t.offset)
 }
 
-func (t Token) isEndAt(i int) bool {
-	return i >= len(*t.source)
+func isEndAt(source string, i int) bool {
+	return i >= len(source)
 }
