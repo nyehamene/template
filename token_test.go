@@ -342,7 +342,7 @@ func TestNext_comment2(t *testing.T) {
 	}
 }
 
-func TestLineNumber(t *testing.T) {
+func TestPos(t *testing.T) {
 	source := "line1\nline2"
 	tokens := []Token{}
 	nextTokenOffset := 0
@@ -366,11 +366,45 @@ func TestLineNumber(t *testing.T) {
 		nextTokenOffset = end
 	}
 
-	expected := 1
-	token := tokens[2]
-	got := token.lineNumber()
+	{
+		expectedLine := 0
+		expectedCol := 0
+		token := tokens[0]
+		gotLine, gotCol := token.Pos()
 
-	if expected != got {
-		t.Errorf("expected line number to be %d got %d", expected, got)
+		if expectedLine != gotLine {
+			t.Errorf("expected line number to be %d got %d", expectedLine, gotLine)
+		}
+		if expectedCol != gotCol {
+			t.Errorf("expected line number to be %d got %d", expectedCol, gotCol)
+		}
+	}
+
+	{
+		expectedLine := 0
+		expectedCol := 5
+		token := tokens[1]
+		gotLine, gotCol := token.Pos()
+
+		if expectedLine != gotLine {
+			t.Errorf("expected line number to be %d got %d", expectedLine, gotLine)
+		}
+		if expectedCol != gotCol {
+			t.Errorf("expected line number to be %d got %d", expectedCol, gotCol)
+		}
+	}
+
+	{
+		expectedLine := 1
+		expectedCol := 0
+		token := tokens[2]
+		gotLine, gotCol := token.Pos()
+
+		if expectedLine != gotLine {
+			t.Errorf("expected line number to be %d got %d", expectedLine, gotLine)
+		}
+		if expectedCol != gotCol {
+			t.Errorf("expected column number to be %d got %d", expectedCol, gotCol)
+		}
 	}
 }

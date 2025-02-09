@@ -308,9 +308,10 @@ func (t Token) isEnd() bool {
 	return isEndAt(*t.source, t.offset)
 }
 
-func (t Token) lineNumber() int {
+func (t Token) Pos() (int, int) {
 	src := *t.source
 	lineNumber := 0
+	colNumber := 0
 	end := t.offset
 	if t.isEnd() {
 		end = len(src)
@@ -319,10 +320,13 @@ func (t Token) lineNumber() int {
 	for _, c := range src[0:end] {
 		if c == '\n' {
 			lineNumber += 1
+			colNumber = 0
+			continue
 		}
+		colNumber += 1
 	}
 
-	return lineNumber
+	return lineNumber, colNumber
 }
 
 func isEndAt(source string, i int) bool {
