@@ -15,18 +15,19 @@ import (
 func TestNext_char(t *testing.T) {
 	source := ":=.;{}[]()"
 	expected := []Token{
-		{source: &source, kind: TokenColon, offset: 0},
-		{source: &source, kind: TokenEqual, offset: 1},
-		{source: &source, kind: TokenPeriod, offset: 2},
-		{source: &source, kind: TokenSemicolon, offset: 3},
-		{source: &source, kind: TokenBraceLeft, offset: 4},
-		{source: &source, kind: TokenBraceRight, offset: 5},
-		{source: &source, kind: TokenBracketLeft, offset: 6},
-		{source: &source, kind: TokenBracketRight, offset: 7},
-		{source: &source, kind: TokenParLeft, offset: 8},
-		{source: &source, kind: TokenParRight, offset: 9},
+		{kind: TokenColon, offset: 0},
+		{kind: TokenEqual, offset: 1},
+		{kind: TokenPeriod, offset: 2},
+		{kind: TokenSemicolon, offset: 3},
+		{kind: TokenBraceLeft, offset: 4},
+		{kind: TokenBraceRight, offset: 5},
+		{kind: TokenBracketLeft, offset: 6},
+		{kind: TokenBracketRight, offset: 7},
+		{kind: TokenParLeft, offset: 8},
+		{kind: TokenParRight, offset: 9},
 	}
 
+	tokenizer := NewTokenizer(source)
 	got := []Token{}
 	end := 0
 
@@ -35,7 +36,7 @@ func TestNext_char(t *testing.T) {
 		var token Token
 		var offset int
 
-		token, offset, err = Tokenize(&source, end)
+		token, offset, err = tokenizer.Tokenize(end)
 
 		if err == EOF {
 			break
@@ -61,8 +62,10 @@ func TestNext_char(t *testing.T) {
 
 func TestNext_space(t *testing.T) {
 	source := " \t\r\v\f"
-	expected := Token{source: &source, kind: TokenSpace, offset: 0}
-	got, n, err := Tokenize(&source, 0)
+	tokenizer := NewTokenizer(source)
+
+	expected := Token{kind: TokenSpace, offset: 0}
+	got, n, err := tokenizer.Tokenize(0)
 
 	if n != len(source) {
 		t.Errorf("expected %d got %d", len(source), n)
@@ -79,9 +82,11 @@ func TestNext_space(t *testing.T) {
 
 func TestNext_newline(t *testing.T) {
 	source := "\n\n"
-	expected := Token{source: &source, kind: TokenEOL, offset: 0}
+	tokenizer := NewTokenizer(source)
 
-	got, end, err := Tokenize(&source, 0)
+	expected := Token{kind: TokenEOL, offset: 0}
+
+	got, end, err := tokenizer.Tokenize(0)
 
 	if err != nil && err != EOF {
 		t.Error(err)
@@ -99,16 +104,18 @@ func TestNext_newline(t *testing.T) {
 func TestNext_newline2(t *testing.T) {
 	source := `foo
 bar`
+	tokenizer := NewTokenizer(source)
+
 	expected := []Token{
-		{source: &source, kind: TokenIdent, offset: 0},
-		{source: &source, kind: TokenEOL, offset: 3},
-		{source: &source, kind: TokenIdent, offset: 4},
+		{kind: TokenIdent, offset: 0},
+		{kind: TokenEOL, offset: 3},
+		{kind: TokenIdent, offset: 4},
 	}
 
 	got := []Token{}
 	end := 0
 	for {
-		token, offset, err := Tokenize(&source, end)
+		token, offset, err := tokenizer.Tokenize(end)
 
 		if err == EOF {
 			break
@@ -134,10 +141,12 @@ bar`
 
 func TestNext_ident(t *testing.T) {
 	source := "foo bar"
+	tokenizer := NewTokenizer(source)
+
 	expected := []Token{
-		{source: &source, kind: TokenIdent, offset: 0},
-		{source: &source, kind: TokenSpace, offset: 3},
-		{source: &source, kind: TokenIdent, offset: 4},
+		{kind: TokenIdent, offset: 0},
+		{kind: TokenSpace, offset: 3},
+		{kind: TokenIdent, offset: 4},
 	}
 
 	got := []Token{}
@@ -146,7 +155,7 @@ func TestNext_ident(t *testing.T) {
 		var token Token
 		var err error
 		var offset int
-		token, offset, err = Tokenize(&source, end)
+		token, offset, err = tokenizer.Tokenize(end)
 
 		if err == EOF {
 			break
@@ -173,20 +182,22 @@ func TestNext_ident(t *testing.T) {
 func TestNext_keyword(t *testing.T) {
 	source := "package tag list html type templ end"
 	//         012345678901234567890123456789012345
+	tokenizer := NewTokenizer(source)
+
 	expected := []Token{
-		{source: &source, kind: TokenPackage, offset: 0},
-		{source: &source, kind: TokenSpace, offset: 7},
-		{source: &source, kind: TokenTag, offset: 8},
-		{source: &source, kind: TokenSpace, offset: 11},
-		{source: &source, kind: TokenList, offset: 12},
-		{source: &source, kind: TokenSpace, offset: 16},
-		{source: &source, kind: TokenHtml, offset: 17},
-		{source: &source, kind: TokenSpace, offset: 21},
-		{source: &source, kind: TokenType, offset: 22},
-		{source: &source, kind: TokenSpace, offset: 26},
-		{source: &source, kind: TokenTempl, offset: 27},
-		{source: &source, kind: TokenSpace, offset: 32},
-		{source: &source, kind: TokenEnd, offset: 33},
+		{kind: TokenPackage, offset: 0},
+		{kind: TokenSpace, offset: 7},
+		{kind: TokenTag, offset: 8},
+		{kind: TokenSpace, offset: 11},
+		{kind: TokenList, offset: 12},
+		{kind: TokenSpace, offset: 16},
+		{kind: TokenHtml, offset: 17},
+		{kind: TokenSpace, offset: 21},
+		{kind: TokenType, offset: 22},
+		{kind: TokenSpace, offset: 26},
+		{kind: TokenTempl, offset: 27},
+		{kind: TokenSpace, offset: 32},
+		{kind: TokenEnd, offset: 33},
 	}
 
 	got := []Token{}
@@ -196,7 +207,7 @@ func TestNext_keyword(t *testing.T) {
 		var offset int
 		var err error
 
-		token, offset, err = Tokenize(&source, end)
+		token, offset, err = tokenizer.Tokenize(end)
 
 		if err == EOF {
 			break
@@ -223,16 +234,17 @@ func TestNext_keyword(t *testing.T) {
 func TestNext_string(t *testing.T) {
 	source := `"" ":" "package" "foo" "\n"`
 	//         012345678901234567890123 45
+	tokenizer := NewTokenizer(source)
 	expected := []Token{
-		{source: &source, kind: TokenString, offset: 0},
-		{source: &source, kind: TokenSpace, offset: 2},
-		{source: &source, kind: TokenString, offset: 3},
-		{source: &source, kind: TokenSpace, offset: 6},
-		{source: &source, kind: TokenString, offset: 7},
-		{source: &source, kind: TokenSpace, offset: 16},
-		{source: &source, kind: TokenString, offset: 17},
-		{source: &source, kind: TokenSpace, offset: 22},
-		{source: &source, kind: TokenString, offset: 23},
+		{kind: TokenString, offset: 0},
+		{kind: TokenSpace, offset: 2},
+		{kind: TokenString, offset: 3},
+		{kind: TokenSpace, offset: 6},
+		{kind: TokenString, offset: 7},
+		{kind: TokenSpace, offset: 16},
+		{kind: TokenString, offset: 17},
+		{kind: TokenSpace, offset: 22},
+		{kind: TokenString, offset: 23},
 	}
 
 	got := []Token{}
@@ -241,7 +253,7 @@ func TestNext_string(t *testing.T) {
 		var token Token
 		var offset int
 		var err error
-		token, offset, err = Tokenize(&source, end)
+		token, offset, err = tokenizer.Tokenize(end)
 
 		if err == EOF {
 			break
@@ -269,9 +281,10 @@ func TestNext_comment(t *testing.T) {
 	source := `
 // line 1
 // line 2`
+	tokenizer := NewTokenizer(source)
 	expected := []Token{
-		{source: &source, kind: TokenEOL, offset: 0},
-		{source: &source, kind: TokenComment, offset: 1},
+		{kind: TokenEOL, offset: 0},
+		{kind: TokenComment, offset: 1},
 	}
 
 	got := []Token{}
@@ -281,7 +294,7 @@ func TestNext_comment(t *testing.T) {
 		var offset int
 		var err error
 
-		token, offset, err = Tokenize(&source, end)
+		token, offset, err = tokenizer.Tokenize(end)
 
 		if err == EOF {
 			break
@@ -308,8 +321,9 @@ func TestNext_comment(t *testing.T) {
 func TestNext_comment2(t *testing.T) {
 	source := `// line 1
 	           // line 2`
+	tokenizer := NewTokenizer(source)
 	expected := []Token{
-		{source: &source, kind: TokenComment, offset: 0},
+		{kind: TokenComment, offset: 0},
 	}
 	got := []Token{}
 	end := 0
@@ -319,7 +333,7 @@ func TestNext_comment2(t *testing.T) {
 		var offset int
 		var err error
 
-		token, offset, err = Tokenize(&source, end)
+		token, offset, err = tokenizer.Tokenize(end)
 
 		if err == EOF {
 			break
@@ -344,6 +358,7 @@ func TestNext_comment2(t *testing.T) {
 
 func TestPos(t *testing.T) {
 	source := "line1\nline2"
+	tokenizer := NewTokenizer(source)
 	tokens := []Token{}
 	nextTokenOffset := 0
 
@@ -352,7 +367,7 @@ func TestPos(t *testing.T) {
 		var end int
 		var err error
 
-		token, end, err = Tokenize(&source, nextTokenOffset)
+		token, end, err = tokenizer.Tokenize(nextTokenOffset)
 		if err == EOF {
 			break
 		}
@@ -370,7 +385,7 @@ func TestPos(t *testing.T) {
 		expectedLine := 0
 		expectedCol := 0
 		token := tokens[0]
-		gotLine, gotCol := token.Pos()
+		gotLine, gotCol := tokenizer.Pos(token)
 
 		if expectedLine != gotLine {
 			t.Errorf("expected line number to be %d got %d", expectedLine, gotLine)
@@ -384,7 +399,7 @@ func TestPos(t *testing.T) {
 		expectedLine := 0
 		expectedCol := 5
 		token := tokens[1]
-		gotLine, gotCol := token.Pos()
+		gotLine, gotCol := tokenizer.Pos(token)
 
 		if expectedLine != gotLine {
 			t.Errorf("expected line number to be %d got %d", expectedLine, gotLine)
@@ -398,7 +413,7 @@ func TestPos(t *testing.T) {
 		expectedLine := 1
 		expectedCol := 0
 		token := tokens[2]
-		gotLine, gotCol := token.Pos()
+		gotLine, gotCol := tokenizer.Pos(token)
 
 		if expectedLine != gotLine {
 			t.Errorf("expected line number to be %d got %d", expectedLine, gotLine)

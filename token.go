@@ -2,7 +2,6 @@ package template
 
 import (
 	"errors"
-	"fmt"
 )
 
 var (
@@ -19,41 +18,32 @@ var whitespaces = map[byte]bool{
 	'\f': true,
 }
 
-func Tokenize(s *string, offset int) (Token, int, error) {
-	t := Token{
-		kind:   TokenUndefined,
-		source: s,
-		offset: offset,
-	}
-	return t.next()
-}
-
-type TokenKind string
+type TokenKind int
 
 const (
-	TokenUndefined    TokenKind = "<>"
-	TokenColon                  = ":"
-	TokenEqual                  = "="
-	TokenPeriod                 = "."
-	TokenSemicolon              = ";"
-	TokenBraceLeft              = "{"
-	TokenBraceRight             = "}"
-	TokenBracketLeft            = "{"
-	TokenBracketRight           = "}"
-	TokenParLeft                = "("
-	TokenParRight               = ")"
-	TokenSpace                  = ":spc"
-	TokenEOL                    = ":eol"
-	TokenIdent                  = ":ident"
-	TokenPackage                = ":package"
-	TokenTag                    = ":tag"
-	TokenList                   = ":list"
-	TokenHtml                   = ":html"
-	TokenType                   = ":type"
-	TokenTempl                  = ":templ"
-	TokenEnd                    = ":end"
-	TokenString                 = ":str"
-	TokenComment                = ":comment"
+	TokenUndefined TokenKind = iota
+	TokenColon
+	TokenEqual
+	TokenPeriod
+	TokenSemicolon
+	TokenBraceLeft
+	TokenBraceRight
+	TokenBracketLeft
+	TokenBracketRight
+	TokenParLeft
+	TokenParRight
+	TokenSpace
+	TokenEOL
+	TokenIdent
+	TokenPackage
+	TokenTag
+	TokenList
+	TokenHtml
+	TokenType
+	TokenTempl
+	TokenEnd
+	TokenString
+	TokenComment
 )
 
 var keywords = map[string]TokenKind{
@@ -66,32 +56,31 @@ var keywords = map[string]TokenKind{
 	"end":     TokenEnd,
 }
 
-type Token struct {
+func NewTokenizer(s string) Tokenizer {
+	return Tokenizer{source: &s}
+}
+
+type Tokenizer struct {
 	source *string
-	kind   TokenKind
-	offset int
 }
 
-func (t Token) String() string {
-	return fmt.Sprintf("%s %d", t.kind, t.offset)
-}
-
-func (t Token) Equal(o Token) bool {
-	offset := t.offset == o.offset
-	kind := t.kind == o.kind
-	return offset && kind
+func (t Tokenizer) Tokenize(offset int) (Token, int, error) {
+	if t.source == nil {
+		panic("source is nil")
+	}
+	return t.next(offset)
 }
 
 // TODO: next should not be a method on Token
-func (t Token) next() (Token, int, error) {
+func (t Tokenizer) next(offset int) (Token, int, error) {
 	src := *t.source
 	kind := TokenUndefined
-	start := t.offset
-	end := t.offset
+	start := offset
+	end := offset
 	var char byte
 	var err error
 
-	if t.isEnd() {
+	if t.isEnd(offset) {
 		err = EOF
 		goto ret
 	}
@@ -120,15 +109,14 @@ func (t Token) next() (Token, int, error) {
 	case ')':
 		kind = TokenParRight
 	case '"':
-		kind, end, err = t.str()
+		kind, end, err = t.str(start)
 	case '/':
-		kind, end, err = t.comment()
-		{
-			// try parsing multi line comment
+		kind, end, err = t.comment(start)
+		{ // try parsing multi line comment
 			offset := end + 1
 			start := offset
 			for {
-				token, innerEnd, err := Tokenize(t.source, start)
+				token, innerEnd, err := t.Tokenize(start)
 
 				if err != nil {
 					break
@@ -151,36 +139,35 @@ func (t Token) next() (Token, int, error) {
 		}
 	default:
 		if whitespaces[char] {
-			kind, end, err = t.space()
+			kind, end, err = t.space(start)
 			break
 		}
 		if char == '\n' {
-			end = t.eol()
+			end = t.eol(start)
 			kind = TokenEOL
 			break
 		}
-		kind, end, err = t.ident()
+		kind, end, err = t.ident(start)
 		{
 			// check for keyword
 			offset := end + 1
 			lexeme := src[start:offset]
-			if k := keywords[lexeme]; k != "" {
+			if k, ok := keywords[lexeme]; ok {
 				kind = k
 			}
 		}
 	}
 
 ret:
-	offset := end + 1
-	next := Token{
-		source: t.source,
+	next := end + 1
+	token := Token{
 		kind:   kind,
 		offset: start,
 	}
-	return next, offset, err
+	return token, next, err
 }
 
-func (t Token) ident() (TokenKind, int, error) {
+func (t Tokenizer) ident(offset int) (TokenKind, int, error) {
 	isAlpha := func(c byte) bool {
 		lowercase := c >= 'a' && c <= 'z'
 		uppercase := c >= 'A' && c <= 'Z'
@@ -197,39 +184,41 @@ func (t Token) ident() (TokenKind, int, error) {
 	}
 
 	src := *t.source
-	char := src[t.offset]
+	char := src[offset]
 	if !isAlpha(char) {
-		return TokenUndefined, t.offset, ErrInvalid
+		return TokenUndefined, offset, ErrInvalid
 	}
 
-	offset := t.offset + 1
-	for !isEndAt(src, offset) {
-		char = src[offset]
+	// NOTE: If offset is passed by value this should'nt be a problem
+	next := offset + 1
+	for !isEndAt(src, next) {
+		char = src[next]
 		if !isAlphaNumeric(char) {
 			break
 		}
-		offset += 1
+		next += 1
 	}
 
-	end := offset - 1
+	end := next - 1
 	return TokenIdent, end, nil
 }
 
-func (t Token) str() (TokenKind, int, error) {
+func (t Tokenizer) str(offset int) (TokenKind, int, error) {
 	src := *t.source
-	offset := t.offset + 1
+	// NOTE: If offset is passed by value this should'nt be a problem
+	next := offset + 1
 	var char byte
 	var err error
-	for !isEndAt(src, offset) {
-		char = src[offset]
+	for !isEndAt(src, next) {
+		char = src[next]
 		if char == '"' {
-			offset += 1
+			next += 1
 			break
 		}
-		offset += 1
+		next += 1
 	}
 
-	end := offset - 1
+	end := next - 1
 	if src[end] != '"' {
 		err = ErrUnterminatedString
 	}
@@ -237,13 +226,13 @@ func (t Token) str() (TokenKind, int, error) {
 	return TokenString, end, err
 }
 
-func (t Token) comment() (TokenKind, int, error) {
+func (t Tokenizer) comment(offset int) (TokenKind, int, error) {
 	var char byte
 	var err error
 
 	src := *t.source
-	markerEnd := t.offset + 1
-	end := t.offset
+	markerEnd := offset + 1
+	end := offset
 
 	if isEndAt(src, markerEnd) {
 		err = ErrInvalid
@@ -274,46 +263,46 @@ ret:
 	return TokenComment, end, err
 }
 
-func (t Token) eol() int {
+func (t Tokenizer) eol(offset int) int {
 	src := *t.source
-	offset := t.offset + 1
+	next := offset + 1
 	var char byte
-	for !isEndAt(src, offset) {
-		char = src[offset]
+	for !isEndAt(src, next) {
+		char = src[next]
 		if char != '\n' {
 			break
 		}
-		offset += 1
+		next += 1
 	}
-	end := offset - 1
+	end := next - 1
 	return end
 }
 
-func (t Token) space() (TokenKind, int, error) {
-	offset := t.offset + 1
+func (t Tokenizer) space(offset int) (TokenKind, int, error) {
+	next := offset + 1
 	src := *t.source
 	var char byte
-	for !isEndAt(src, offset) {
-		char = src[offset]
+	for !isEndAt(src, next) {
+		char = src[next]
 		if !whitespaces[char] {
 			break
 		}
-		offset += 1
+		next += 1
 	}
-	end := offset - 1
+	end := next - 1
 	return TokenSpace, end, nil
 }
 
-func (t Token) isEnd() bool {
-	return isEndAt(*t.source, t.offset)
+func (t Tokenizer) isEnd(offset int) bool {
+	return isEndAt(*t.source, offset)
 }
 
-func (t Token) Pos() (int, int) {
+func (t Tokenizer) Pos(token Token) (int, int) {
 	src := *t.source
 	lineNumber := 0
 	colNumber := 0
-	end := t.offset
-	if t.isEnd() {
+	end := token.offset
+	if t.isEnd(token.offset) {
 		end = len(src)
 	}
 
@@ -331,4 +320,15 @@ func (t Token) Pos() (int, int) {
 
 func isEndAt(source string, i int) bool {
 	return i >= len(source)
+}
+
+type Token struct {
+	kind   TokenKind
+	offset int
+}
+
+func (t Token) Equal(o Token) bool {
+	offset := t.offset == o.offset
+	kind := t.kind == o.kind
+	return offset && kind
 }

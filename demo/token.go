@@ -17,18 +17,19 @@ func tokenize(path string) {
 	defer f.Close()
 
 	source, err := io.ReadAll(f)
-	str := string(source)
 	if err != nil {
 		log.Fatalf("Unable to read file: %v", err)
 	}
 
+	str := string(source)
+	tokenizer := template.NewTokenizer(str)
 	tokens := []template.Token{}
 	next := 0
 	for {
 		var token template.Token
 		var offset int
 		var err error
-		token, offset, err = template.Tokenize(&str, next)
+		token, offset, err = tokenizer.Tokenize(next)
 		if err == template.EOF {
 			break
 		}
@@ -42,7 +43,7 @@ func tokenize(path string) {
 	}
 
 	for _, token := range tokens {
-		line, col := token.Pos()
+		line, col := tokenizer.Pos(token)
 		fmt.Printf("(%v [%d, %d])\n", token, line, col)
 	}
 }
