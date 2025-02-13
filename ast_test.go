@@ -9,7 +9,7 @@ import (
 func TestPackage(t *testing.T) {
 	var parse Parser
 	{
-		source := `pkg : package: tag("home");`
+		source := `pkg : package: package_tag("home");`
 		//         0123456789012345678901234
 		t := NewTokenizer(source)
 		parse = NewParser(t)

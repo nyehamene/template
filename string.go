@@ -40,11 +40,11 @@ func (t TokenKind) String() string {
 	case TokenPackage:
 		str = ":package"
 	case TokenTag:
-		str = ":tag"
+		str = ":package_tag"
 	case TokenList:
-		str = ":list"
+		str = ":package_list"
 	case TokenHtml:
-		str = ":html"
+		str = ":package_html"
 	case TokenType:
 		str = ":type"
 	case TokenTempl:

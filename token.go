@@ -47,13 +47,13 @@ const (
 )
 
 var keywords = map[string]TokenKind{
-	"package": TokenPackage,
-	"tag":     TokenTag,
-	"list":    TokenList,
-	"html":    TokenHtml,
-	"type":    TokenType,
-	"templ":   TokenTempl,
-	"end":     TokenEnd,
+	"package":      TokenPackage,
+	"package_tag":  TokenTag,
+	"package_list": TokenList,
+	"package_html": TokenHtml,
+	"type":         TokenType,
+	"templ":        TokenTempl,
+	"end":          TokenEnd,
 }
 
 func NewTokenizer(s string) Tokenizer {
