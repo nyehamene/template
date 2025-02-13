@@ -326,9 +326,3 @@ type Token struct {
 	kind   TokenKind
 	offset int
 }
-
-func (t Token) Equal(o Token) bool {
-	offset := t.offset == o.offset
-	kind := t.kind == o.kind
-	return offset && kind
-}

@@ -60,3 +60,16 @@ func (t TokenKind) String() string {
 	}
 	return str
 }
+
+func (k AstKind) String() string {
+	switch k {
+	case AstPackage:
+		return ":package"
+	case AstTag:
+		return ":tag"
+	case AstIdent:
+		return ":ident"
+	default:
+		panic("unreachable")
+	}
+}
