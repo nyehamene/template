@@ -67,6 +67,10 @@ func (k AstKind) String() string {
 		return ":package"
 	case AstTag:
 		return ":tag"
+	case AstTypeDef:
+		return ":type"
+	case AstRecordDef:
+		return ":record"
 	case AstIdent:
 		return ":ident"
 	default:

@@ -19,6 +19,8 @@ const (
 	AstPackage AstKind = iota
 	AstTag
 	AstIdent
+	AstTypeDef
+	AstRecordDef
 )
 
 type Ast struct {
@@ -36,16 +38,41 @@ func (p Parser) Package(start int) (Ast, int, error) {
 	var err error
 	var next int = start
 	// pkg: package: tag("home")
-	ident, next, err := p.expect(nil, next, TokenIdent, p.optionalSpace)
-	_, next, err = p.expect(err, next, TokenColon, p.optionalSpace)
-	_, next, _ = p.optional(err, next, TokenPackage, p.optionalSpace)
-	_, next, err = p.expect(err, next, TokenColon, p.optionalSpace)
-	_, next, err = p.expect(err, next, TokenTag, p.optionalSpace)
-	_, next, err = p.expect(err, next, TokenParLeft, p.optionalSpace)
-	_, next, err = p.expect(err, next, TokenString, p.optionalSpace)
-	_, next, err = p.expect(err, next, TokenParRight, p.optionalSpace)
-	_, next, err = p.expect(err, next, TokenSemicolon, p.optionalSpace)
+	ident, next, err := p.expect(nil, next, TokenIdent, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenColon, p.skip(TokenSpace))
+	_, next, _ = p.optional(err, next, TokenPackage, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenColon, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenTag, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenParLeft, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenString, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenParRight, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenSemicolon, p.skip(TokenSpace))
 	return Ast{AstPackage, AstIdent, AstTag, ident.offset}, next, err
+}
+
+func (p Parser) TypeDef(start int) (Ast, int, error) {
+	var err error
+	var next int = start
+	// t : type : record {};
+	// t :: record {};
+	// t :: record { a: A; };
+	ident, next, err := p.expect(nil, next, TokenIdent, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenColon, p.skip(TokenSpace))
+	_, next, _ = p.optional(err, next, TokenType, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenColon, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenRecord, p.skip(TokenSpace))
+	_, next, err = p.expect(err, next, TokenBraceLeft, p.skip(TokenSpace))
+	for {
+		_, n, e := p.expect(err, next, TokenIdent, p.skip(TokenSpace, TokenEOL))
+		if e != nil {
+			break
+		}
+		_, next, err = p.expect(nil, n, TokenColon, p.skip(TokenSpace))
+		_, next, err = p.expect(err, next, TokenIdent, p.skip(TokenSpace))
+		_, next, err = p.expect(err, next, TokenSemicolon, p.skip(TokenSpace))
+	}
+	_, next, err = p.expect(err, next, TokenBraceRight, p.skip(TokenSpace, TokenEOL))
+	return Ast{AstTypeDef, AstIdent, AstRecordDef, ident.offset}, next, err
 }
 
 func (p Parser) optional(err error, start int, kind TokenKind, matchers ...parsematcher) (Token, int, bool) {
@@ -94,21 +121,32 @@ func (p Parser) expect(err error, start int, kind TokenKind, matchers ...parsema
 	return handler(start)
 }
 
-func (p Parser) optionalSpace(h parsehandler) parsehandler {
-	return func(start int) (Token, int, error) {
-		var nothing Token
-		var afterSpace = start
-		for {
-			token, next, err := p.tokenizer.next(afterSpace)
-			if err != nil {
-				return nothing, start, err
+func (p Parser) skip(kind TokenKind, others ...TokenKind) parsematcher {
+	return func(h parsehandler) parsehandler {
+		return func(start int) (Token, int, error) {
+			var nothing Token
+			var afterToken = start
+			for {
+				token, next, err := p.tokenizer.next(afterToken)
+				if err != nil {
+					return nothing, start, err
+				}
+				if token.kind != kind {
+					// and not equal to any
+					for _, k := range others {
+						if token.kind == k {
+							// otherwise
+							goto skipToken
+						}
+					}
+					// then stop skipping
+					next -= 1
+					break
+				}
+			skipToken:
+				afterToken = next
 			}
-			if token.kind != TokenSpace {
-				next -= 1
-				break
-			}
-			afterSpace = next
+			return h(afterToken)
 		}
-		return h(afterSpace)
 	}
 }

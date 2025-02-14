@@ -40,6 +40,7 @@ const (
 	TokenList
 	TokenHtml
 	TokenType
+	TokenRecord
 	TokenTempl
 	TokenEnd
 	TokenString
@@ -52,6 +53,7 @@ var keywords = map[string]TokenKind{
 	"package_list": TokenList,
 	"package_html": TokenHtml,
 	"type":         TokenType,
+	"record":       TokenRecord,
 	"templ":        TokenTempl,
 	"end":          TokenEnd,
 }
