@@ -38,7 +38,7 @@ func (p Parser) Package(start int) (Ast, int, error) {
 	// pkg: package: tag("home")
 	ident, next, err := p.expect(nil, next, TokenIdent, p.optionalSpace)
 	_, next, err = p.expect(err, next, TokenColon, p.optionalSpace)
-	_, next, err = p.expect(err, next, TokenPackage, p.optionalSpace)
+	_, next, _ = p.optional(err, next, TokenPackage, p.optionalSpace)
 	_, next, err = p.expect(err, next, TokenColon, p.optionalSpace)
 	_, next, err = p.expect(err, next, TokenTag, p.optionalSpace)
 	_, next, err = p.expect(err, next, TokenParLeft, p.optionalSpace)
@@ -46,6 +46,24 @@ func (p Parser) Package(start int) (Ast, int, error) {
 	_, next, err = p.expect(err, next, TokenParRight, p.optionalSpace)
 	_, next, err = p.expect(err, next, TokenSemicolon, p.optionalSpace)
 	return Ast{AstPackage, AstIdent, AstTag, ident.offset}, next, err
+}
+
+func (p Parser) optional(err error, start int, kind TokenKind, matchers ...parsematcher) (Token, int, bool) {
+	var nothing Token
+	if err != nil {
+		return nothing, start, false
+	}
+
+	t, next, err := p.expect(err, start, kind, matchers...)
+	if err != nil {
+		return nothing, start, false
+	}
+
+	if t.kind != kind {
+		return nothing, start, false
+	}
+
+	return t, next, true
 }
 
 func (p Parser) expect(err error, start int, kind TokenKind, matchers ...parsematcher) (Token, int, error) {

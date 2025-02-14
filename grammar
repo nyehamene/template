@@ -3,18 +3,18 @@ template := page
    =:
 
 page :=
-    ident ":" [ "package" ] "=" "package" package_name ";"
+    ident ":" [ "package" ] ":" "package" package_name ";"
     [ { record | fn_templ } { templ } ]
    =:
 
 component :=
-    ident ":" [ "package" ] "=" "component" package_name ";"
+    ident ":" [ "package" ] ":" "component" package_name ";"
     [ { record | fn_templ } ]
    =:
 
-package_name := "tag"  "(" string ")"
-    | "list" "(" string ")"
-	| "list" "(" string ")"
+package_name := "package_tag"  "(" string ")"
+    | "package_list" "(" string ")"
+	| "package_list" "(" string ")"
    =:
 
 ident := /[a-zA-Z_][a-zA-Z0-9_]*/ =:
@@ -25,7 +25,7 @@ dquote : "double quote"
 dquote := "\"" :=
 
 record :=
-	type_ident ":" [ "type" ] "=" "record" "{" [ { var } ] "}"
+	type_ident ":" [ "type" ] ":" "record" "{" [ { var } ] "}"
    =:
 
 type_ident : "a type name must be in upper camel case"
@@ -39,7 +39,7 @@ nsp : "no white space"
 
 fn_templ : "function template"
 fn_templ :=
-    ident ":" [ "templ" ] "=" "(" type_ident ")" [ { templ | content } ] "end"
+    ident ":" [ "templ" ] ":" "(" type_ident ")" [ { templ | content } ] "end"
    =:
 
 templ := tag
