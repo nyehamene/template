@@ -111,6 +111,7 @@ func (p Parser) TypeDef(start int) (Ast, int, error) {
 		}
 	}
 	_, next, err = p.expect(next, TokenBraceRight, p.skip(TokenSpace, TokenEOL))
+	_, next, err = p.expect(next, TokenSemicolon, p.skip(TokenSpace))
 	return Ast{AstTypeDef, AstIdent, AstRecordDef, ident.offset}, next, err
 }
 

@@ -65,21 +65,21 @@ func TestType(t *testing.T) {
 	var testcases []Parser
 	var wants [][]Ast
 	{
-		source := "f : type : record {}"
+		source := "f : type : record {};"
 		//         01234567890123456789
 		want := []Ast{{AstTypeDef, AstIdent, AstRecordDef, 0}}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
 	}
 	{
-		source := "f :: record {}"
+		source := "f :: record {};"
 		//         01234567890123456789
 		want := []Ast{{AstTypeDef, AstIdent, AstRecordDef, 0}}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
 	}
 	{
-		source := "f :: record { a: A; }"
+		source := "f :: record { a: A; };"
 		//         01234567890123456789
 		want := []Ast{{AstTypeDef, AstIdent, AstRecordDef, 0}}
 		wants = append(wants, want)
@@ -88,7 +88,7 @@ func TestType(t *testing.T) {
 	{
 		source := `f :: record { a: A;
 		b: B;
-		}`
+		};`
 		want := []Ast{{AstTypeDef, AstIdent, AstRecordDef, 0}}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
