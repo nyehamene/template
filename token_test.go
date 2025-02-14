@@ -12,7 +12,7 @@ import (
 //          type record templ end
 // primary ident string
 
-func TestNext_char(t *testing.T) {
+func TestTokenize_char(t *testing.T) {
 	source := ":=.;{}[]()"
 	expected := []Token{
 		{kind: TokenColon, offset: 0},
@@ -60,7 +60,7 @@ func TestNext_char(t *testing.T) {
 	}
 }
 
-func TestNext_space(t *testing.T) {
+func TestTokenize_space(t *testing.T) {
 	source := " \t\r\v\f"
 	tokenizer := NewTokenizer(source)
 
@@ -80,7 +80,7 @@ func TestNext_space(t *testing.T) {
 	}
 }
 
-func TestNext_newline(t *testing.T) {
+func TestTokenize_newline(t *testing.T) {
 	source := "\n\n"
 	tokenizer := NewTokenizer(source)
 
@@ -101,7 +101,7 @@ func TestNext_newline(t *testing.T) {
 	}
 }
 
-func TestNext_newline2(t *testing.T) {
+func TestTokenize_newline2(t *testing.T) {
 	source := `foo
 bar`
 	tokenizer := NewTokenizer(source)
@@ -139,7 +139,7 @@ bar`
 	}
 }
 
-func TestNext_ident(t *testing.T) {
+func TestTokenize_ident(t *testing.T) {
 	source := "foo bar"
 	tokenizer := NewTokenizer(source)
 
@@ -179,7 +179,7 @@ func TestNext_ident(t *testing.T) {
 	}
 }
 
-func TestNext_keyword(t *testing.T) {
+func TestTokenize_keyword(t *testing.T) {
 	source := "package package_tag package_list package_html type templ end record"
 	//         0123456789012345678901234567890123456789012345678901234567890123456
 	tokenizer := NewTokenizer(source)
@@ -233,7 +233,7 @@ func TestNext_keyword(t *testing.T) {
 	}
 }
 
-func TestNext_string(t *testing.T) {
+func TestTokenize_string(t *testing.T) {
 	source := `"" ":" "package" "foo" "\n"`
 	//         012345678901234567890123 45
 	tokenizer := NewTokenizer(source)
@@ -279,7 +279,7 @@ func TestNext_string(t *testing.T) {
 	}
 }
 
-func TestNext_comment(t *testing.T) {
+func TestTokenize_comment(t *testing.T) {
 	source := `
 // line 1
 // line 2`
@@ -320,7 +320,7 @@ func TestNext_comment(t *testing.T) {
 	}
 }
 
-func TestNext_comment2(t *testing.T) {
+func TestTokenize_comment2(t *testing.T) {
 	source := `// line 1
 	           // line 2`
 	tokenizer := NewTokenizer(source)
