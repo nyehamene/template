@@ -1,22 +1,22 @@
-p := package tag("home");
+p :: package tag("home");
 
 // Models
 
 User : "Model"
-User :type = record {
+User : type : record {
     first: string;
     last: string;
     email: string;
     }
 
 Product : "Model"
-Product := record {
+Product :: record {
     name: string;
     price: string;
     }
 
-Store := "Model"
-Store := {
+Store : "Model"
+Store :: {
     name: string;
     location: string;
     }
