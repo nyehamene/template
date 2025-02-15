@@ -65,11 +65,11 @@ func (k AstKind) String() string {
 	switch k {
 	case AstPackage:
 		return ":package"
-	case AstTemplateTag:
+	case AstTagPackage:
 		return ":tag"
-	case AstTemplateList:
+	case AstListPackage:
 		return ":list"
-	case AstTemplateHtml:
+	case AstHtmlPackage:
 		return ":html"
 	case AstTypeIdent:
 		return ":type_ident"

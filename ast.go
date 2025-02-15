@@ -17,9 +17,9 @@ type AstKind int
 
 const (
 	AstPackage AstKind = iota
-	AstTemplateTag
-	AstTemplateList
-	AstTemplateHtml
+	AstTagPackage
+	AstListPackage
+	AstHtmlPackage
 	AstIdent
 	AstTypeIdent
 	AstTypeDef
@@ -75,7 +75,7 @@ func (p Parser) Package(start int) (Ast, int, error) {
 
 func (p Parser) packageKind(start int) (AstKind, int, error) {
 	next := start
-	kind := AstTemplateTag
+	kind := AstTagPackage
 	if k, n, ok := p.packageKind0(next); ok {
 		kind = k
 		next = n
@@ -109,11 +109,11 @@ func (p Parser) packageKind0(start int) (AstKind, int, bool) {
 	}
 	switch token.kind {
 	case TokenTag:
-		return AstTemplateTag, n, true
+		return AstTagPackage, n, true
 	case TokenList:
-		return AstTemplateList, n, true
+		return AstListPackage, n, true
 	case TokenHtml:
-		return AstTemplateHtml, n, true
+		return AstHtmlPackage, n, true
 	default:
 		return AstPackage, n, false
 	}
