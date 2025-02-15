@@ -56,6 +56,8 @@ func (k TokenKind) String() string {
 		return "alias"
 	case TokenComment:
 		return "comment"
+	case TokenRecord:
+		return "record"
 	default:
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}
