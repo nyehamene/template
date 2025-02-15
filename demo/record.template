@@ -1,4 +1,4 @@
-p :: package tag("home");
+p :: package_tag("home");
 
 // Models
 

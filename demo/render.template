@@ -1,10 +1,10 @@
 p : "define a package"
-p : package : package tag("home");
-p : package : package list("home");
-p : package : package html("home");
-p :: package html("home");
+p : package : package_tag("home");
+p : package : package_list("home");
+p : package : package_html("home");
+p :: package_html("home");
 
-// use a type define in another namespace in the same package
+// use a type defined in another namespace in the same package
 Button : type : p.namespace.Type;
 
 User : "define a model"
@@ -20,6 +20,16 @@ User :: record {
 	password: string;
 	}
 
+User : """
+	""" A multi-line documentation
+	""" - The record keyword is omitted in the first comment below
+	"""
+	""" - The both the record and type keywords are omitted in the
+	""" - second comment below
+	"""
+	""" Supports markdown syntax
+	"""
+
 // User : type : {
 // 	   name: string;
 // 	   email: string;
@@ -33,34 +43,10 @@ User :: record {
 // 	   }
 
 render : "define a template"
-render : templ : (User)
+render : templ : (User) {
     <div
     	<p Username: (name)/>
     	<p Email:    (email)/>
     	<p Password: (password)/>
     	/>
-    end
-
-// render : templ : tag(User)
-// 	    <div
-// 	    	<p Username: (name)/>
-// 	    	<p Email:    (email)/>
-// 	    	<p Password: (password)/>
-// 	    	/>
-// 	    end
-
-// render : templ : list(User)
-// 	    [div
-// 	    	[p Username: (name)]
-// 	    	[p Email:    (email)]
-// 	    	[p Password: (password)]
-// 	    	]
-// 	    end
-
-// render : templ : html(User)
-// 	    <div>
-// 	    	<p>Username: (name)</p>
-// 	    	<p>Email:    (email)</p>
-// 	    	<p>Password: (password)</p>
-// 	    	</div>
-// 	    end
+    }

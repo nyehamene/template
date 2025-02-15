@@ -1,23 +1,23 @@
-source := package [ { def } ] =:
+source := package { def } =:
 
-package := $ident ":" [ "package" ] ":" package_kind ";" =:
+package := $ident ":" [ "package" ] ":" package_kind ";" { $eol } =:
 
 package_kind :=
-    "package_tag"  "(" $string ")" |
-	"package_list" "(" $string ")" |
-	"package_html" "(" $string ")"
+    "package_tag"  "(" { $eol } $string ")" |
+	"package_list" "(" { $eol } $string ")" |
+	"package_html" "(" { $eol } $string ")"
 	=:
 
-def := ( type_def | templ_def ) ";" =:
+def := ( type_def | templ_def ) ";" { $eol } =:
 
 type_def   := type_decl ":" ( record_def | alias_def ) =:
-record_def := "record" "{" [ { decl ";" } ] "}" =:
+record_def := "record" "{"  { $eol } { decl ";" { $eol } } "}" =:
 alias_def  := "alias" $type_ident =:
 
-templ_def   := templ_decl ":" templ_model "{" templ_body "}" =:
-templ_model := "(" $type_ident ")" =:
-templ_body  := [ { $tag_elem | $list_elem | $html_elem} ] =:
+templ_def   := templ_decl ":" templ_model "{"  { $eol } templ_body "}" =:
+templ_model := "("  { $eol } $type_ident ")" =:
+templ_body  := { $tag_elem | $list_elem | $html_elem} =:
 
-decl       := $ident      [ { "," $ident } ] ":" $type_ident =:
-type_decl  := $type_ident [ { "," $type_ident } ] ":" "type" =:
+decl       := $ident      { "," { $eol } $ident }      ":" [ $type_ident ] =:
+type_decl  := $type_ident { "," { $eol } $type_ident } ":" [ "type" ] =:
 templ_decl := $ident ":" "templ" =:

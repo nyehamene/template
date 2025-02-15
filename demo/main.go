@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"os"
 )
@@ -14,5 +15,22 @@ func main() {
 	}
 
 	path := os.Args[templateSourceArgIndex]
-	tokenize(path)
+
+	f, err := os.Open(path)
+	if err != nil {
+		log.Fatalf("Unable to open file: %v", err)
+	}
+
+	defer f.Close()
+
+	source, err := io.ReadAll(f)
+	if err != nil {
+		log.Fatalf("Unable to read file: %v", err)
+	}
+
+	log.Println("\nTokenizing")
+	tokenize(source)
+
+	log.Println("\nParsing")
+	parse(source)
 }
