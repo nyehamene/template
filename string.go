@@ -6,8 +6,8 @@ func (t Token) String() string {
 	return fmt.Sprintf("%s %d", t.kind, t.offset)
 }
 
-func (t TokenKind) String() string {
-	switch t {
+func (k TokenKind) String() string {
+	switch k {
 	case TokenUndefined:
 		return "<>"
 	case TokenColon:
@@ -31,63 +31,61 @@ func (t TokenKind) String() string {
 	case TokenParRight:
 		return ")"
 	case TokenSpace:
-		return ":spc"
+		return "spc"
 	case TokenEOL:
-		return ":eol"
+		return "eol"
 	case TokenIdent:
-		return ":ident"
+		return "ident"
 	case TokenPackage:
-		return ":package"
+		return "package"
 	case TokenTag:
-		return ":package_tag"
+		return "package_tag"
 	case TokenList:
-		return ":package_list"
+		return "package_list"
 	case TokenHtml:
-		return ":package_html"
+		return "package_html"
 	case TokenType:
-		return ":type"
+		return "type"
 	case TokenTempl:
-		return ":templ"
+		return "templ"
 	case TokenEnd:
-		return ":end"
+		return "end"
 	case TokenString:
-		return ":str"
+		return "str"
 	case TokenAlias:
-		return ":alias"
+		return "alias"
 	case TokenComment:
-		return ":comment"
+		return "comment"
 	default:
-		// TODO: use %v format specifier
-		panic("unreachable")
+		panic(fmt.Sprintf("unreachable: %#v", k))
 	}
 }
 
 func (k AstKind) String() string {
 	switch k {
 	case AstPackage:
-		return ":package"
+		return "package"
 	case AstTagPackage:
-		return ":tag"
+		return "tag"
 	case AstListPackage:
-		return ":list"
+		return "list"
 	case AstHtmlPackage:
-		return ":html"
+		return "html"
 	case AstTypeIdent:
-		return ":type_ident"
+		return "type_ident"
 	case AstTypeDef:
-		return ":type"
+		return "type"
 	case AstRecordDef:
-		return ":record"
+		return "record"
 	case AstAliasDef:
-		return ":alias"
+		return "alias"
 	case AstIdent:
-		return ":ident"
+		return "ident"
 	case AstTemplateDef:
-		return ":templ"
+		return "templ"
 	case AstTemplateBody:
-		return ":templ_body"
+		return "templ_body"
 	default:
-		// TODO: use %v format specifier
-		panic("unreachable")
+		panic(fmt.Sprintf("unreachable: %#v", k))
 	}
 }
