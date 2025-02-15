@@ -38,28 +38,35 @@ type Parser struct {
 func (p Parser) Package(start int) (Ast, int, error) {
 	var ident Token
 	var right AstKind
-	var next int = start
 	var err error
-	// pkg: package: tag("home")
+
+	ast := Ast{kind: AstPackage}
+	next := start
+
 	if ident, next, err = p.expect(next, TokenIdent, p.skipBefore(TokenSpace)); err != nil {
-		return Ast{}, next, err
+		return ast, next, err
 	}
+	ast.offset = ident.offset
+	ast.left = AstIdent
+
 	if _, next, err = p.expect(next, TokenColon, p.skipBefore(TokenSpace)); err != nil {
-		return Ast{}, next, err
+		return ast, next, err
 	}
 	if _, n, ok := p.optional(next, TokenPackage, p.skipBefore(TokenSpace)); ok {
 		next = n
 	}
 	if _, next, err = p.expect(next, TokenColon, p.skipBefore(TokenSpace)); err != nil {
-		return Ast{}, next, err
+		return ast, next, err
 	}
 	if right, next, err = p.packageKind(next); err != nil {
-		return Ast{}, next, err
+		return ast, next, err
 	}
+	ast.right = right
+
 	if _, next, err = p.expect(next, TokenSemicolon, p.skipBefore(TokenSpace)); err != nil {
-		return Ast{}, next, err
+		return ast, next, err
 	}
-	return Ast{AstPackage, AstIdent, right, ident.offset}, next, err
+	return ast, next, nil
 }
 
 func (p Parser) packageKind(start int) (AstKind, int, error) {
@@ -113,7 +120,7 @@ func (p Parser) typeDecl(start int) (Token, int, error) {
 	if _, n, ok := p.optional(next, TokenType, p.skipBefore(TokenSpace)); ok {
 		next = n
 	}
-	return ident, next, err
+	return ident, next, nil
 }
 
 func (p Parser) recordDef(start int) (AstKind, int, bool) {
