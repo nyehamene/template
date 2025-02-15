@@ -45,6 +45,7 @@ const (
 	TokenEnd
 	TokenString
 	TokenComment
+	TokenAlias
 )
 
 var keywords = map[string]TokenKind{
@@ -56,6 +57,7 @@ var keywords = map[string]TokenKind{
 	"record":       TokenRecord,
 	"templ":        TokenTempl,
 	"end":          TokenEnd,
+	"alias":        TokenAlias,
 }
 
 func NewTokenizer(s string) Tokenizer {

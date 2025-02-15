@@ -180,8 +180,8 @@ func TestTokenize_ident(t *testing.T) {
 }
 
 func TestTokenize_keyword(t *testing.T) {
-	source := "package package_tag package_list package_html type templ end record"
-	//         0123456789012345678901234567890123456789012345678901234567890123456
+	source := "package package_tag package_list package_html type templ end record alias"
+	//         0123456789012345678901234567890123456789012345678901234567890123456789012
 	tokenizer := NewTokenizer(source)
 
 	expected := []Token{
@@ -200,6 +200,8 @@ func TestTokenize_keyword(t *testing.T) {
 		{kind: TokenEnd, offset: 57},
 		{kind: TokenSpace, offset: 60},
 		{kind: TokenRecord, offset: 61},
+		{kind: TokenSpace, offset: 67},
+		{kind: TokenAlias, offset: 68},
 	}
 
 	got := []Token{}

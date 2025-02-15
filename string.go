@@ -52,6 +52,8 @@ func (t TokenKind) String() string {
 		return ":end"
 	case TokenString:
 		return ":str"
+	case TokenAlias:
+		return ":alias"
 	case TokenComment:
 		return ":comment"
 	default:
@@ -71,6 +73,8 @@ func (k AstKind) String() string {
 		return ":type"
 	case AstRecordDef:
 		return ":record"
+	case AstAliasDef:
+		return ":alias"
 	case AstIdent:
 		return ":ident"
 	default:

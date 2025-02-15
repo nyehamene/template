@@ -22,6 +22,7 @@ const (
 	AstTypeIdent
 	AstTypeDef
 	AstRecordDef
+	AstAliasDef
 )
 
 type Ast struct {
@@ -90,21 +91,46 @@ func (p Parser) packageKind(start int) (AstKind, int, error) {
 func (p Parser) TypeDef(start int) (Ast, int, error) {
 	var ident Token
 	var err error
-	var next int = start
-	// t : type : record {};
-	// t :: record {};
-	// t :: record { a: A; };
+
+	ast := Ast{kind: AstTypeDef}
+	next := start
+
 	if ident, next, err = p.typeDecl(next); err != nil {
-		return Ast{left: AstTypeDef}, next, err
+		return ast, next, err
 	}
-	if _, next, err = p.expect(next, TokenColon, p.skipBefore(TokenSpace)); err != nil {
-		return Ast{left: AstTypeDef}, next, err
+	ast.offset = ident.offset
+	ast.left = AstTypeIdent
+
+	if ident, next, err = p.expect(next, TokenColon, p.skipBefore(TokenSpace)); err != nil {
+		return ast, next, err
 	}
-	if _, n, ok := p.recordDef(next); ok {
+
+	if kind, n, ok := p.recordDef(next); ok {
 		next = n
+		ast.right = kind
+	} else if kind, n, ok := p.aliasDef(next); ok {
+		next = n
+		ast.right = kind
+	} else {
+		// TODO: get the offset of the next none space token
+		return ast, next, fmt.Errorf("expected a record or alias definition")
 	}
-	_, next, err = p.expect(next, TokenSemicolon, p.skipBefore(TokenSpace))
-	return Ast{AstTypeDef, AstTypeIdent, AstRecordDef, ident.offset}, next, err
+	if _, next, err = p.expect(next, TokenSemicolon, p.skipBefore(TokenSpace)); err != nil {
+		return ast, next, err
+	}
+	return ast, next, nil
+}
+
+func (p Parser) aliasDef(start int) (AstKind, int, bool) {
+	var err error
+	next := start
+	if _, next, err = p.expect(next, TokenAlias, p.skipBefore(TokenSpace)); err != nil {
+		return AstAliasDef, next, false
+	}
+	if _, next, err = p.expect(next, TokenIdent, p.skipBefore(TokenSpace)); err != nil {
+		return AstAliasDef, next, false
+	}
+	return AstAliasDef, next, true
 }
 
 func (p Parser) typeDecl(start int) (Token, int, error) {
