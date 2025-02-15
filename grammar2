@@ -10,7 +10,7 @@ package_kind :=
 
 def := ( type_def | templ_def ) ";" =:
 
-type_def := type_decl ":" ( record_def | alias_def ) =:
+type_def   := type_decl ":" ( record_def | alias_def ) =:
 record_def := "record" "{" [ { decl ";" } ] "}" =:
 alias_def  := "alias" $type_ident =:
 

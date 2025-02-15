@@ -7,58 +7,56 @@ func (t Token) String() string {
 }
 
 func (t TokenKind) String() string {
-	str := ""
 	switch t {
 	case TokenUndefined:
-		str = "<>"
+		return "<>"
 	case TokenColon:
-		str = ":"
+		return ":"
 	case TokenEqual:
-		str = "="
+		return "="
 	case TokenPeriod:
-		str = "."
+		return "."
 	case TokenSemicolon:
-		str = ";"
+		return ";"
 	case TokenBraceLeft:
-		str = "{"
+		return "{"
 	case TokenBraceRight:
-		str = "}"
+		return "}"
 	case TokenBracketLeft:
-		str = "{"
+		return "{"
 	case TokenBracketRight:
-		str = "}"
+		return "}"
 	case TokenParLeft:
-		str = "("
+		return "("
 	case TokenParRight:
-		str = ")"
+		return ")"
 	case TokenSpace:
-		str = ":spc"
+		return ":spc"
 	case TokenEOL:
-		str = ":eol"
+		return ":eol"
 	case TokenIdent:
-		str = ":ident"
+		return ":ident"
 	case TokenPackage:
-		str = ":package"
+		return ":package"
 	case TokenTag:
-		str = ":package_tag"
+		return ":package_tag"
 	case TokenList:
-		str = ":package_list"
+		return ":package_list"
 	case TokenHtml:
-		str = ":package_html"
+		return ":package_html"
 	case TokenType:
-		str = ":type"
+		return ":type"
 	case TokenTempl:
-		str = ":templ"
+		return ":templ"
 	case TokenEnd:
-		str = ":end"
+		return ":end"
 	case TokenString:
-		str = ":str"
+		return ":str"
 	case TokenComment:
-		str = ":comment"
+		return ":comment"
 	default:
 		panic("unreachable")
 	}
-	return str
 }
 
 func (k AstKind) String() string {
@@ -67,6 +65,8 @@ func (k AstKind) String() string {
 		return ":package"
 	case AstTag:
 		return ":tag"
+	case AstTypeIdent:
+		return ":type_ident"
 	case AstTypeDef:
 		return ":type"
 	case AstRecordDef:
