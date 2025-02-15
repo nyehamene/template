@@ -16,7 +16,7 @@ func TestPackage(t *testing.T) {
 		t := NewTokenizer(source)
 		testcase := NewParser(t)
 		testcases = append(testcases, testcase)
-		wants = append(wants, []Ast{{AstPackage, AstIdent, AstTag, 0}})
+		wants = append(wants, []Ast{{AstPackage, AstIdent, AstTemplateTag, 0}})
 	}
 	{
 		source := `pkg :: package_tag("home");`
@@ -24,7 +24,23 @@ func TestPackage(t *testing.T) {
 		t := NewTokenizer(source)
 		testcase := NewParser(t)
 		testcases = append(testcases, testcase)
-		wants = append(wants, []Ast{{AstPackage, AstIdent, AstTag, 0}})
+		wants = append(wants, []Ast{{AstPackage, AstIdent, AstTemplateTag, 0}})
+	}
+	{
+		source := `pkg :: package_list("home");`
+		//         012345678901234567890123
+		t := NewTokenizer(source)
+		testcase := NewParser(t)
+		testcases = append(testcases, testcase)
+		wants = append(wants, []Ast{{AstPackage, AstIdent, AstTemplateList, 0}})
+	}
+	{
+		source := `pkg :: package_html("home");`
+		//         012345678901234567890123
+		t := NewTokenizer(source)
+		testcase := NewParser(t)
+		testcases = append(testcases, testcase)
+		wants = append(wants, []Ast{{AstPackage, AstIdent, AstTemplateHtml, 0}})
 	}
 	for i, tc := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
