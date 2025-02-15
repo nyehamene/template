@@ -57,6 +57,7 @@ func (t TokenKind) String() string {
 	case TokenComment:
 		return ":comment"
 	default:
+		// TODO: use %v format specifier
 		panic("unreachable")
 	}
 }
@@ -81,7 +82,12 @@ func (k AstKind) String() string {
 		return ":alias"
 	case AstIdent:
 		return ":ident"
+	case AstTemplateDef:
+		return ":templ"
+	case AstTemplateBody:
+		return ":templ_body"
 	default:
+		// TODO: use %v format specifier
 		panic("unreachable")
 	}
 }

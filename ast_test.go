@@ -116,7 +116,7 @@ func TestType(t *testing.T) {
 				var ast Ast
 				var end int
 				var err error
-				ast, end, err = tc.TypeDef(next)
+				ast, end, err = tc.Def(next)
 				if err == EOF {
 					break
 				}
@@ -160,7 +160,52 @@ func TestTypeAlias(t *testing.T) {
 				var ast Ast
 				var end int
 				var err error
-				ast, end, err = tc.TypeDef(next)
+				ast, end, err = tc.Def(next)
+				if err == EOF {
+					break
+				}
+
+				if err != nil {
+					t.Error(err)
+					break
+				}
+
+				got = append(got, ast)
+				next = end
+			}
+
+			if l := len(*tc.tokenizer.source); l != next {
+				t.Errorf("expected %d got %d", l, next)
+			}
+
+			if diff := cmp.Diff(expected, got); diff != "" {
+				t.Error(diff)
+			}
+		})
+	}
+}
+
+func TestTempl(t *testing.T) {
+	var testcases []Parser
+	var wants [][]Ast
+	{
+		source := "render : templ : (User) {};"
+		//         012345678901234567890123456
+		want := []Ast{{AstTemplateDef, AstIdent, AstTemplateBody, 0}}
+		wants = append(wants, want)
+		testcases = append(testcases, NewParser(NewTokenizer(source)))
+	}
+
+	for i, tc := range testcases {
+		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
+			expected := wants[i]
+			got := []Ast{}
+			next := 0
+			for {
+				var ast Ast
+				var end int
+				var err error
+				ast, end, err = tc.Def(next)
 				if err == EOF {
 					break
 				}
