@@ -118,31 +118,6 @@ func (t Tokenizer) next(offset int) (Token, int, error) {
 		kind, end, err = t.strOrTextBlock(start)
 	case '/':
 		kind, end, err = t.comment(start)
-		{ // try parsing multi line comment
-			offset := end + 1
-			start := offset
-			for {
-				token, innerEnd, err := t.Tokenize(start)
-
-				if err != nil {
-					break
-				}
-
-				if token.kind == TokenSpace {
-					start = innerEnd
-					continue
-				}
-
-				if token.kind != TokenComment {
-					break
-				}
-
-				offset = innerEnd
-				start = offset
-			}
-
-			end = offset - 1
-		}
 	default:
 		if whitespaces[char] {
 			kind, end, err = t.space(start)
@@ -225,33 +200,35 @@ func (t Tokenizer) strOrTextBlock(offset int) (TokenKind, int, error) {
 }
 
 func (t Tokenizer) textBlock(start int) (TokenKind, int, error) {
-	kind, n, err := t.textBlockLine(start)
+	kind, end, err := t.textBlockLine(start)
 	if err != nil {
-		return kind, n, err
+		return kind, end, err
 	}
 
-	offset := n + 1
-	advance := offset
-
-	for {
-		token, innerEnd, err := t.Tokenize(advance)
+	// treat consecutinve text block lines as a single token
+	// skipping leading whitespaces
+	src := *t.source
+	next := end + 1
+	for !t.isEnd(next) {
+		char := src[next]
+		// skip spaces
+		if whitespaces[char] {
+			next += 1
+			continue
+		}
+		if char != '"' {
+			// the next line is not a text block line
+			break
+		}
+		// add next text block line
+		_, innerEnd, err := t.textBlockLine(next)
 		if err != nil {
 			break
 		}
-
-		if token.kind == TokenSpace {
-			advance = innerEnd
-			continue
-		}
-		if token.kind != TokenTextBlock {
-			break
-		}
-
-		offset = innerEnd
-		advance = offset
+		end = innerEnd
+		next = end + 1
 	}
 
-	end := offset - 1
 	return TokenTextBlock, end, nil
 }
 
@@ -306,6 +283,39 @@ func (t Tokenizer) str(offset int) (TokenKind, int, error) {
 }
 
 func (t Tokenizer) comment(offset int) (TokenKind, int, error) {
+	kind, end, err := t.commentline(offset)
+	if err != nil {
+		return kind, end, err
+	}
+
+	// treat consecutive line comments as single token
+	// skipping leading whitespaces
+	src := *t.source
+	next := end + 1
+	for !t.isEnd(next) {
+		char := src[next]
+		// skip spaces
+		if whitespaces[char] {
+			next += 1
+			continue
+		}
+		if char != '/' {
+			// the next line is not a comment line
+			break
+		}
+		// add the next comment line
+		_, innerEnd, err := t.commentline(next)
+		if err != nil {
+			break
+		}
+		end = innerEnd
+		next = end + 1
+	}
+
+	return kind, end, nil
+}
+
+func (t Tokenizer) commentline(offset int) (TokenKind, int, error) {
 	var char byte
 	var err error
 
