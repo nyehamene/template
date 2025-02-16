@@ -58,6 +58,8 @@ func (k TokenKind) String() string {
 		return "comment"
 	case TokenRecord:
 		return "record"
+	case TokenTextBlock:
+		return "text_block"
 	default:
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}

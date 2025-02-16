@@ -7,6 +7,7 @@ import (
 var (
 	EOF                   error = errors.New("end of file")
 	ErrInvalid                  = errors.New("Invalid token")
+	ErrUseString                = errors.New("Use a string literal instead")
 	ErrUnterminatedString       = errors.New("Unterminated string")
 )
 
@@ -46,6 +47,7 @@ const (
 	TokenString
 	TokenComment
 	TokenAlias
+	TokenTextBlock
 )
 
 var keywords = map[string]TokenKind{
@@ -113,7 +115,7 @@ func (t Tokenizer) next(offset int) (Token, int, error) {
 	case ')':
 		kind = TokenParRight
 	case '"':
-		kind, end, err = t.str(start)
+		kind, end, err = t.strOrTextBlock(start)
 	case '/':
 		kind, end, err = t.comment(start)
 		{ // try parsing multi line comment
@@ -193,7 +195,6 @@ func (t Tokenizer) ident(offset int) (TokenKind, int, error) {
 		return TokenUndefined, offset, ErrInvalid
 	}
 
-	// NOTE: If offset is passed by value this should'nt be a problem
 	next := offset + 1
 	for !isEndAt(src, next) {
 		char = src[next]
@@ -207,9 +208,83 @@ func (t Tokenizer) ident(offset int) (TokenKind, int, error) {
 	return TokenIdent, end, nil
 }
 
+func (t Tokenizer) match(offset int, b byte) bool {
+	if t.isEnd(offset) {
+		return false
+	}
+	src := *t.source
+	return src[offset] == b
+}
+
+func (t Tokenizer) strOrTextBlock(offset int) (TokenKind, int, error) {
+	if kind, n, err := t.textBlock(offset); err == nil {
+		return kind, n, nil
+	} else {
+		return t.str(offset)
+	}
+}
+
+func (t Tokenizer) textBlock(start int) (TokenKind, int, error) {
+	kind, n, err := t.textBlockLine(start)
+	if err != nil {
+		return kind, n, err
+	}
+
+	offset := n + 1
+	advance := offset
+
+	for {
+		token, innerEnd, err := t.Tokenize(advance)
+		if err != nil {
+			break
+		}
+
+		if token.kind == TokenSpace {
+			advance = innerEnd
+			continue
+		}
+		if token.kind != TokenTextBlock {
+			break
+		}
+
+		offset = innerEnd
+		advance = offset
+	}
+
+	end := offset - 1
+	return TokenTextBlock, end, nil
+}
+
+func (t Tokenizer) textBlockLine(offset int) (TokenKind, int, error) {
+	if t.match(offset, '"') && t.match(offset+1, '"') && t.match(offset+2, '"') {
+		goto textline
+	}
+	return TokenTextBlock, offset, ErrInvalid
+
+textline:
+	src := *t.source
+	// marker end
+	end := offset + 3
+	// The textblock marker goes until end of line
+	// and must not contain any characters except spaces
+	for !t.isEnd(end) {
+		char := src[end]
+		if char == '\n' {
+			break
+		}
+		end += 1
+	}
+
+	// If is isEndAt returns true
+	if isEndAt(src, end) {
+		end = end - 1
+	}
+
+	return TokenTextBlock, end, nil
+}
+
 func (t Tokenizer) str(offset int) (TokenKind, int, error) {
 	src := *t.source
-	// NOTE: If offset is passed by value this should'nt be a problem
 	next := offset + 1
 	var char byte
 	var err error
@@ -258,7 +333,7 @@ func (t Tokenizer) comment(offset int) (TokenKind, int, error) {
 		end += 1
 	}
 
-	// If is isEndAt return true
+	// If is isEndAt returns true
 	if isEndAt(src, end) {
 		end -= 1
 	}

@@ -1,6 +1,7 @@
 package template
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -426,4 +427,86 @@ func TestPos(t *testing.T) {
 			t.Errorf("expected column number to be %d got %d", expectedCol, gotCol)
 		}
 	}
+}
+
+func TestTokenize_text_block(t *testing.T) {
+	var testcases []func(int) (Token, int, error)
+	var wants [][]Token
+	var ends []int
+	{
+		source := `
+		""" line 1
+		""" line 2`
+		tokenizer := NewTokenizer(source)
+		want := []Token{
+			{kind: TokenEOL, offset: 0},
+			{kind: TokenSpace, offset: 1},
+			{kind: TokenTextBlock, offset: 3},
+		}
+		ends = append(ends, len(source))
+		wants = append(wants, want)
+		testcases = append(testcases, tokenizer.Tokenize)
+	}
+	{
+		source := `
+		""" line 1
+		""" line 2
+
+		""" another line 1`
+
+		tokenizer := NewTokenizer(source)
+		want := []Token{
+			{kind: TokenEOL, offset: 0},
+			{kind: TokenSpace, offset: 1},
+			{kind: TokenTextBlock, offset: 3},
+			{kind: TokenEOL, offset: 27},
+			{kind: TokenSpace, offset: 28},
+			{kind: TokenTextBlock, offset: 30},
+		}
+		ends = append(ends, len(source))
+		wants = append(wants, want)
+		testcases = append(testcases, tokenizer.Tokenize)
+	}
+	{
+		source := `"""`
+		tokenizer := NewTokenizer(source)
+		want := []Token{
+			{kind: TokenTextBlock, offset: 0},
+		}
+		ends = append(ends, len(source))
+		wants = append(wants, want)
+		testcases = append(testcases, tokenizer.Tokenize)
+	}
+
+	for i, tc := range testcases {
+		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
+			expected := wants[i]
+			expectedEnd := ends[i]
+			got := []Token{}
+			end := 0
+			for {
+				token, offset, err := tc(end)
+				if err == EOF {
+					break
+				}
+
+				if err != nil {
+					t.Error(err)
+					break
+				}
+
+				got = append(got, token)
+				end = offset
+			}
+
+			if end != expectedEnd {
+				t.Errorf("expected %d got %d", expectedEnd, end)
+			}
+
+			if diff := cmp.Diff(expected, got); diff != "" {
+				t.Error(diff)
+			}
+		})
+	}
+
 }

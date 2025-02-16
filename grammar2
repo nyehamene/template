@@ -24,7 +24,10 @@ type_decl  := $type_ident { "," $type_ident } ":" [ "type" ] =:
 templ_decl := $ident ":" "templ" =:
 
 doc_def := $ident ":" doc =:
-doc     := $string | $text_block =:
+doc     := $string | text_block =:
+
+text_block      := text_block_line { $eol text_block_line } =:
+text_block_line := "\"" "\"" "\"" /[^\n]/ =:
 
 comment      :* comment_line { $eol comment_line } *:
 comment_line := "/" "/" /[^\n]*/ =:
