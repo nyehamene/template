@@ -87,6 +87,10 @@ func (k AstKind) String() string {
 		return "templ"
 	case AstTemplateBody:
 		return "templ_body"
+	case AstDocDef:
+		return "doc_def"
+	case AstDocline:
+		return "docline"
 	default:
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}

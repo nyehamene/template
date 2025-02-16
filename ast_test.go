@@ -301,3 +301,47 @@ func TestParse_comment(t *testing.T) {
 		t.Run(testName, testFunc(0, expected, tc))
 	}
 }
+
+func TestParse_doc(t *testing.T) {
+	var testcases []func(int) (Ast, int, error)
+	var wants [][]Ast
+	{
+		source := `
+		A : "single line";
+		A : type : record {};
+		`
+		//0 1   234567890123456789012
+		// 44
+		want := []Ast{
+			{AstDocDef, AstIdent, AstDocline, 3},
+			{AstTypeDef, AstTypeIdent, AstRecordDef, 24},
+		}
+		p := NewParser(NewTokenizer(source))
+		wants = append(wants, want)
+		testcases = append(testcases, p.Def)
+	}
+
+	for i, parseAt := range testcases {
+		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
+			expected := wants[i]
+			got := []Ast{}
+			next := 0
+			for {
+				token, n, err := parseAt(next)
+				if err == EOF {
+					break
+				}
+				if err != nil {
+					t.Error(err)
+					break
+				}
+				got = append(got, token)
+				next = n
+			}
+
+			if diff := cmp.Diff(expected, got); diff != "" {
+				t.Error(diff)
+			}
+		})
+	}
+}

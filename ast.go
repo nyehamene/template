@@ -27,6 +27,8 @@ const (
 	AstAliasDef
 	AstTemplateDef
 	AstTemplateBody
+	AstDocDef
+	AstDocline
 )
 
 type Ast struct {
@@ -128,7 +130,10 @@ func (p Parser) Def(start int) (Ast, int, error) {
 	var ast Ast
 	next := start
 
-	if def, n, err := p.typeDef(next); err == nil {
+	if def, n, err := p.docDef(next); err == nil {
+		ast = def
+		next = n
+	} else if def, n, err := p.typeDef(next); err == nil {
 		ast = def
 		next = n
 	} else if def, n, err := p.templDef(next); err == nil {
@@ -291,6 +296,33 @@ func (p Parser) recordDef(start int) (AstKind, int, bool) {
 	return AstRecordDef, next, true
 }
 
+func (p Parser) docDef(start int) (Ast, int, error) {
+	next := start
+	ast := Ast{kind: AstDocDef}
+	token, n, err := p.expect(next, TokenIdent)
+	if err != nil {
+		return ast, start, err
+	}
+	ast.left = AstIdent
+	ast.offset = token.offset
+	next = n
+
+	token, n, err = p.expect(next, TokenColon)
+	if err != nil {
+		return ast, start, err
+	}
+	next = n
+
+	token, n, err = p.expect(next, TokenString)
+	if err != nil {
+		return ast, start, err
+	}
+	ast.right = AstDocline
+	next = n
+
+	return ast, next, nil
+}
+
 func (p Parser) decl(start int, kind TokenKind) (Token, int, error) {
 	var ident Token
 	next := start
@@ -372,38 +404,6 @@ func (p Parser) skipBefore(kind TokenKind, more ...TokenKind) parsematcher {
 				beforeToken = next
 			}
 			return h(beforeToken)
-		}
-	}
-}
-
-func (p Parser) skipAfter(kind TokenKind, more ...TokenKind) parsematcher {
-	return func(h parsehandler) parsehandler {
-		return func(start int) (Token, int, error) {
-			token, afterToken, err := h(start)
-			if err != nil {
-				return token, start, err
-			}
-			kinds := make([]TokenKind, 0, len(more)+1)
-			kinds = append(kinds, kind)
-			kinds = append(kinds, more...)
-			for {
-				toSkip, next, err := p.tokenizer.next(afterToken)
-				if err == EOF {
-					break
-				}
-				if err != nil {
-					return toSkip, start, err
-				}
-				for _, kind := range kinds {
-					if toSkip.kind == kind {
-						goto skip
-					}
-				}
-				break
-			skip:
-				afterToken = next
-			}
-			return token, afterToken, nil
 		}
 	}
 }
