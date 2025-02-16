@@ -72,10 +72,7 @@ func (p Parser) Package(start int) (Ast, int, error) {
 	}
 	ast.right = right
 
-	if lastToken, next, err = p.expect(next,
-		TokenSemicolon,
-		p.skipAfter(TokenEOL),
-	); err != nil {
+	if lastToken, next, err = p.expect(next, TokenSemicolon); err != nil {
 		return ast, start, err
 	}
 
@@ -141,10 +138,7 @@ func (p Parser) Def(start int) (Ast, int, error) {
 		return def, start, err
 	}
 
-	if _, n, err := p.expect(next,
-		TokenSemicolon,
-		p.skipAfter(TokenEOL),
-	); err != nil {
+	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
 		return ast, start, err
 	} else {
 		next = n
@@ -176,10 +170,7 @@ func (p Parser) templDef(start int) (Ast, int, error) {
 		return ast, start, err
 	}
 
-	token, next, err = p.expect(next,
-		TokenBraceLeft,
-		p.skipAfter(TokenEOL),
-	)
+	token, next, err = p.expect(next, TokenBraceLeft)
 	if err != nil {
 		return ast, start, err
 	}
@@ -196,10 +187,7 @@ func (p Parser) templDef(start int) (Ast, int, error) {
 func (p Parser) templModel(start int) (Token, int, error) {
 	var leftPar Token
 	next := start
-	token, n, err := p.expect(next,
-		TokenParLeft,
-		p.skipAfter(TokenEOL),
-	)
+	token, n, err := p.expect(next, TokenParLeft)
 	if err != nil {
 		return token, start, err
 	}
@@ -277,10 +265,7 @@ func (p Parser) recordDef(start int) (AstKind, int, bool) {
 	if _, next, err = p.expect(next, TokenRecord); err != nil {
 		return AstRecordDef, start, false
 	}
-	if _, next, err = p.expect(next,
-		TokenBraceLeft,
-		p.skipAfter(TokenEOL),
-	); err != nil {
+	if _, next, err = p.expect(next, TokenBraceLeft); err != nil {
 		return AstRecordDef, start, false
 	}
 
@@ -296,10 +281,7 @@ func (p Parser) recordDef(start int) (AstKind, int, bool) {
 		if _, next, err = p.expect(next, TokenIdent); err != nil {
 			return AstRecordDef, start, false
 		}
-		if _, next, err = p.expect(next,
-			TokenSemicolon,
-			p.skipAfter(TokenEOL),
-		); err != nil {
+		if _, next, err = p.expect(next, TokenSemicolon); err != nil {
 			return AstRecordDef, start, false
 		}
 	}
@@ -319,10 +301,7 @@ func (p Parser) decl(start int, kind TokenKind) (Token, int, error) {
 	}
 	ident = token
 
-	token, next, err = p.expect(next,
-		TokenColon,
-		p.skipAfter(TokenEOL),
-	)
+	token, next, err = p.expect(next, TokenColon)
 	if err != nil {
 		return token, start, err
 	}
@@ -356,7 +335,7 @@ func (p Parser) expect(start int, kind TokenKind, matchers ...parsematcher) (Tok
 		}
 		if token.kind != kind {
 			r, c := p.tokenizer.Pos(token)
-			return token, start, fmt.Errorf("parse error: expected %s got %s [%d, %d]", kind, token.kind, r, c)
+			return token, start, fmt.Errorf("invalid token %s at [%d, %d]\nHelp: %s", token.kind, r, c, kind)
 		}
 		return token, next, nil
 	}
@@ -366,23 +345,30 @@ func (p Parser) expect(start int, kind TokenKind, matchers ...parsematcher) (Tok
 		handler = matcher(handler)
 	}
 
-	handler = p.skipBefore(TokenSpace)(handler)
+	handler = p.skipBefore(TokenSpace, TokenComment, TokenEOL)(handler)
 
 	return handler(start)
 }
 
-func (p Parser) skipBefore(kind TokenKind) parsematcher {
+func (p Parser) skipBefore(kind TokenKind, more ...TokenKind) parsematcher {
 	return func(h parsehandler) parsehandler {
 		return func(start int) (Token, int, error) {
+			kinds := make([]TokenKind, 0, len(more)+1)
+			kinds = append(kinds, kind)
+			kinds = append(kinds, more...)
 			var beforeToken = start
 			for {
 				toSkip, next, err := p.tokenizer.next(beforeToken)
 				if err != nil {
 					return toSkip, start, err
 				}
-				if toSkip.kind != kind {
-					break
+				for _, kind := range kinds {
+					if toSkip.kind == kind {
+						goto skip
+					}
 				}
+				break
+			skip:
 				beforeToken = next
 			}
 			return h(beforeToken)
@@ -390,13 +376,16 @@ func (p Parser) skipBefore(kind TokenKind) parsematcher {
 	}
 }
 
-func (p Parser) skipAfter(kind TokenKind) parsematcher {
+func (p Parser) skipAfter(kind TokenKind, more ...TokenKind) parsematcher {
 	return func(h parsehandler) parsehandler {
 		return func(start int) (Token, int, error) {
 			token, afterToken, err := h(start)
 			if err != nil {
 				return token, start, err
 			}
+			kinds := make([]TokenKind, 0, len(more)+1)
+			kinds = append(kinds, kind)
+			kinds = append(kinds, more...)
 			for {
 				toSkip, next, err := p.tokenizer.next(afterToken)
 				if err == EOF {
@@ -405,9 +394,13 @@ func (p Parser) skipAfter(kind TokenKind) parsematcher {
 				if err != nil {
 					return toSkip, start, err
 				}
-				if toSkip.kind != kind {
-					break
+				for _, kind := range kinds {
+					if toSkip.kind == kind {
+						goto skip
+					}
 				}
+				break
+			skip:
 				afterToken = next
 			}
 			return token, afterToken, nil

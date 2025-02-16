@@ -229,3 +229,75 @@ func TestParse_templDef(t *testing.T) {
 		})
 	}
 }
+
+func TestParse_comment(t *testing.T) {
+	var testcases []func(int) (Ast, int, error)
+	var wants []int
+	{
+		source := "// single line comment"
+		p := NewParser(NewTokenizer(source))
+		testcases = append(testcases, p.Package)
+		testcases = append(testcases, p.Def)
+		// Due to the way the parse method back track on error
+		// even on EOF when the source contains only space or comment
+		// the offset will always be zero
+		wants = append(wants, 0)
+		wants = append(wants, 0)
+	}
+	{
+		source := `// line 1
+		// line 2`
+		p := NewParser(NewTokenizer(source))
+		testcases = append(testcases, p.Package)
+		testcases = append(testcases, p.Def)
+		wants = append(wants, 0)
+		wants = append(wants, 0)
+	}
+	{
+		source := `// package comment
+		p :: package_tag("home");`
+
+		p := NewParser(NewTokenizer(source))
+		testcases = append(testcases, p.Package)
+		wants = append(wants, len(source))
+	}
+	{
+		source := `
+		// line 1
+		// line 2
+		B : type : alias A;`
+
+		p := NewParser(NewTokenizer(source))
+		testcases = append(testcases, p.Def)
+		wants = append(wants, len(source))
+	}
+
+	testFunc := func(start, end int, parseAt func(int) (Ast, int, error)) func(*testing.T) {
+		return func(t *testing.T) {
+			next := start
+			for {
+				_, n, err := parseAt(next)
+				if err == EOF {
+					break
+				}
+
+				if err != nil {
+					t.Error(err)
+					break
+				}
+				next = n
+			}
+
+			if end != next {
+				t.Errorf("expected %d got %d", end, next)
+			}
+		}
+	}
+
+	// The parse should skip comments withcout producing any error
+	for i, tc := range testcases {
+		expected := wants[i]
+		testName := fmt.Sprintf("(%d)", i)
+		t.Run(testName, testFunc(0, expected, tc))
+	}
+}

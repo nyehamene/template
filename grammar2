@@ -1,6 +1,7 @@
 source := package { def } =:
 
-package := $ident ":" [ "package" ] ":" package_kind ";" { $eol } =:
+package     := [ doc ] package_def [ doc ]  :=
+package_def := $ident ":" [ "package" ] ":" package_kind ";" { $eol } =:
 
 package_kind :=
     "package_tag"  "(" { $eol } $string ")" |
@@ -21,3 +22,6 @@ templ_body  := { $tag_elem | $list_elem | $html_elem} =:
 decl       := $ident      { "," { $eol } $ident }      ":" [ $type_ident ] =:
 type_decl  := $type_ident { "," { $eol } $type_ident } ":" [ "type" ] =:
 templ_decl := $ident ":" "templ" =:
+
+comment      :* comment_line { $eol comment_line } *:
+comment_line := "/" "/" /[^\n]*/ =:
