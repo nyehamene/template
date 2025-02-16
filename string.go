@@ -97,3 +97,7 @@ func (k AstKind) String() string {
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}
 }
+
+func (a Ast) String() string {
+	return fmt.Sprintf("%s %d", a.kind, a.offset)
+}

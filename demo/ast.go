@@ -36,6 +36,6 @@ func parse(source []byte) {
 	}
 
 	for _, ast := range asts {
-		fmt.Printf("%v", ast)
+		fmt.Printf("(%v)\n", ast)
 	}
 }
