@@ -7,7 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestPackage(t *testing.T) {
+func TestParse_packageDef(t *testing.T) {
 	var testcases []Parser
 	var wants [][]Ast
 	{
@@ -77,7 +77,7 @@ func TestPackage(t *testing.T) {
 	}
 }
 
-func TestType(t *testing.T) {
+func TestParse_typeDef(t *testing.T) {
 	var testcases []Parser
 	var wants [][]Ast
 	{
@@ -141,7 +141,7 @@ func TestType(t *testing.T) {
 	}
 }
 
-func TestTypeAlias(t *testing.T) {
+func TestParse_typeAliasDef(t *testing.T) {
 	var testcases []Parser
 	var wants [][]Ast
 	{
@@ -185,7 +185,7 @@ func TestTypeAlias(t *testing.T) {
 	}
 }
 
-func TestTempl(t *testing.T) {
+func TestParse_templDef(t *testing.T) {
 	var testcases []Parser
 	var wants [][]Ast
 	{
