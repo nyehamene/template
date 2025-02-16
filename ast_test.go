@@ -310,11 +310,25 @@ func TestParse_doc(t *testing.T) {
 		A : "single line";
 		A : type : record {};
 		`
-		//0 1   234567890123456789012
-		// 44
 		want := []Ast{
 			{AstDocDef, AstIdent, AstDocline, 3},
 			{AstTypeDef, AstTypeIdent, AstRecordDef, 24},
+		}
+		p := NewParser(NewTokenizer(source))
+		wants = append(wants, want)
+		testcases = append(testcases, p.Def)
+	}
+	{
+		source := `
+		A : """
+			""" line 1
+			""" line 2
+			;
+		A : type : record {};
+		`
+		want := []Ast{
+			{AstDocDef, AstIdent, AstDocblock, 3},
+			{AstTypeDef, AstTypeIdent, AstRecordDef, 46},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)

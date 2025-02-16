@@ -29,6 +29,7 @@ const (
 	AstTemplateBody
 	AstDocDef
 	AstDocline
+	AstDocblock
 )
 
 type Ast struct {
@@ -299,6 +300,7 @@ func (p Parser) recordDef(start int) (AstKind, int, bool) {
 func (p Parser) docDef(start int) (Ast, int, error) {
 	next := start
 	ast := Ast{kind: AstDocDef}
+
 	token, n, err := p.expect(next, TokenIdent)
 	if err != nil {
 		return ast, start, err
@@ -313,14 +315,23 @@ func (p Parser) docDef(start int) (Ast, int, error) {
 	}
 	next = n
 
-	token, n, err = p.expect(next, TokenString)
-	if err != nil {
+	if doc, n, err := p.doc(next); err == nil {
+		ast.right = doc
+		next = n
+	} else {
 		return ast, start, err
 	}
-	ast.right = AstDocline
-	next = n
 
 	return ast, next, nil
+}
+
+func (p Parser) doc(start int) (AstKind, int, error) {
+	if _, n, err := p.expect(start, TokenString); err == nil {
+		return AstDocline, n, nil
+	} else if _, n, err := p.expect(start, TokenTextBlock); err == nil {
+		return AstDocblock, n, nil
+	}
+	return AstDocline, start, ErrInvalid
 }
 
 func (p Parser) decl(start int, kind TokenKind) (Token, int, error) {

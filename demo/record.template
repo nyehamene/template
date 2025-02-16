@@ -18,7 +18,8 @@ Product :: record {
 Store : """
     """ line 1
     """ line 2
-    """;
+    """
+    ;
 Store :: record {
     name: string;
     location: string;

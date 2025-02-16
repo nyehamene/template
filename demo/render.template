@@ -12,13 +12,13 @@ User : type : record {
 	name: string;
 	email: string;
 	password: string;
-	}
+	};
 
 User :: record {
 	name: string;
 	email: string;
 	password: string;
-	}
+	};
 
 User : """
 	""" A multi-line documentation
@@ -29,24 +29,13 @@ User : """
 	"""
 	""" Supports markdown syntax
 	"""
+	;
 
-// User : type : {
-// 	   name: string;
-// 	   email: string;
-// 	   password: string;
-//     }
-
-// User :: {
-// 	   name: string;
-// 	   email: string;
-// 	   password: string;
-// 	   }
-
-render : "define a template"
+render : "define a template";
 render : templ : (User) {
     <div
     	<p Username: (name)/>
     	<p Email:    (email)/>
     	<p Password: (password)/>
     	/>
-    }
+    };
