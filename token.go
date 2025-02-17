@@ -6,8 +6,8 @@ import (
 
 var (
 	EOF                   error = errors.New("end of file")
+	ErrNoMatch                  = errors.New("no match found")
 	ErrInvalid                  = errors.New("Invalid token")
-	ErrUseString                = errors.New("Use a string literal instead")
 	ErrUnterminatedString       = errors.New("Unterminated string")
 )
 
@@ -17,6 +17,11 @@ var whitespaces = map[byte]bool{
 	'\r': true,
 	'\v': true,
 	'\f': true,
+}
+
+type Token struct {
+	kind   TokenKind
+	offset int
 }
 
 type TokenKind int
@@ -80,72 +85,71 @@ func (t Tokenizer) Tokenize(offset int) (Token, int, error) {
 // TODO: next should not be a method on Token
 func (t Tokenizer) next(offset int) (Token, int, error) {
 	src := *t.source
-	kind := TokenUndefined
-	start := offset
-	end := offset
-	var char byte
-	var err error
 
 	if t.isEnd(offset) {
-		err = EOF
-		goto ret
+		return Token{}, offset, EOF
 	}
 
-	char = src[start]
+	if kind, next, err := t.char(offset); err == nil {
+		token := Token{kind, offset}
+		return token, next, nil
+	} else if kind, next, err := t.strOrTextBlock(offset); err == nil {
+		token := Token{kind, offset}
+		return token, next, nil
+	} else if kind, next, err := t.comment(offset); err == nil {
+		token := Token{kind, offset}
+		return token, next, nil
+	} else if kind, next, err := t.space(offset); err == nil {
+		token := Token{kind, offset}
+		return token, next, nil
+	} else if kind, next, err := t.eol(offset); err == nil {
+		token := Token{kind, offset}
+		return token, next, nil
+	} else if kind, next, err := t.ident(offset); err == nil {
+		lexeme := src[offset:next]
+		// check if ident is a keyword
+		if k, ok := keywords[lexeme]; ok {
+			kind = k
+		}
+		token := Token{kind, offset}
+		return token, next, nil
+	}
+
+	return Token{}, offset, ErrInvalid
+}
+
+func (t Tokenizer) char(offset int) (TokenKind, int, error) {
+	src := *t.source
+	if t.isEnd(offset) {
+		return TokenUndefined, offset, EOF
+	}
+
+	char := src[offset]
+	next := offset + 1
 
 	switch char {
 	case ':':
-		kind = TokenColon
+		return TokenColon, next, nil
 	case '=':
-		kind = TokenEqual
+		return TokenEqual, next, nil
 	case '.':
-		kind = TokenPeriod
+		return TokenPeriod, next, nil
 	case ';':
-		kind = TokenSemicolon
+		return TokenSemicolon, next, nil
 	case '{':
-		kind = TokenBraceLeft
+		return TokenBraceLeft, next, nil
 	case '}':
-		kind = TokenBraceRight
+		return TokenBraceRight, next, nil
 	case '[':
-		kind = TokenBracketLeft
+		return TokenBracketLeft, next, nil
 	case ']':
-		kind = TokenBracketRight
+		return TokenBracketRight, next, nil
 	case '(':
-		kind = TokenParLeft
+		return TokenParLeft, next, nil
 	case ')':
-		kind = TokenParRight
-	case '"':
-		kind, end, err = t.strOrTextBlock(start)
-	case '/':
-		kind, end, err = t.comment(start)
-	default:
-		if whitespaces[char] {
-			kind, end, err = t.space(start)
-			break
-		}
-		if char == '\n' {
-			end = t.eol(start)
-			kind = TokenEOL
-			break
-		}
-		kind, end, err = t.ident(start)
-		{
-			// check for keyword
-			offset := end + 1
-			lexeme := src[start:offset]
-			if k, ok := keywords[lexeme]; ok {
-				kind = k
-			}
-		}
+		return TokenParRight, next, nil
 	}
-
-ret:
-	next := end + 1
-	token := Token{
-		kind:   kind,
-		offset: start,
-	}
-	return token, next, err
+	return TokenUndefined, offset, ErrNoMatch
 }
 
 func (t Tokenizer) ident(offset int) (TokenKind, int, error) {
@@ -167,7 +171,7 @@ func (t Tokenizer) ident(offset int) (TokenKind, int, error) {
 	src := *t.source
 	char := src[offset]
 	if !isAlpha(char) {
-		return TokenUndefined, offset, ErrInvalid
+		return TokenIdent, offset, ErrNoMatch
 	}
 
 	next := offset + 1
@@ -179,16 +183,7 @@ func (t Tokenizer) ident(offset int) (TokenKind, int, error) {
 		next += 1
 	}
 
-	end := next - 1
-	return TokenIdent, end, nil
-}
-
-func (t Tokenizer) match(offset int, b byte) bool {
-	if t.isEnd(offset) {
-		return false
-	}
-	src := *t.source
-	return src[offset] == b
+	return TokenIdent, next, nil
 }
 
 func (t Tokenizer) strOrTextBlock(offset int) (TokenKind, int, error) {
@@ -200,20 +195,21 @@ func (t Tokenizer) strOrTextBlock(offset int) (TokenKind, int, error) {
 }
 
 func (t Tokenizer) textBlock(start int) (TokenKind, int, error) {
-	kind, end, err := t.textBlockLine(start)
+	kind, next, err := t.textBlockLine(start)
 	if err != nil {
-		return kind, end, err
+		return kind, start, err
 	}
 
-	// treat consecutinve text block lines as a single token
+	// treat consecutinve text block lines as a single text block
 	// skipping leading whitespaces
+	offset := next
 	src := *t.source
-	next := end + 1
-	for !t.isEnd(next) {
-		char := src[next]
+
+	for !t.isEnd(offset) {
+		char := src[offset]
 		// skip spaces
 		if whitespaces[char] {
-			next += 1
+			offset += 1
 			continue
 		}
 		if char != '"' {
@@ -221,82 +217,87 @@ func (t Tokenizer) textBlock(start int) (TokenKind, int, error) {
 			break
 		}
 		// add next text block line
-		_, innerEnd, err := t.textBlockLine(next)
+		_, innerNext, err := t.textBlockLine(offset)
 		if err != nil {
 			break
 		}
-		end = innerEnd
-		next = end + 1
+		next = innerNext
+		offset = next
 	}
 
-	return TokenTextBlock, end, nil
+	return TokenTextBlock, next, nil
 }
 
 func (t Tokenizer) textBlockLine(offset int) (TokenKind, int, error) {
-	if t.match(offset, '"') && t.match(offset+1, '"') && t.match(offset+2, '"') {
-		goto textline
+	if !t.matchAll(offset, '"', '"', '"') {
+		return TokenTextBlock, offset, ErrNoMatch
 	}
-	return TokenTextBlock, offset, ErrInvalid
 
-textline:
 	src := *t.source
 	// marker end
-	end := offset + 3
-	// The textblock marker goes until end of line
-	// and must not contain any characters except spaces
-	for !t.isEnd(end) {
-		char := src[end]
+	next := offset + 3
+	for !t.isEnd(next) {
+		char := src[next]
 		if char == '\n' {
-			break
-		}
-		end += 1
-	}
-
-	// If is isEndAt returns true
-	if isEndAt(src, end) {
-		end = end - 1
-	}
-
-	return TokenTextBlock, end, nil
-}
-
-func (t Tokenizer) str(offset int) (TokenKind, int, error) {
-	src := *t.source
-	next := offset + 1
-	var char byte
-	var err error
-	for !isEndAt(src, next) {
-		char = src[next]
-		if char == '"' {
-			next += 1
 			break
 		}
 		next += 1
 	}
 
-	end := next - 1
-	if src[end] != '"' {
-		err = ErrUnterminatedString
+	// consume eol
+	if t.match(next, '\n') {
+		next += 1
 	}
 
-	return TokenString, end, err
+	return TokenTextBlock, next, nil
 }
 
-func (t Tokenizer) comment(offset int) (TokenKind, int, error) {
-	kind, end, err := t.commentline(offset)
+func (t Tokenizer) str(offset int) (TokenKind, int, error) {
+	if t.isEnd(offset) {
+		return TokenString, offset, EOF
+	}
+
+	if !t.match(offset, '"') {
+		return TokenString, offset, ErrNoMatch
+	}
+
+	src := *t.source
+	// consume opening "
+	next := offset + 1
+
+	// consume string text
+	for !isEndAt(src, next) {
+		char := src[next]
+		if char == '"' {
+			break
+		}
+		next += 1
+	}
+
+	if src[next] != '"' {
+		return TokenString, next, ErrUnterminatedString
+	}
+
+	// consume closing "
+	next += 1
+	return TokenString, next, nil
+}
+
+func (t Tokenizer) comment(start int) (TokenKind, int, error) {
+	kind, next, err := t.commentline(start)
 	if err != nil {
-		return kind, end, err
+		return kind, start, err
 	}
 
 	// treat consecutive line comments as single token
 	// skipping leading whitespaces
+	offset := next
 	src := *t.source
-	next := end + 1
-	for !t.isEnd(next) {
-		char := src[next]
+	for !t.isEnd(offset) {
+		char := src[offset]
 		// skip spaces
 		if whitespaces[char] {
-			next += 1
+			offset += 1
 			continue
 		}
 		if char != '/' {
@@ -304,73 +305,86 @@ func (t Tokenizer) comment(offset int) (TokenKind, int, error) {
 			break
 		}
 		// add the next comment line
-		_, innerEnd, err := t.commentline(next)
+		_, innerNext, err := t.commentline(offset)
 		if err != nil {
 			break
 		}
-		end = innerEnd
-		next = end + 1
+		next = innerNext
+		offset = next
 	}
 
-	return kind, end, nil
+	return kind, next, nil
 }
 
 func (t Tokenizer) commentline(offset int) (TokenKind, int, error) {
-	var char byte
-	var err error
+	if t.isEnd(offset) {
+		return TokenComment, offset, EOF
+	}
+
+	if !t.matchAll(offset, '/', '/') {
+		return TokenComment, offset, ErrNoMatch
+	}
+
+	// consume opening //
+	next := offset + 2
 
 	src := *t.source
-	markerEnd := offset + 1
-	end := offset
 
-	if isEndAt(src, markerEnd) {
-		err = ErrInvalid
-		goto ret
-	}
-
-	if src[markerEnd] != '/' {
-		err = ErrInvalid
-		goto ret
-	}
-
-	end = markerEnd + 1
-
-	for !isEndAt(src, end) {
-		char = src[end]
+	// consume comment text
+	for !t.isEnd(next) {
+		char := src[next]
 		if char == '\n' {
+			// end comment
 			break
 		}
-		end += 1
+		next += 1
 	}
 
-	// If is isEndAt returns true
-	if isEndAt(src, end) {
-		end -= 1
+	// consume eol
+	if t.match(next, '\n') {
+		next += 1
 	}
 
-ret:
-	return TokenComment, end, err
+	return TokenComment, next, nil
 }
 
-func (t Tokenizer) eol(offset int) int {
+func (t Tokenizer) eol(offset int) (TokenKind, int, error) {
+	if t.isEnd(offset) {
+		return TokenEOL, offset, EOF
+	}
+
 	src := *t.source
-	next := offset + 1
-	var char byte
+	if src[offset] != '\n' {
+		return TokenEOL, offset, ErrNoMatch
+	}
+
+	// skip consecutive eof
+	next := offset
 	for !isEndAt(src, next) {
-		char = src[next]
+		char := src[next]
 		if char != '\n' {
 			break
 		}
 		next += 1
 	}
-	end := next - 1
-	return end
+	return TokenEOL, next, nil
 }
 
 func (t Tokenizer) space(offset int) (TokenKind, int, error) {
-	next := offset + 1
+	if t.isEnd(offset) {
+		return TokenSpace, offset, EOF
+	}
+
 	src := *t.source
-	var char byte
+
+	char := src[offset]
+	if !whitespaces[char] {
+		return TokenSpace, offset, ErrNoMatch
+	}
+
+	next := offset + 1
+
+	// consume consecutive whitespace
 	for !isEndAt(src, next) {
 		char = src[next]
 		if !whitespaces[char] {
@@ -378,12 +392,35 @@ func (t Tokenizer) space(offset int) (TokenKind, int, error) {
 		}
 		next += 1
 	}
-	end := next - 1
-	return TokenSpace, end, nil
+
+	return TokenSpace, next, nil
 }
 
 func (t Tokenizer) isEnd(offset int) bool {
 	return isEndAt(*t.source, offset)
+}
+
+func (t Tokenizer) match(offset int, b byte) bool {
+	if t.isEnd(offset) {
+		return false
+	}
+	src := *t.source
+	return src[offset] == b
+}
+
+func (t Tokenizer) matchAll(offset int, b byte, more ...byte) bool {
+	if !t.match(offset, b) {
+		return false
+	}
+	next := offset + 1
+	for i := 0; !t.isEnd(next) && i < len(more); i++ {
+		b := more[i]
+		if !t.match(next, b) {
+			return false
+		}
+		next += 1
+	}
+	return (next - offset) == (len(more) + 1)
 }
 
 func (t Tokenizer) Pos(token Token) (int, int) {
@@ -409,9 +446,4 @@ func (t Tokenizer) Pos(token Token) (int, int) {
 
 func isEndAt(source string, i int) bool {
 	return i >= len(source)
-}
-
-type Token struct {
-	kind   TokenKind
-	offset int
 }
