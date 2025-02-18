@@ -54,6 +54,7 @@ const (
 	TokenAlias
 	TokenTextBlock
 	TokenImport
+	TokenUsing
 )
 
 var keywords = map[string]TokenKind{
@@ -67,6 +68,7 @@ var keywords = map[string]TokenKind{
 	"end":          TokenEnd,
 	"alias":        TokenAlias,
 	"import":       TokenImport,
+	"using":        TokenUsing,
 }
 
 func NewTokenizer(s string) Tokenizer {

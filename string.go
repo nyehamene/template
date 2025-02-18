@@ -62,6 +62,8 @@ func (k TokenKind) String() string {
 		return "text_block"
 	case TokenImport:
 		return "import"
+	case TokenUsing:
+		return "using"
 	default:
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}
@@ -101,6 +103,8 @@ func (k AstKind) String() string {
 		return "import"
 	case AstImportPackage:
 		return "import_package"
+	case AstUsing:
+		return "using"
 	default:
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}
