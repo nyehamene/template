@@ -28,6 +28,7 @@ type TokenKind int
 
 const (
 	TokenUndefined TokenKind = iota
+	TokenComma
 	TokenColon
 	TokenEqual
 	TokenPeriod
@@ -132,6 +133,8 @@ func (t Tokenizer) char(offset int) (TokenKind, int, error) {
 	next := offset + 1
 
 	switch char {
+	case ',':
+		return TokenComma, next, nil
 	case ':':
 		return TokenColon, next, nil
 	case '=':

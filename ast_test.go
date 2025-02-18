@@ -469,3 +469,67 @@ func TestParse_using(t *testing.T) {
 		})
 	}
 }
+
+func TestParse_metatable(t *testing.T) {
+	var testcases []parserTestCase
+	var wants [][]Ast
+	var ends []int
+	{
+		source := `A : { k = "foo" };`
+		want := []Ast{
+			{AstMeta, AstIdent, AstMetatable, 0},
+		}
+		p := NewParser(NewTokenizer(source))
+		wants = append(wants, want)
+		testcases = append(testcases, p.metatable)
+		ends = append(ends, len(source))
+	}
+	{
+		source := `A : { a = "foo", b = "bar" };`
+		want := []Ast{
+			{AstMeta, AstIdent, AstMetatable, 0},
+		}
+		p := NewParser(NewTokenizer(source))
+		wants = append(wants, want)
+		testcases = append(testcases, p.metatable)
+		ends = append(ends, len(source))
+	}
+	{
+		source := `A : { a = "foo", b = "bar", };`
+		want := []Ast{
+			{AstMeta, AstIdent, AstMetatable, 0},
+		}
+		p := NewParser(NewTokenizer(source))
+		wants = append(wants, want)
+		testcases = append(testcases, p.metatable)
+		ends = append(ends, len(source))
+	}
+
+	for i, parseAt := range testcases {
+		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
+			expected := wants[i]
+			got := []Ast{}
+			end := ends[i]
+			next := 0
+			for {
+				token, n, err := parseAt(next)
+				if err == EOF {
+					break
+				}
+				if err != nil {
+					t.Error(err)
+					break
+				}
+				got = append(got, token)
+				next = n
+			}
+
+			if end != next {
+				t.Errorf("expected %d got %d", end, next)
+			}
+			if diff := cmp.Diff(expected, got); diff != "" {
+				t.Error(diff)
+			}
+		})
+	}
+}

@@ -10,6 +10,8 @@ func (k TokenKind) String() string {
 	switch k {
 	case TokenUndefined:
 		return "<>"
+	case TokenComma:
+		return ","
 	case TokenColon:
 		return ":"
 	case TokenEqual:
@@ -105,6 +107,10 @@ func (k AstKind) String() string {
 		return "import_package"
 	case AstUsing:
 		return "using"
+	case AstMeta:
+		return "meta"
+	case AstMetatable:
+		return "metatable"
 	default:
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}
