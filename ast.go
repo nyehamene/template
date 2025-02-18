@@ -356,8 +356,6 @@ func (p Parser) Import(start int) (Ast, int, error) {
 
 	if _, n, ok := p.optional(next, TokenImport); ok {
 		next = n
-	} else {
-		return ast, start, ErrNoMatch
 	}
 
 	if _, n, err := p.expect(next, TokenColon); err == nil {

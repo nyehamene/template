@@ -376,6 +376,16 @@ func TestParse_import(t *testing.T) {
 		testcases = append(testcases, p.Import)
 		ends = append(ends, len(source))
 	}
+	{
+		source := `p :: import("home/pkg");`
+		want := []Ast{
+			{AstImport, AstIdent, AstImportPackage, 0},
+		}
+		p := NewParser(NewTokenizer(source))
+		wants = append(wants, want)
+		testcases = append(testcases, p.Import)
+		ends = append(ends, len(source))
+	}
 
 	for i, parseAt := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
@@ -405,3 +415,4 @@ func TestParse_import(t *testing.T) {
 		})
 	}
 }
+
