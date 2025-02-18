@@ -30,6 +30,8 @@ const (
 	AstDocDef
 	AstDocline
 	AstDocblock
+	AstImport
+	AstImportPackage
 )
 
 type Ast struct {
@@ -332,6 +334,70 @@ func (p Parser) doc(start int) (AstKind, int, error) {
 		return AstDocblock, n, nil
 	}
 	return AstDocline, start, ErrInvalid
+}
+
+func (p Parser) Import(start int) (Ast, int, error) {
+	ast := Ast{kind: AstImport}
+	next := start
+
+	if ident, n, err := p.expect(next, TokenIdent); err == nil {
+		ast.offset = ident.offset
+		ast.left = AstIdent
+		next = n
+	} else {
+		return ast, start, err
+	}
+
+	if _, n, err := p.expect(next, TokenColon); err == nil {
+		next = n
+	} else {
+		return ast, start, err
+	}
+
+	if _, n, ok := p.optional(next, TokenImport); ok {
+		next = n
+	} else {
+		return ast, start, ErrNoMatch
+	}
+
+	if _, n, err := p.expect(next, TokenColon); err == nil {
+		next = n
+	} else {
+		return ast, start, err
+	}
+
+	if _, n, err := p.expect(next, TokenImport); err == nil {
+		next = n
+	} else {
+		return ast, start, err
+	}
+
+	if _, n, err := p.expect(next, TokenParLeft); err == nil {
+		next = n
+	} else {
+		return ast, start, err
+	}
+
+	if _, n, err := p.expect(next, TokenString); err == nil {
+		next = n
+		ast.right = AstImportPackage
+	} else {
+		return ast, start, err
+	}
+
+	if _, n, err := p.expect(next, TokenParRight); err == nil {
+		next = n
+	} else {
+		return ast, start, err
+	}
+
+	if _, n, err := p.expect(next, TokenSemicolon); err == nil {
+		next = n
+	} else {
+		return ast, start, err
+	}
+
+	return ast, next, nil
 }
 
 func (p Parser) decl(start int, kind TokenKind) (Token, int, error) {

@@ -7,6 +7,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+type parserTestCase func(int) (Ast, int, error)
+
 func TestParse_packageDef(t *testing.T) {
 	var testcases []Parser
 	var wants [][]Ast
@@ -353,6 +355,50 @@ func TestParse_doc(t *testing.T) {
 				next = n
 			}
 
+			if diff := cmp.Diff(expected, got); diff != "" {
+				t.Error(diff)
+			}
+		})
+	}
+}
+
+func TestParse_import(t *testing.T) {
+	var testcases []parserTestCase
+	var wants [][]Ast
+	var ends []int
+	{
+		source := `p : import : import("home/pkg");`
+		want := []Ast{
+			{AstImport, AstIdent, AstImportPackage, 0},
+		}
+		p := NewParser(NewTokenizer(source))
+		wants = append(wants, want)
+		testcases = append(testcases, p.Import)
+		ends = append(ends, len(source))
+	}
+
+	for i, parseAt := range testcases {
+		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
+			expected := wants[i]
+			got := []Ast{}
+			end := ends[i]
+			next := 0
+			for {
+				token, n, err := parseAt(next)
+				if err == EOF {
+					break
+				}
+				if err != nil {
+					t.Error(err)
+					break
+				}
+				got = append(got, token)
+				next = n
+			}
+
+			if end != next {
+				t.Errorf("expected %d got %d", end, next)
+			}
 			if diff := cmp.Diff(expected, got); diff != "" {
 				t.Error(diff)
 			}

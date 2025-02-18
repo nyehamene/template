@@ -1,33 +1,31 @@
-source := package { def } =:
+source  := package { import } { def } =:
 
-package     := { doc_def } package_def { doc_def }  :=
-package_def := $ident ":" [ "package" ] ":" package_kind ";" =:
+package := { doc } $ident ":" [ "package" ] ":" templ_type ";" :=
 
-package_kind :=
+templ_type :=
     "package_tag"  "(" $string ")" |
 	"package_list" "(" $string ")" |
 	"package_html" "(" $string ")"
 	=:
 
-def := { doc_def } ( type_def | templ_def ) ";" { doc_def } =:
+import := { doc } $ident ":" [ "import" ] ":" "import" "(" $string ")" ";" =:
 
-type_def   := type_decl ":" ( record_def | alias_def ) =:
-record_def := "record" "{"  { { doc_def } decl ";" { doc_def } } "}" =:
-alias_def  := "alias" $type_ident =:
-
-templ_def   := templ_decl ":" templ_model "{"  templ_body "}" =:
-templ_model := "("  $type_ident ")" =:
-templ_body  := { $tag_elem | $list_elem | $html_elem} =:
-
-decl       := $ident      { "," $ident }      ":" [ $type_ident ] =:
-type_decl  := $type_ident { "," $type_ident } ":" [ "type" ] =:
-templ_decl := $ident ":" "templ" =:
-
-doc_def := $ident ":" doc =:
-doc     := $string | text_block =:
+def     := ( doc | type | templ ) ";" =:
+doc     := $ident ":" doctext =:
+doctext := $string | text_block =:
 
 text_block      := text_block_line { $eol text_block_line } =:
 text_block_line := "\"" "\"" "\"" /[^\n]/ =:
+
+type   := $ident { "," $ident } ":" [ "type"  ] ":" ( record | alias ) =:
+record := "record" "{"  {  doc | ( decl ";" ) } "}" =:
+decl   := $ident { "," $ident } ":" [ $ident ] =:
+alias  := "alias" $ident =:
+
+templ  := $ident { "," $ident } ":" [ "templ" ] ":" templ_model "{"  templ_body "}" =:
+
+templ_model := "("  $ident ")" =:
+templ_body  := { $tag_elem | $list_elem | $html_elem} =:
 
 comment      :* comment_line { $eol comment_line } *:
 comment_line := "/" "/" /[^\n]*/ =:
