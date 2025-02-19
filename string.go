@@ -73,42 +73,26 @@ func (k TokenKind) String() string {
 
 func (k AstKind) String() string {
 	switch k {
-	case AstPackage:
-		return "package"
-	case AstTagPackage:
+	case AstTagTemplPackage:
 		return "tag"
-	case AstListPackage:
+	case AstListTemplPackage:
 		return "list"
-	case AstHtmlPackage:
+	case AstHtmlTemplPackage:
 		return "html"
-	case AstTypeIdent:
-		return "type_ident"
-	case AstTypeDef:
-		return "type"
-	case AstRecordDef:
+	case AstRecord:
 		return "record"
-	case AstAliasDef:
+	case AstAlias:
 		return "alias"
-	case AstIdent:
-		return "ident"
-	case AstTemplateDef:
+	case AstTemplate:
 		return "templ"
-	case AstTemplateBody:
-		return "templ_body"
-	case AstDocDef:
-		return "doc"
 	case AstDocline:
 		return "docline"
 	case AstDocblock:
 		return "docblock"
 	case AstImport:
 		return "import"
-	case AstImportPackage:
-		return "import_package"
 	case AstUsing:
 		return "using"
-	case AstMeta:
-		return "meta"
 	case AstMetatable:
 		return "metatable"
 	default:
@@ -117,5 +101,5 @@ func (k AstKind) String() string {
 }
 
 func (a Ast) String() string {
-	return fmt.Sprintf("%s %d", a.kind, a.offset)
+	return fmt.Sprintf("%s %s", a.kind, a.left)
 }

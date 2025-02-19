@@ -14,7 +14,7 @@ func parse(source []byte) {
 	asts := []template.Ast{}
 	next := 0
 
-	pkg, offset, err := p.Package(next)
+	pkg, offset, err := p.Parse(next)
 	if err != nil {
 		panic(err)
 	}
@@ -22,7 +22,7 @@ func parse(source []byte) {
 	next = offset
 
 	for {
-		ast, offset, err := p.Def(next)
+		ast, offset, err := p.Parse(next)
 		if err == template.EOF {
 			break
 		}

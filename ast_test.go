@@ -7,7 +7,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type parserTestCase func(int) (Ast, int, error)
+type testCase func(int) (Ast, int, error)
+
+func ident(offset int) Token {
+	return Token{TokenIdent, offset}
+}
 
 func TestParse_packageDef(t *testing.T) {
 	var testcases []Parser
@@ -18,7 +22,9 @@ func TestParse_packageDef(t *testing.T) {
 		t := NewTokenizer(source)
 		testcase := NewParser(t)
 		testcases = append(testcases, testcase)
-		wants = append(wants, []Ast{{AstPackage, AstIdent, AstTagPackage, 0}})
+		wants = append(wants, []Ast{
+			{AstTagTemplPackage, ident(0)},
+		})
 	}
 	{
 		source := `pkg :: package_tag("home");`
@@ -26,7 +32,9 @@ func TestParse_packageDef(t *testing.T) {
 		t := NewTokenizer(source)
 		testcase := NewParser(t)
 		testcases = append(testcases, testcase)
-		wants = append(wants, []Ast{{AstPackage, AstIdent, AstTagPackage, 0}})
+		wants = append(wants, []Ast{
+			{AstTagTemplPackage, ident(0)},
+		})
 	}
 	{
 		source := `pkg :: package_list("home");`
@@ -34,7 +42,9 @@ func TestParse_packageDef(t *testing.T) {
 		t := NewTokenizer(source)
 		testcase := NewParser(t)
 		testcases = append(testcases, testcase)
-		wants = append(wants, []Ast{{AstPackage, AstIdent, AstListPackage, 0}})
+		wants = append(wants, []Ast{
+			{AstListTemplPackage, ident(0)},
+		})
 	}
 	{
 		source := `pkg :: package_html("home");`
@@ -42,7 +52,9 @@ func TestParse_packageDef(t *testing.T) {
 		t := NewTokenizer(source)
 		testcase := NewParser(t)
 		testcases = append(testcases, testcase)
-		wants = append(wants, []Ast{{AstPackage, AstIdent, AstHtmlPackage, 0}})
+		wants = append(wants, []Ast{
+			{AstHtmlTemplPackage, ident(0)},
+		})
 	}
 	for i, tc := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
@@ -53,7 +65,7 @@ func TestParse_packageDef(t *testing.T) {
 				var ast Ast
 				var end int
 				var err error
-				ast, end, err = tc.Package(next)
+				ast, end, err = tc.parsePackage(next)
 
 				if err == EOF {
 					break
@@ -84,19 +96,25 @@ func TestParse_typeDef(t *testing.T) {
 	var wants [][]Ast
 	{
 		source := "f : type : record {};"
-		want := []Ast{{AstTypeDef, AstTypeIdent, AstRecordDef, 0}}
+		want := []Ast{
+			{AstRecord, ident(0)},
+		}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
 	}
 	{
 		source := "f :: record {};"
-		want := []Ast{{AstTypeDef, AstTypeIdent, AstRecordDef, 0}}
+		want := []Ast{
+			{AstRecord, ident(0)},
+		}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
 	}
 	{
 		source := "f :: record { a: A; };"
-		want := []Ast{{AstTypeDef, AstTypeIdent, AstRecordDef, 0}}
+		want := []Ast{
+			{AstRecord, ident(0)},
+		}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
 	}
@@ -104,7 +122,9 @@ func TestParse_typeDef(t *testing.T) {
 		source := `f :: record { a: A;
 		b: B;
 		};`
-		want := []Ast{{AstTypeDef, AstTypeIdent, AstRecordDef, 0}}
+		want := []Ast{
+			{AstRecord, ident(0)},
+		}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
 	}
@@ -118,7 +138,7 @@ func TestParse_typeDef(t *testing.T) {
 				var ast Ast
 				var end int
 				var err error
-				ast, end, err = tc.Def(next)
+				ast, end, err = tc.parseDef(next)
 				if err == EOF {
 					break
 				}
@@ -149,7 +169,7 @@ func TestParse_typeAliasDef(t *testing.T) {
 	{
 		source := "A : type : alias Foo;"
 		//         012345678901234567890
-		want := []Ast{{AstTypeDef, AstTypeIdent, AstAliasDef, 0}}
+		want := []Ast{{AstAlias, ident(0)}}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
 	}
@@ -162,7 +182,7 @@ func TestParse_typeAliasDef(t *testing.T) {
 				var ast Ast
 				var end int
 				var err error
-				ast, end, err = tc.Def(next)
+				ast, end, err = tc.parseDef(next)
 				if err == EOF {
 					break
 				}
@@ -193,7 +213,7 @@ func TestParse_templDef(t *testing.T) {
 	{
 		source := "render : templ : (User) {};"
 		//         012345678901234567890123456
-		want := []Ast{{AstTemplateDef, AstIdent, AstTemplateBody, 0}}
+		want := []Ast{{AstTemplate, ident(0)}}
 		wants = append(wants, want)
 		testcases = append(testcases, NewParser(NewTokenizer(source)))
 	}
@@ -207,7 +227,7 @@ func TestParse_templDef(t *testing.T) {
 				var ast Ast
 				var end int
 				var err error
-				ast, end, err = tc.Def(next)
+				ast, end, err = tc.parseDef(next)
 				if err == EOF {
 					break
 				}
@@ -238,8 +258,8 @@ func TestParse_comment(t *testing.T) {
 	{
 		source := "// single line comment"
 		p := NewParser(NewTokenizer(source))
-		testcases = append(testcases, p.Package)
-		testcases = append(testcases, p.Def)
+		testcases = append(testcases, p.parsePackage)
+		testcases = append(testcases, p.parseDef)
 		// Due to the way the parse method back track on error
 		// even on EOF when the source contains only space or comment
 		// the offset will always be zero
@@ -250,8 +270,8 @@ func TestParse_comment(t *testing.T) {
 		source := `// line 1
 		// line 2`
 		p := NewParser(NewTokenizer(source))
-		testcases = append(testcases, p.Package)
-		testcases = append(testcases, p.Def)
+		testcases = append(testcases, p.parsePackage)
+		testcases = append(testcases, p.parseDef)
 		wants = append(wants, 0)
 		wants = append(wants, 0)
 	}
@@ -260,7 +280,7 @@ func TestParse_comment(t *testing.T) {
 		p :: package_tag("home");`
 
 		p := NewParser(NewTokenizer(source))
-		testcases = append(testcases, p.Package)
+		testcases = append(testcases, p.parsePackage)
 		wants = append(wants, len(source))
 	}
 	{
@@ -270,11 +290,11 @@ func TestParse_comment(t *testing.T) {
 		B : type : alias A;`
 
 		p := NewParser(NewTokenizer(source))
-		testcases = append(testcases, p.Def)
+		testcases = append(testcases, p.parseDef)
 		wants = append(wants, len(source))
 	}
 
-	testFunc := func(start, end int, parseAt func(int) (Ast, int, error)) func(*testing.T) {
+	testFunc := func(start, end int, parseAt testCase) func(*testing.T) {
 		return func(t *testing.T) {
 			next := start
 			for {
@@ -313,12 +333,12 @@ func TestParse_doc(t *testing.T) {
 		A : type : record {};
 		`
 		want := []Ast{
-			{AstDocDef, AstIdent, AstDocline, 3},
-			{AstTypeDef, AstTypeIdent, AstRecordDef, 24},
+			{AstDocline, ident(3)},
+			{AstRecord, ident(24)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)
-		testcases = append(testcases, p.Def)
+		testcases = append(testcases, p.parseDef)
 	}
 	{
 		source := `
@@ -329,12 +349,12 @@ func TestParse_doc(t *testing.T) {
 		A : type : record {};
 		`
 		want := []Ast{
-			{AstDocDef, AstIdent, AstDocblock, 3},
-			{AstTypeDef, AstTypeIdent, AstRecordDef, 46},
+			{AstDocblock, ident(3)},
+			{AstRecord, ident(46)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)
-		testcases = append(testcases, p.Def)
+		testcases = append(testcases, p.parseDef)
 	}
 
 	for i, parseAt := range testcases {
@@ -363,27 +383,27 @@ func TestParse_doc(t *testing.T) {
 }
 
 func TestParse_import(t *testing.T) {
-	var testcases []parserTestCase
+	var testcases []testCase
 	var wants [][]Ast
 	var ends []int
 	{
 		source := `p : import : import("home/pkg");`
 		want := []Ast{
-			{AstImport, AstIdent, AstImportPackage, 0},
+			{AstImport, ident(0)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)
-		testcases = append(testcases, p.Import)
+		testcases = append(testcases, p.parseImport)
 		ends = append(ends, len(source))
 	}
 	{
 		source := `p :: import("home/pkg");`
 		want := []Ast{
-			{AstImport, AstIdent, AstImportPackage, 0},
+			{AstImport, ident(0)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)
-		testcases = append(testcases, p.Import)
+		testcases = append(testcases, p.parseImport)
 		ends = append(ends, len(source))
 	}
 
@@ -417,27 +437,27 @@ func TestParse_import(t *testing.T) {
 }
 
 func TestParse_using(t *testing.T) {
-	var testcases []parserTestCase
+	var testcases []testCase
 	var wants [][]Ast
 	var ends []int
 	{
 		source := `A : import : using p;`
 		want := []Ast{
-			{AstUsing, AstTypeIdent, AstIdent, 0},
+			{AstUsing, ident(0)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)
-		testcases = append(testcases, p.Using)
+		testcases = append(testcases, p.parseUsing)
 		ends = append(ends, len(source))
 	}
 	{
 		source := `A :: using p;`
 		want := []Ast{
-			{AstUsing, AstTypeIdent, AstIdent, 0},
+			{AstUsing, ident(0)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)
-		testcases = append(testcases, p.Using)
+		testcases = append(testcases, p.parseUsing)
 		ends = append(ends, len(source))
 	}
 
@@ -471,13 +491,13 @@ func TestParse_using(t *testing.T) {
 }
 
 func TestParse_metatable(t *testing.T) {
-	var testcases []parserTestCase
+	var testcases []testCase
 	var wants [][]Ast
 	var ends []int
 	{
 		source := `A : { k = "foo" };`
 		want := []Ast{
-			{AstMeta, AstIdent, AstMetatable, 0},
+			{AstMetatable, ident(0)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)
@@ -487,7 +507,7 @@ func TestParse_metatable(t *testing.T) {
 	{
 		source := `A : { a = "foo", b = "bar" };`
 		want := []Ast{
-			{AstMeta, AstIdent, AstMetatable, 0},
+			{AstMetatable, ident(0)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)
@@ -497,7 +517,7 @@ func TestParse_metatable(t *testing.T) {
 	{
 		source := `A : { a = "foo", b = "bar", };`
 		want := []Ast{
-			{AstMeta, AstIdent, AstMetatable, 0},
+			{AstMetatable, ident(0)},
 		}
 		p := NewParser(NewTokenizer(source))
 		wants = append(wants, want)

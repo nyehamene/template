@@ -1,6 +1,6 @@
 source  := package_doc { import_doc } { using_doc } { def_doc } =:
 
-package_doc := { doc } package_metatable { doc } =:
+package_doc :=         package_metatable { doc } =:
 import_doc  := { doc } import            { doc } =:
 using_doc   := { doc } using             { doc } =:
 

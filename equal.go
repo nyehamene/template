@@ -9,7 +9,5 @@ func (t Token) Equal(o Token) bool {
 func (a Ast) Equal(o Ast) bool {
 	kind := a.kind == o.kind
 	left := a.left == o.left
-	right := a.right == o.right
-	offset := a.offset == o.offset
-	return kind && left && right && offset
+	return kind && left
 }
