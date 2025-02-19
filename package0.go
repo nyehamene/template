@@ -2,8 +2,8 @@ package template
 
 import "fmt"
 
-func (p Parser) parsePackage(start int) (Ast, int, error) {
-	ast := Ast{}
+func (p Parser) defPackage(start int) (Def, int, error) {
+	ast := Def{}
 	next := start
 
 	if token, n, err := p.expect(next, TokenIdent); err == nil {
@@ -47,8 +47,8 @@ func (p Parser) parsePackage(start int) (Ast, int, error) {
 	return ast, next, nil
 }
 
-func (p Parser) parseImport(start int) (Ast, int, error) {
-	ast := Ast{kind: AstImport}
+func (p Parser) defImport(start int) (Def, int, error) {
+	ast := Def{kind: DefImport}
 	next := start
 
 	if ident, n, err := p.expect(next, TokenIdent); err == nil {
@@ -107,9 +107,9 @@ func (p Parser) parseImport(start int) (Ast, int, error) {
 	return ast, next, nil
 }
 
-func (p Parser) packageTempl(start int) (AstKind, int, error) {
+func (p Parser) packageTempl(start int) (DefKind, int, error) {
 	next := start
-	kind := AstTagTemplPackage
+	kind := DefTagPackage
 
 	if k, n, ok := p.packageTempl0(next); ok {
 		kind = k
@@ -139,20 +139,20 @@ func (p Parser) packageTempl(start int) (AstKind, int, error) {
 	return kind, next, nil
 }
 
-func (p Parser) packageTempl0(start int) (AstKind, int, bool) {
+func (p Parser) packageTempl0(start int) (DefKind, int, bool) {
 	handler := p.skipBefore(TokenSpace)(p.tokenizer.next)
 	token, n, err := handler(start)
 	if err != nil {
-		return AstTagTemplPackage, start, false
+		return DefTagPackage, start, false
 	}
 	switch token.kind {
 	case TokenTag:
-		return AstTagTemplPackage, n, true
+		return DefTagPackage, n, true
 	case TokenList:
-		return AstListTemplPackage, n, true
+		return DefListPackage, n, true
 	case TokenHtml:
-		return AstHtmlTemplPackage, n, true
+		return DefHtmlPackage, n, true
 	default:
-		return AstTagTemplPackage, start, false
+		return DefTagPackage, start, false
 	}
 }

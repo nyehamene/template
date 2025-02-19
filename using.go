@@ -1,7 +1,7 @@
 package template
 
-func (p Parser) parseUsing(start int) (Ast, int, error) {
-	ast := Ast{kind: AstUsing}
+func (p Parser) defUsing(start int) (Def, int, error) {
+	ast := Def{kind: DefUsing}
 	next := start
 
 	if ident, n, err := p.expect(next, TokenIdent); err == nil {

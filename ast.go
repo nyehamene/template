@@ -13,24 +13,24 @@ type parsehandler func(int) (Token, int, error)
 
 type parsematcher func(parsehandler) parsehandler
 
-type AstKind int
+type DefKind int
 
 const (
-	AstTagTemplPackage AstKind = iota
-	AstListTemplPackage
-	AstHtmlTemplPackage
-	AstRecord
-	AstAlias
-	AstTemplate
-	AstDocline
-	AstDocblock
-	AstImport
-	AstUsing
-	AstMetatable
+	DefTagPackage DefKind = iota
+	DefListPackage
+	DefHtmlPackage
+	DefRecord
+	DefAlias
+	DefTemplate
+	DefDocline
+	DefDocblock
+	DefImport
+	DefUsing
+	DefMetatable
 )
 
-type Ast struct {
-	kind AstKind
+type Def struct {
+	kind DefKind
 	left Token
 }
 
@@ -38,70 +38,70 @@ type Parser struct {
 	tokenizer Tokenizer
 }
 
-func (p Parser) Parse(start int) (Ast, int, error) {
+func (p Parser) Parse(start int) (Def, int, error) {
 	panic("unimplemented")
 }
 
-func (p Parser) parseDef(start int) (Ast, int, error) {
-	var ast Ast
+func (p Parser) def(start int) (Def, int, error) {
+	var def Def
 	next := start
 
-	if def, n, err := p.doc(next); err == nil {
-		ast = def
+	if d, n, err := p.doc(next); err == nil {
+		def = d
 		next = n
-	} else if def, n, err := p.typeDef(next); err == nil {
-		ast = def
+	} else if d, n, err := p.defType(next); err == nil {
+		def = d
 		next = n
-	} else if def, n, err := p.templDef(next); err == nil {
-		ast = def
+	} else if d, n, err := p.defTempl(next); err == nil {
+		def = d
 		next = n
 	} else {
 		return def, start, err
 	}
 
 	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
-		return ast, start, err
+		return def, start, err
 	} else {
 		next = n
 	}
 
-	return ast, next, nil
+	return def, next, nil
 }
 
-func (p Parser) doc(start int) (Ast, int, error) {
-	ast := Ast{}
+func (p Parser) doc(start int) (Def, int, error) {
+	def := Def{}
 	next := start
 
 	if token, n, err := p.expect(next, TokenIdent); err == nil {
-		ast.left = token
+		def.left = token
 		next = n
 	} else {
-		return ast, start, err
+		return def, start, err
 	}
 
 	if _, n, err := p.expect(next, TokenColon); err == nil {
 		next = n
 	} else {
-		return ast, start, err
+		return def, start, err
 	}
 
 	if kind, n, err := p.docString(next); err == nil {
-		ast.kind = kind
+		def.kind = kind
 		next = n
 	} else {
-		return ast, start, err
+		return def, start, err
 	}
 
-	return ast, next, nil
+	return def, next, nil
 }
 
-func (p Parser) docString(start int) (AstKind, int, error) {
+func (p Parser) docString(start int) (DefKind, int, error) {
 	if _, n, err := p.expect(start, TokenString); err == nil {
-		return AstDocline, n, nil
+		return DefDocline, n, nil
 	} else if _, n, err := p.expect(start, TokenTextBlock); err == nil {
-		return AstDocblock, n, nil
+		return DefDocblock, n, nil
 	}
-	return AstDocline, start, ErrInvalid
+	return DefDocline, start, ErrInvalid
 }
 
 func (p Parser) decl(start int, kind TokenKind) (Token, int, error) {

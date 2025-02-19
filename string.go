@@ -71,35 +71,35 @@ func (k TokenKind) String() string {
 	}
 }
 
-func (k AstKind) String() string {
+func (k DefKind) String() string {
 	switch k {
-	case AstTagTemplPackage:
+	case DefTagPackage:
 		return "tag"
-	case AstListTemplPackage:
+	case DefListPackage:
 		return "list"
-	case AstHtmlTemplPackage:
+	case DefHtmlPackage:
 		return "html"
-	case AstRecord:
+	case DefRecord:
 		return "record"
-	case AstAlias:
+	case DefAlias:
 		return "alias"
-	case AstTemplate:
+	case DefTemplate:
 		return "templ"
-	case AstDocline:
+	case DefDocline:
 		return "docline"
-	case AstDocblock:
+	case DefDocblock:
 		return "docblock"
-	case AstImport:
+	case DefImport:
 		return "import"
-	case AstUsing:
+	case DefUsing:
 		return "using"
-	case AstMetatable:
+	case DefMetatable:
 		return "metatable"
 	default:
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}
 }
 
-func (a Ast) String() string {
+func (a Def) String() string {
 	return fmt.Sprintf("%s %s", a.kind, a.left)
 }

@@ -1,7 +1,7 @@
 package template
 
-func (p Parser) templDef(start int) (Ast, int, error) {
-	ast := Ast{kind: AstTemplate}
+func (p Parser) defTempl(start int) (Def, int, error) {
+	ast := Def{kind: DefTemplate}
 	next := start
 
 	if token, n, err := p.templDecl(next); err == nil {

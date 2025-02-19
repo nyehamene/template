@@ -1,13 +1,13 @@
 package template
 
-func (p Parser) recordDef(start int) (AstKind, int, bool) {
+func (p Parser) defRecord(start int) (DefKind, int, bool) {
 	var err error
 	next := start
 	if _, next, err = p.expect(next, TokenRecord); err != nil {
-		return AstRecord, start, false
+		return DefRecord, start, false
 	}
 	if _, next, err = p.expect(next, TokenBraceLeft); err != nil {
-		return AstRecord, start, false
+		return DefRecord, start, false
 	}
 
 	for {
@@ -17,17 +17,17 @@ func (p Parser) recordDef(start int) (AstKind, int, bool) {
 			break
 		}
 		if _, next, err = p.expect(n, TokenColon); err != nil {
-			return AstRecord, start, false
+			return DefRecord, start, false
 		}
 		if _, next, err = p.expect(next, TokenIdent); err != nil {
-			return AstRecord, start, false
+			return DefRecord, start, false
 		}
 		if _, next, err = p.expect(next, TokenSemicolon); err != nil {
-			return AstRecord, start, false
+			return DefRecord, start, false
 		}
 	}
 	if _, next, err = p.expect(next, TokenBraceRight); err != nil {
-		return AstRecord, start, false
+		return DefRecord, start, false
 	}
-	return AstRecord, next, true
+	return DefRecord, next, true
 }

@@ -6,7 +6,7 @@ func (t Token) Equal(o Token) bool {
 	return offset && kind
 }
 
-func (a Ast) Equal(o Ast) bool {
+func (a Def) Equal(o Def) bool {
 	kind := a.kind == o.kind
 	left := a.left == o.left
 	return kind && left

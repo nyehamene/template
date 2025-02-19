@@ -2,26 +2,26 @@ package template
 
 import "fmt"
 
-func (p Parser) aliasDef(start int) (AstKind, int, bool) {
+func (p Parser) defAlias(start int) (DefKind, int, bool) {
 	next := start
 
 	if _, n, err := p.expect(next, TokenAlias); err == nil {
 		next = n
 	} else {
-		return AstAlias, start, false
+		return DefAlias, start, false
 	}
 
 	if _, n, err := p.expect(next, TokenIdent); err == nil {
 		next = n
 	} else {
-		return AstAlias, start, false
+		return DefAlias, start, false
 	}
 
-	return AstAlias, next, true
+	return DefAlias, next, true
 }
 
-func (p Parser) typeDef(start int) (Ast, int, error) {
-	ast := Ast{}
+func (p Parser) defType(start int) (Def, int, error) {
+	ast := Def{}
 	next := start
 
 	if token, n, err := p.typeDecl(next); err == nil {
@@ -37,10 +37,10 @@ func (p Parser) typeDef(start int) (Ast, int, error) {
 		return ast, start, err
 	}
 
-	if kind, n, ok := p.recordDef(next); ok {
+	if kind, n, ok := p.defRecord(next); ok {
 		ast.kind = kind
 		next = n
-	} else if kind, n, ok := p.aliasDef(next); ok {
+	} else if kind, n, ok := p.defAlias(next); ok {
 		ast.kind = kind
 		next = n
 	} else {

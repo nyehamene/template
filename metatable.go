@@ -1,7 +1,7 @@
 package template
 
-func (p Parser) metatable(start int) (Ast, int, error) {
-	ast := Ast{kind: AstMetatable}
+func (p Parser) metatable(start int) (Def, int, error) {
+	ast := Def{kind: DefMetatable}
 	next := start
 	if ident, n, err := p.expect(next, TokenIdent); err == nil {
 		ast.left = ident
@@ -63,8 +63,8 @@ func (p Parser) metatable(start int) (Ast, int, error) {
 	return ast, next, nil
 }
 
-func (p Parser) attr(start int) (AstKind, int, error) {
-	kind := AstMetatable
+func (p Parser) attr(start int) (DefKind, int, error) {
+	kind := DefMetatable
 	next := start
 
 	if _, n, err := p.expect(next, TokenIdent); err == nil {

@@ -11,7 +11,7 @@ func parse(source []byte) {
 	t := template.NewTokenizer(src)
 	p := template.NewParser(t)
 
-	asts := []template.Ast{}
+	asts := []template.Def{}
 	next := 0
 
 	pkg, offset, err := p.Parse(next)
