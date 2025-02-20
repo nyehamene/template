@@ -2,6 +2,8 @@ package template
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -20,7 +22,7 @@ func TestParse_packageDef(t *testing.T) {
 		source := `pkg :package :package_tag("home");`
 		//         0123456789012345678901234567890
 		t := NewTokenizer(source)
-		testcase := NewParser(t)
+		testcase := NewParser(&t)
 		testcases = append(testcases, testcase)
 		wants = append(wants, []Def{
 			{DefTagPackage, ident(0)},
@@ -30,7 +32,7 @@ func TestParse_packageDef(t *testing.T) {
 		source := `pkg :: package_tag("home");`
 		//         012345678901234567890123
 		t := NewTokenizer(source)
-		testcase := NewParser(t)
+		testcase := NewParser(&t)
 		testcases = append(testcases, testcase)
 		wants = append(wants, []Def{
 			{DefTagPackage, ident(0)},
@@ -40,7 +42,7 @@ func TestParse_packageDef(t *testing.T) {
 		source := `pkg :: package_list("home");`
 		//         012345678901234567890123
 		t := NewTokenizer(source)
-		testcase := NewParser(t)
+		testcase := NewParser(&t)
 		testcases = append(testcases, testcase)
 		wants = append(wants, []Def{
 			{DefListPackage, ident(0)},
@@ -50,7 +52,7 @@ func TestParse_packageDef(t *testing.T) {
 		source := `pkg :: package_html("home");`
 		//         012345678901234567890123
 		t := NewTokenizer(source)
-		testcase := NewParser(t)
+		testcase := NewParser(&t)
 		testcases = append(testcases, testcase)
 		wants = append(wants, []Def{
 			{DefHtmlPackage, ident(0)},
@@ -100,7 +102,9 @@ func TestParse_typeDef(t *testing.T) {
 			{DefRecord, ident(0)},
 		}
 		wants = append(wants, want)
-		testcases = append(testcases, NewParser(NewTokenizer(source)))
+
+		t := NewTokenizer(source)
+		testcases = append(testcases, NewParser(&t))
 	}
 	{
 		source := "f :: record {};"
@@ -108,7 +112,10 @@ func TestParse_typeDef(t *testing.T) {
 			{DefRecord, ident(0)},
 		}
 		wants = append(wants, want)
-		testcases = append(testcases, NewParser(NewTokenizer(source)))
+
+		t := NewTokenizer(source)
+
+		testcases = append(testcases, NewParser(&t))
 	}
 	{
 		source := "f :: record { a: A; };"
@@ -116,7 +123,10 @@ func TestParse_typeDef(t *testing.T) {
 			{DefRecord, ident(0)},
 		}
 		wants = append(wants, want)
-		testcases = append(testcases, NewParser(NewTokenizer(source)))
+
+		t := NewTokenizer(source)
+
+		testcases = append(testcases, NewParser(&t))
 	}
 	{
 		source := `f :: record { a: A;
@@ -126,7 +136,10 @@ func TestParse_typeDef(t *testing.T) {
 			{DefRecord, ident(0)},
 		}
 		wants = append(wants, want)
-		testcases = append(testcases, NewParser(NewTokenizer(source)))
+
+		t := NewTokenizer(source)
+
+		testcases = append(testcases, NewParser(&t))
 	}
 
 	for i, tc := range testcases {
@@ -138,7 +151,7 @@ func TestParse_typeDef(t *testing.T) {
 				var ast Def
 				var end int
 				var err error
-				ast, end, err = tc.def(next)
+				ast, end, err = tc.defTypeOrTempl(next)
 				if err == EOF {
 					break
 				}
@@ -171,7 +184,10 @@ func TestParse_typeAliasDef(t *testing.T) {
 		//         012345678901234567890
 		want := []Def{{DefAlias, ident(0)}}
 		wants = append(wants, want)
-		testcases = append(testcases, NewParser(NewTokenizer(source)))
+
+		t := NewTokenizer(source)
+
+		testcases = append(testcases, NewParser(&t))
 	}
 	for i, tc := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
@@ -182,7 +198,7 @@ func TestParse_typeAliasDef(t *testing.T) {
 				var ast Def
 				var end int
 				var err error
-				ast, end, err = tc.def(next)
+				ast, end, err = tc.defTypeOrTempl(next)
 				if err == EOF {
 					break
 				}
@@ -215,7 +231,10 @@ func TestParse_templDef(t *testing.T) {
 		//         012345678901234567890123456
 		want := []Def{{DefTemplate, ident(0)}}
 		wants = append(wants, want)
-		testcases = append(testcases, NewParser(NewTokenizer(source)))
+
+		t := NewTokenizer(source)
+
+		testcases = append(testcases, NewParser(&t))
 	}
 
 	for i, tc := range testcases {
@@ -227,7 +246,7 @@ func TestParse_templDef(t *testing.T) {
 				var ast Def
 				var end int
 				var err error
-				ast, end, err = tc.def(next)
+				ast, end, err = tc.defTypeOrTempl(next)
 				if err == EOF {
 					break
 				}
@@ -257,9 +276,12 @@ func TestParse_comment(t *testing.T) {
 	var wants []int
 	{
 		source := "// single line comment"
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		testcases = append(testcases, p.defPackage)
-		testcases = append(testcases, p.def)
+		testcases = append(testcases, p.defTypeOrTempl)
 		// Due to the way the parse method back track on error
 		// even on EOF when the source contains only space or comment
 		// the offset will always be zero
@@ -269,9 +291,12 @@ func TestParse_comment(t *testing.T) {
 	{
 		source := `// line 1
 		// line 2`
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		testcases = append(testcases, p.defPackage)
-		testcases = append(testcases, p.def)
+		testcases = append(testcases, p.defTypeOrTempl)
 		wants = append(wants, 0)
 		wants = append(wants, 0)
 	}
@@ -279,7 +304,9 @@ func TestParse_comment(t *testing.T) {
 		source := `// package comment
 		p :: package_tag("home");`
 
-		p := NewParser(NewTokenizer(source))
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		testcases = append(testcases, p.defPackage)
 		wants = append(wants, len(source))
 	}
@@ -289,8 +316,10 @@ func TestParse_comment(t *testing.T) {
 		// line 2
 		B : type : alias A;`
 
-		p := NewParser(NewTokenizer(source))
-		testcases = append(testcases, p.def)
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
+		testcases = append(testcases, p.defTypeOrTempl)
 		wants = append(wants, len(source))
 	}
 
@@ -325,20 +354,22 @@ func TestParse_comment(t *testing.T) {
 }
 
 func TestParse_doc(t *testing.T) {
-	var testcases []func(int) (Def, int, error)
+	var testcases []Parser
 	var wants [][]Def
 	{
 		source := `
 		A : "single line";
-		A : type : record {};
-		`
+		A : type : record {};`
 		want := []Def{
 			{DefDocline, ident(3)},
 			{DefRecord, ident(24)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.def)
+		testcases = append(testcases, p)
 	}
 	{
 		source := `
@@ -346,33 +377,33 @@ func TestParse_doc(t *testing.T) {
 			""" line 1
 			""" line 2
 			;
-		A : type : record {};
-		`
+		A : type : record {};`
 		want := []Def{
 			{DefDocblock, ident(3)},
 			{DefRecord, ident(46)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.def)
+		testcases = append(testcases, p)
 	}
 
-	for i, parseAt := range testcases {
+	for i, parser := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
 			expected := wants[i]
-			got := []Def{}
-			next := 0
-			for {
-				token, n, err := parseAt(next)
-				if err == EOF {
-					break
-				}
-				if err != nil {
-					t.Error(err)
-					break
-				}
-				got = append(got, token)
-				next = n
+
+			next, err := parser.docDef(0)
+
+			got := parser.ast
+
+			if err != nil {
+				t.Error(err)
+			}
+
+			if l := len(*parser.tokenizer.source); next != l {
+				t.Errorf("expected %d got %d", l, next)
 			}
 
 			if diff := cmp.Diff(expected, got); diff != "" {
@@ -391,7 +422,10 @@ func TestParse_import(t *testing.T) {
 		want := []Def{
 			{DefImport, ident(0)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
 		testcases = append(testcases, p.defImport)
 		ends = append(ends, len(source))
@@ -401,7 +435,10 @@ func TestParse_import(t *testing.T) {
 		want := []Def{
 			{DefImport, ident(0)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
 		testcases = append(testcases, p.defImport)
 		ends = append(ends, len(source))
@@ -445,7 +482,10 @@ func TestParse_using(t *testing.T) {
 		want := []Def{
 			{DefUsing, ident(0)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
 		testcases = append(testcases, p.defUsing)
 		ends = append(ends, len(source))
@@ -455,7 +495,10 @@ func TestParse_using(t *testing.T) {
 		want := []Def{
 			{DefUsing, ident(0)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
 		testcases = append(testcases, p.defUsing)
 		ends = append(ends, len(source))
@@ -499,7 +542,10 @@ func TestParse_metatable(t *testing.T) {
 		want := []Def{
 			{DefMetatable, ident(0)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
 		testcases = append(testcases, p.metatable)
 		ends = append(ends, len(source))
@@ -509,7 +555,10 @@ func TestParse_metatable(t *testing.T) {
 		want := []Def{
 			{DefMetatable, ident(0)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
 		testcases = append(testcases, p.metatable)
 		ends = append(ends, len(source))
@@ -519,7 +568,10 @@ func TestParse_metatable(t *testing.T) {
 		want := []Def{
 			{DefMetatable, ident(0)},
 		}
-		p := NewParser(NewTokenizer(source))
+
+		t := NewTokenizer(source)
+
+		p := NewParser(&t)
 		wants = append(wants, want)
 		testcases = append(testcases, p.metatable)
 		ends = append(ends, len(source))
@@ -552,4 +604,28 @@ func TestParse_metatable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParse(t *testing.T) {
+	f, err := os.Open("demo/record.template")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	source := string(buf)
+
+	tz := NewTokenizer(source)
+	p := NewParser(&tz)
+
+	asts, err := p.Parse(0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Log(asts)
 }

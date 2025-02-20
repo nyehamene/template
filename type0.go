@@ -2,24 +2,6 @@ package template
 
 import "fmt"
 
-func (p Parser) defAlias(start int) (DefKind, int, bool) {
-	next := start
-
-	if _, n, err := p.expect(next, TokenAlias); err == nil {
-		next = n
-	} else {
-		return DefAlias, start, false
-	}
-
-	if _, n, err := p.expect(next, TokenIdent); err == nil {
-		next = n
-	} else {
-		return DefAlias, start, false
-	}
-
-	return DefAlias, next, true
-}
-
 func (p Parser) defType(start int) (Def, int, error) {
 	ast := Def{}
 	next := start
@@ -48,7 +30,31 @@ func (p Parser) defType(start int) (Def, int, error) {
 		return ast, start, fmt.Errorf("invalid type def")
 	}
 
+	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
+		return ast, start, err
+	} else {
+		next = n
+	}
+
 	return ast, next, nil
+}
+
+func (p Parser) defAlias(start int) (DefKind, int, bool) {
+	next := start
+
+	if _, n, err := p.expect(next, TokenAlias); err == nil {
+		next = n
+	} else {
+		return DefAlias, start, false
+	}
+
+	if _, n, err := p.expect(next, TokenIdent); err == nil {
+		next = n
+	} else {
+		return DefAlias, start, false
+	}
+
+	return DefAlias, next, true
 }
 
 func (p Parser) typeDecl(start int) (Token, int, error) {

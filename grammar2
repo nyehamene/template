@@ -6,17 +6,16 @@ using_doc   := { doc } using             { doc } =:
 
 package_metatable := package { metatable } =:
 
-package := $ident ":" [ "package" ] ":" package_templ ";" =:
+package := $ident ":" [ "package" ] ":" package_templ            ";" =:
 import  := $ident ":" [ "import"  ] ":" "import" "(" $string ")" ";" =:
-using   := $ident ":" [ "import"  ] ":" "using" $ident ";" =:
+using   := $ident ":" [ "import"  ] ":" "using" $ident           ";" =:
 
-def_doc        := { doc  }      def_metatable { doc  } =:
+def_doc        := { doc }       def_metatable       { doc } =:
 def_metatable  := { metatable } def           { metatable } =:
 
-def    := ( type | templ ) ";" =:
-type   := $ident { "," $ident } ":" [ "type"  ] ":" ( record | alias ) =:
-templ  := $ident { "," $ident } ":" [ "templ" ] ":" templ_model "{"  templ_body "}" =:
-record := "record" "{"  {  comp_doc } [ ";" ] "}" =:
+def    := ( type | templ ) =:
+type   := $ident { "," $ident } ":" [ "type"  ] ":" ( record | alias )              ";" =:
+templ  := $ident { "," $ident } ":" [ "templ" ] ":" templ_model "{"  templ_body "}" ";" =:
 
 package_templ :=
     "package_tag"  "(" $string ")" |
@@ -24,15 +23,17 @@ package_templ :=
 	"package_html" "(" $string ")"
 	=:
 
-comp_doc       := { doc  }      comp_metatable { doc  } =:
-comp_metatable := { metatable } decl ";"       { metatable } =:
+record := "record" "{"  {  comp_doc } [ ";" ] "}" =:
+alias  := "alias" $ident =:
 
 decl            := $ident { "," $ident } ":" [ $ident ] =:
-alias           := "alias" $ident =:
 text_block      := text_block_line { $eol text_block_line } =:
 text_block_line := three_dquote /[^\n]/ =:
 templ_model     := "("  $ident ")" =:
 templ_body      := { $tag_elem | $list_elem | $html_elem} =:
+
+comp_doc       := { doc }       comp_metatable       { doc } =:
+comp_metatable := { metatable } decl ";"       { metatable } =:
 
 doc     := $ident ":" doctext ";" =:
 doctext := $string | text_block =:

@@ -35,6 +35,12 @@ func (p Parser) defTempl(start int) (Def, int, error) {
 		return ast, start, err
 	}
 
+	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
+		return ast, start, err
+	} else {
+		next = n
+	}
+
 	return ast, next, nil
 }
 
