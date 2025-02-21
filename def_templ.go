@@ -1,6 +1,6 @@
 package template
 
-func (p Parser) defTempl(start int) (Def, int, error) {
+func (p *Parser) defTempl(start int) (Def, int, error) {
 	ast := Def{kind: DefTemplate}
 	next := start
 
@@ -44,7 +44,7 @@ func (p Parser) defTempl(start int) (Def, int, error) {
 	return ast, next, nil
 }
 
-func (p Parser) templModel(start int) (Token, int, error) {
+func (p *Parser) templModel(start int) (Token, int, error) {
 	var leftPar Token
 	next := start
 	token, n, err := p.expect(next, TokenParLeft)
@@ -69,6 +69,6 @@ func (p Parser) templModel(start int) (Token, int, error) {
 	return leftPar, next, nil
 }
 
-func (p Parser) templDecl(start int) (Token, int, error) {
+func (p *Parser) templDecl(start int) (Token, int, error) {
 	return p.decl(start, TokenTempl)
 }

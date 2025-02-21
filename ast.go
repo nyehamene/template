@@ -1,6 +1,9 @@
 package template
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 func NewParser(t *Tokenizer) Parser {
 	if t.source == nil {
@@ -47,9 +50,9 @@ func (p *Parser) Parse(start int) ([]Def, error) {
 		return p.ast, err
 	}
 
-	next = p.zeroOrMore(next, p.docImport)
-	next = p.zeroOrMore(next, p.docUsing)
-	next = p.zeroOrMore(next, p.docDef)
+	next = p.repeat(next, p.docImport)
+	next = p.repeat(next, p.docUsing)
+	next = p.repeat(next, p.docDef)
 
 	if err := p.expectErr(next, EOF); err != nil {
 		return p.ast, err
@@ -61,93 +64,32 @@ func (p *Parser) Parse(start int) ([]Def, error) {
 	return ast, nil
 }
 
-func (p *Parser) docPackage(start int) (int, error) {
-	next := start
-	if n, err := p.metatablePackage(next); err == nil {
-		next = n
-	} else {
-		return start, err
-	}
-	return next, nil
-}
+func (p *Parser) defTypeOrTempl(start int) (int, error) {
+	var err error
+	var ast Def
+	var next = start
 
-func (p *Parser) docImport(start int) (int, error) {
-	next := p.zeroOrMore0(start, p.doc)
-
-	if ast, n, err := p.defImport(next); err == nil {
+	ast, next, err = p.defType(next)
+	if err == nil {
 		p.ast = append(p.ast, ast)
-		next = n
-	} else {
-		return start, err
+		return next, nil
 	}
 
-	next = p.zeroOrMore0(next, p.doc)
-	return next, nil
-}
+	if err == EOF {
+		return start, EOF
+	}
 
-func (p *Parser) docUsing(start int) (int, error) {
-	next := p.zeroOrMore0(start, p.doc)
+	err1 := err
 
-	if ast, n, err := p.defUsing(next); err == nil {
+	ast, next, err = p.defTempl(start)
+	if err == nil {
 		p.ast = append(p.ast, ast)
-		next = n
-	} else {
-		return start, err
+		return next, nil
 	}
 
-	next = p.zeroOrMore0(next, p.doc)
-	return next, nil
-}
+	err = errors.Join(err1, err)
 
-func (p *Parser) docDef(start int) (int, error) {
-	next := p.zeroOrMore0(start, p.doc)
-
-	if n, err := p.metatableDef(next); err == nil {
-		next = n
-	} else {
-		return start, err
-	}
-
-	next = p.zeroOrMore0(next, p.doc)
-	return next, nil
-}
-
-func (p *Parser) metatableDef(start int) (int, error) {
-	next := p.zeroOrMore0(start, p.metatable)
-
-	if ast, n, err := p.defTypeOrTempl(next); err == nil {
-		p.ast = append(p.ast, ast)
-		next = n
-	} else {
-		return start, err
-	}
-
-	next = p.zeroOrMore0(next, p.metatable)
-	return next, nil
-}
-
-func (p *Parser) metatablePackage(start int) (int, error) {
-	next := start
-	if ast, n, err := p.defPackage(next); err == nil {
-		p.ast = append(p.ast, ast)
-		next = n
-	} else {
-		return start, err
-	}
-
-	next = p.zeroOrMore0(next, p.metatable)
-
-	return next, nil
-}
-
-func (p *Parser) defTypeOrTempl(start int) (Def, int, error) {
-	if ast, n, err := p.defType(start); err == nil {
-		return ast, n, nil
-	} else if ast, n, err := p.defTempl(start); err == nil {
-		return ast, n, nil
-	} else {
-		return ast, start, err
-	}
+	return start, err
 }
 
 func (p *Parser) expectErr(start int, err error) error {
@@ -155,48 +97,6 @@ func (p *Parser) expectErr(start int, err error) error {
 		return e
 	}
 	return nil
-}
-
-func (p *Parser) doc(start int) (Def, int, error) {
-	def := Def{}
-	next := start
-
-	if token, n, err := p.expect(next, TokenIdent); err == nil {
-		def.left = token
-		next = n
-	} else {
-		return def, start, err
-	}
-
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return def, start, err
-	}
-
-	if kind, n, err := p.docString(next); err == nil {
-		def.kind = kind
-		next = n
-	} else {
-		return def, start, err
-	}
-
-	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
-		return def, start, err
-	} else {
-		next = n
-	}
-
-	return def, next, nil
-}
-
-func (p *Parser) docString(start int) (DefKind, int, error) {
-	if _, n, err := p.expect(start, TokenString); err == nil {
-		return DefDocline, n, nil
-	} else if _, n, err := p.expect(start, TokenTextBlock); err == nil {
-		return DefDocblock, n, nil
-	}
-	return DefDocline, start, ErrInvalid
 }
 
 func (p *Parser) decl(start int, kind TokenKind) (Token, int, error) {
@@ -284,22 +184,10 @@ func (p *Parser) skipBefore(kind TokenKind, more ...TokenKind) parsematcher {
 	}
 }
 
-type parseFunc func(int) (Def, int, error)
+// TODO: remove Def from return values
+type parseFunc func(int) (int, error)
 
-func (p *Parser) zeroOrMore0(start int, fn parseFunc) int {
-	next := start
-	for {
-		if ast, n, err := fn(next); err == nil {
-			p.ast = append(p.ast, ast)
-			next = n
-		} else {
-			break
-		}
-	}
-	return next
-}
-
-func (p *Parser) zeroOrMore(start int, fn func(int) (int, error)) int {
+func (p *Parser) repeat(start int, fn parseFunc) int {
 	next := start
 	for {
 		if n, err := fn(next); err == nil {

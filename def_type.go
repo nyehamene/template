@@ -2,7 +2,7 @@ package template
 
 import "fmt"
 
-func (p Parser) defType(start int) (Def, int, error) {
+func (p *Parser) defType(start int) (Def, int, error) {
 	ast := Def{}
 	next := start
 
@@ -27,7 +27,7 @@ func (p Parser) defType(start int) (Def, int, error) {
 		next = n
 	} else {
 		// TODO: get the offset of the next none space token
-		return ast, start, fmt.Errorf("invalid type def")
+		return ast, start, fmt.Errorf("invalid type")
 	}
 
 	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
@@ -39,7 +39,7 @@ func (p Parser) defType(start int) (Def, int, error) {
 	return ast, next, nil
 }
 
-func (p Parser) defAlias(start int) (DefKind, int, bool) {
+func (p *Parser) defAlias(start int) (DefKind, int, bool) {
 	next := start
 
 	if _, n, err := p.expect(next, TokenAlias); err == nil {
@@ -57,6 +57,30 @@ func (p Parser) defAlias(start int) (DefKind, int, bool) {
 	return DefAlias, next, true
 }
 
-func (p Parser) typeDecl(start int) (Token, int, error) {
+func (p *Parser) defRecord(start int) (DefKind, int, bool) {
+	var err error
+	next := start
+	if _, next, err = p.expect(next, TokenRecord); err != nil {
+		return DefRecord, start, false
+	}
+	if _, next, err = p.expect(next, TokenBraceLeft); err != nil {
+		return DefRecord, start, false
+	}
+
+	if next, err = p.docRecordComp(next); err != nil {
+		return DefRecord, start, false
+	}
+
+	// if _, n, ok := p.optional(next, TokenSemicolon); ok {
+	// 	next = n
+	// }
+
+	if _, next, err = p.expect(next, TokenBraceRight); err != nil {
+		return DefRecord, start, false
+	}
+	return DefRecord, next, true
+}
+
+func (p *Parser) typeDecl(start int) (Token, int, error) {
 	return p.decl(start, TokenType)
 }

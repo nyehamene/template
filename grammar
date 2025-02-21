@@ -1,60 +1,48 @@
-template := page
-	| component
-   =:
+source  := package_doc { import_doc } { using_doc } { def_doc } =:
 
-page :=
-    ident ":" [ "package" ] ":" "package" package_name ";"
-    [ { record | fn_templ } { templ } ]
-   =:
+package_doc :=         package_metatable { doc } =:
+import_doc  := { doc } import            { doc } =:
+using_doc   := { doc } using             { doc } =:
+def_doc     := { doc } def_metatable     { doc } =:
+comp_doc    := { doc } comp_metatable    { doc } =:
 
-component :=
-    ident ":" [ "package" ] ":" "component" package_name ";"
-    [ { record | fn_templ } ]
-   =:
+package_metatable :=               package { metatable } =:
+def_metatable     := { metatable } def     { metatable } =:
+comp_metatable    := { metatable } comp    { metatable } =:
 
-package_name := "package_tag"  "(" string ")"
-    | "package_list" "(" string ")"
-	| "package_list" "(" string ")"
-   =:
+package := $ident ":" [ "package" ] ":" package_templ            ";" =:
+import  := $ident ":" [ "import"  ] ":" "import" "(" $string ")" ";" =:
 
-ident := /[a-zA-Z_][a-zA-Z0-9_]*/ =:
+using := idents ":" [ "import" ] ":" "using" $ident                  ";" =:
+type  := idents ":" [ "type"  ]  ":" ( record | alias )              ";" =:
+templ := idents ":" [ "templ" ]  ":" templ_model "{"  templ_body "}" ";" =:
 
-string := dquote /.*/ dquote =:
+def := ( type | templ ) =:
 
-dquote : "double quote"
-dquote := "\"" :=
+record := "record" "{" [ comp_doc  { ";"  comp_doc } ] "}" =:
+alias  := "alias" $ident =:
 
-record :=
-	type_ident ":" [ "type" ] ":" "record" "{" [ { var } ] "}"
-   =:
+comp            := $ident ":" $ident ";" =:
+text_block      := text_block_line { $eol text_block_line } =:
+text_block_line := three_dquote /[^\n]/ =:
+templ_model     := "("  $ident ")" =:
+templ_body      := { $tag_elem | $list_elem | $html_elem} =:
 
-type_ident : "a type name must be in upper camel case"
-type_ident := /[A-Z]/ nsp ident =:
+package_templ :=
+    "package_tag"  "(" $string ")" |
+	"package_list" "(" $string ")" |
+	"package_html" "(" $string ")"
+	=:
 
-var := ident ":" type_ident ";" =:
+doc     := $ident ":" doctext ";" =:
+doctext := $string | text_block =:
 
-# must not be a space
-nsp :- /\s/ -:
-nsp : "no white space"
+metatable := $ident ":" "{" attr { "," attr } [ "," ] "}" ";" =:
+attr      := $ident "=" $string =:
 
-fn_templ : "function template"
-fn_templ :=
-    ident ":" [ "templ" ] ":" "(" type_ident ")" [ { templ | content } ] "end"
-   =:
+comment      :* comment_line { $eol comment_line } *:
+comment_line := two_fslash /[^\n]*/ =:
 
-templ := tag
-    | list
-	| html
-   =:
-
-tag  := "<" nsp any_ident [ { attr } [ { tag  | content } ] ] "/" ">" =: 
-list := "[" nsp any_ident [ { attr } [ { list | content } ] ] "]" =: 
-
-any_ident := ident | type_ident =:
-
-html : "external html grammar"
-html := $html =:
-
-content : "anything that is not a tag"
-content := $content =:
-content := "TODO: add a proper production later"
+idents       := $ident { "," $ident } =:
+two_fslash   := "/" "/" =:
+three_dquote := "\"" "\"" "\"" =:

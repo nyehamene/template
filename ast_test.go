@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type testCase func(int) (Def, int, error)
+type testCase func(int) (int, error)
 
 func ident(offset int) Token {
 	return Token{TokenIdent, offset}
@@ -58,16 +58,14 @@ func TestParse_packageDef(t *testing.T) {
 			{DefHtmlPackage, ident(0)},
 		})
 	}
-	for i, tc := range testcases {
+	for i, p := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
 			expected := wants[i]
-			got := []Def{}
 			next := 0
 			for {
-				var ast Def
 				var end int
 				var err error
-				ast, end, err = tc.defPackage(next)
+				end, err = p.defPackage(next)
 
 				if err == EOF {
 					break
@@ -78,11 +76,11 @@ func TestParse_packageDef(t *testing.T) {
 					break
 				}
 
-				got = append(got, ast)
 				next = end
 			}
+			got := p.ast
 
-			if l := len(*tc.tokenizer.source); l != next {
+			if l := len(*p.tokenizer.source); l != next {
 				t.Errorf("expected %d got %d", l, next)
 			}
 
@@ -118,7 +116,7 @@ func TestParse_typeDef(t *testing.T) {
 		testcases = append(testcases, NewParser(&t))
 	}
 	{
-		source := "f :: record { a: A; };"
+		source := "f :: record { a: A };"
 		want := []Def{
 			{DefRecord, ident(0)},
 		}
@@ -142,16 +140,14 @@ func TestParse_typeDef(t *testing.T) {
 		testcases = append(testcases, NewParser(&t))
 	}
 
-	for i, tc := range testcases {
+	for i, p := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
 			expected := wants[i]
-			got := []Def{}
 			next := 0
 			for {
-				var ast Def
 				var end int
 				var err error
-				ast, end, err = tc.defTypeOrTempl(next)
+				end, err = p.defTypeOrTempl(next)
 				if err == EOF {
 					break
 				}
@@ -161,11 +157,11 @@ func TestParse_typeDef(t *testing.T) {
 					break
 				}
 
-				got = append(got, ast)
 				next = end
 			}
+			got := p.ast
 
-			if l := len(*tc.tokenizer.source); l != next {
+			if l := len(*p.tokenizer.source); l != next {
 				t.Errorf("expected %d got %d", l, next)
 			}
 
@@ -189,16 +185,14 @@ func TestParse_typeAliasDef(t *testing.T) {
 
 		testcases = append(testcases, NewParser(&t))
 	}
-	for i, tc := range testcases {
+	for i, p := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
 			expected := wants[i]
-			got := []Def{}
 			next := 0
 			for {
-				var ast Def
 				var end int
 				var err error
-				ast, end, err = tc.defTypeOrTempl(next)
+				end, err = p.defTypeOrTempl(next)
 				if err == EOF {
 					break
 				}
@@ -208,11 +202,11 @@ func TestParse_typeAliasDef(t *testing.T) {
 					break
 				}
 
-				got = append(got, ast)
 				next = end
 			}
+			got := p.ast
 
-			if l := len(*tc.tokenizer.source); l != next {
+			if l := len(*p.tokenizer.source); l != next {
 				t.Errorf("expected %d got %d", l, next)
 			}
 
@@ -237,16 +231,14 @@ func TestParse_templDef(t *testing.T) {
 		testcases = append(testcases, NewParser(&t))
 	}
 
-	for i, tc := range testcases {
+	for i, p := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
 			expected := wants[i]
-			got := []Def{}
 			next := 0
 			for {
-				var ast Def
 				var end int
 				var err error
-				ast, end, err = tc.defTypeOrTempl(next)
+				end, err = p.defTypeOrTempl(next)
 				if err == EOF {
 					break
 				}
@@ -256,11 +248,12 @@ func TestParse_templDef(t *testing.T) {
 					break
 				}
 
-				got = append(got, ast)
 				next = end
 			}
 
-			if l := len(*tc.tokenizer.source); l != next {
+			got := p.ast
+
+			if l := len(*p.tokenizer.source); l != next {
 				t.Errorf("expected %d got %d", l, next)
 			}
 
@@ -272,7 +265,7 @@ func TestParse_templDef(t *testing.T) {
 }
 
 func TestParse_comment(t *testing.T) {
-	var testcases []func(int) (Def, int, error)
+	var testcases []func(int) (int, error)
 	var wants []int
 	{
 		source := "// single line comment"
@@ -327,7 +320,7 @@ func TestParse_comment(t *testing.T) {
 		return func(t *testing.T) {
 			next := start
 			for {
-				_, n, err := parseAt(next)
+				n, err := parseAt(next)
 				if err == EOF {
 					break
 				}
@@ -414,7 +407,7 @@ func TestParse_doc(t *testing.T) {
 }
 
 func TestParse_import(t *testing.T) {
-	var testcases []testCase
+	var testcases []Parser
 	var wants [][]Def
 	var ends []int
 	{
@@ -427,7 +420,7 @@ func TestParse_import(t *testing.T) {
 
 		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.defImport)
+		testcases = append(testcases, p)
 		ends = append(ends, len(source))
 	}
 	{
@@ -440,18 +433,17 @@ func TestParse_import(t *testing.T) {
 
 		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.defImport)
+		testcases = append(testcases, p)
 		ends = append(ends, len(source))
 	}
 
-	for i, parseAt := range testcases {
+	for i, p := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
 			expected := wants[i]
-			got := []Def{}
 			end := ends[i]
 			next := 0
 			for {
-				token, n, err := parseAt(next)
+				n, err := p.defImport(next)
 				if err == EOF {
 					break
 				}
@@ -459,9 +451,9 @@ func TestParse_import(t *testing.T) {
 					t.Error(err)
 					break
 				}
-				got = append(got, token)
 				next = n
 			}
+			got := p.ast
 
 			if end != next {
 				t.Errorf("expected %d got %d", end, next)
@@ -474,7 +466,7 @@ func TestParse_import(t *testing.T) {
 }
 
 func TestParse_using(t *testing.T) {
-	var testcases []testCase
+	var testcases []Parser
 	var wants [][]Def
 	var ends []int
 	{
@@ -487,7 +479,7 @@ func TestParse_using(t *testing.T) {
 
 		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.defUsing)
+		testcases = append(testcases, p)
 		ends = append(ends, len(source))
 	}
 	{
@@ -500,18 +492,17 @@ func TestParse_using(t *testing.T) {
 
 		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.defUsing)
+		testcases = append(testcases, p)
 		ends = append(ends, len(source))
 	}
 
-	for i, parseAt := range testcases {
+	for i, p := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
 			expected := wants[i]
-			got := []Def{}
 			end := ends[i]
 			next := 0
 			for {
-				token, n, err := parseAt(next)
+				n, err := p.defUsing(next)
 				if err == EOF {
 					break
 				}
@@ -519,9 +510,9 @@ func TestParse_using(t *testing.T) {
 					t.Error(err)
 					break
 				}
-				got = append(got, token)
 				next = n
 			}
+			got := p.ast
 
 			if end != next {
 				t.Errorf("expected %d got %d", end, next)
@@ -534,7 +525,7 @@ func TestParse_using(t *testing.T) {
 }
 
 func TestParse_metatable(t *testing.T) {
-	var testcases []testCase
+	var testcases []Parser
 	var wants [][]Def
 	var ends []int
 	{
@@ -547,7 +538,7 @@ func TestParse_metatable(t *testing.T) {
 
 		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.metatable)
+		testcases = append(testcases, p)
 		ends = append(ends, len(source))
 	}
 	{
@@ -560,7 +551,7 @@ func TestParse_metatable(t *testing.T) {
 
 		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.metatable)
+		testcases = append(testcases, p)
 		ends = append(ends, len(source))
 	}
 	{
@@ -573,18 +564,17 @@ func TestParse_metatable(t *testing.T) {
 
 		p := NewParser(&t)
 		wants = append(wants, want)
-		testcases = append(testcases, p.metatable)
+		testcases = append(testcases, p)
 		ends = append(ends, len(source))
 	}
 
-	for i, parseAt := range testcases {
+	for i, p := range testcases {
 		t.Run(fmt.Sprintf("(%d)", i), func(t *testing.T) {
 			expected := wants[i]
-			got := []Def{}
 			end := ends[i]
 			next := 0
 			for {
-				token, n, err := parseAt(next)
+				n, err := p.metatable(next)
 				if err == EOF {
 					break
 				}
@@ -592,9 +582,9 @@ func TestParse_metatable(t *testing.T) {
 					t.Error(err)
 					break
 				}
-				got = append(got, token)
 				next = n
 			}
+			got := p.ast
 
 			if end != next {
 				t.Errorf("expected %d got %d", end, next)
