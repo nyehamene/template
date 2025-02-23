@@ -1,107 +1,134 @@
 package template
 
 func (p *Parser) doc(start int) (int, error) {
-	def := Def{}
-	next := start
+	var ident Token
+	var kind DefKind
+	var next int
+	var ok bool
 
-	if token, n, err := p.expect(next, TokenIdent); err == nil {
-		def.left = token
-		next = n
-	} else {
-		return start, err
+	if ident, next, ok = p.match(start, TokenIdent); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrNoMatch
 	}
 
-	if kind, n, err := p.docString(next); err == nil {
-		def.kind = kind
-		next = n
-	} else {
-		return start, err
+	if kind, next, ok = p.docString(next); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
-		return start, err
-	} else {
-		next = n
+	// The parser is in a documentation at this point
+	// if there is any further errors that means the documentation
+	// is invalid and the should not try to match another kind of
+	// declaration in the current position
+
+	if _, next, ok = p.match(next, TokenSemicolon); !ok {
+		return start, ErrInvalid
 	}
 
-	p.ast = append(p.ast, def)
+	ast := Def{kind: kind, left: ident}
+	p.ast = append(p.ast, ast)
 	return next, nil
 }
 
-func (p *Parser) docString(start int) (DefKind, int, error) {
-	if _, n, err := p.expect(start, TokenString); err == nil {
-		return DefDocline, n, nil
-	} else if _, n, err := p.expect(start, TokenTextBlock); err == nil {
-		return DefDocblock, n, nil
+func (p *Parser) docString(start int) (DefKind, int, bool) {
+	if _, n, ok := p.match(start, TokenString); ok {
+		return DefDocline, n, true
 	}
-	return DefDocline, start, ErrInvalid
+	if _, n, ok := p.match(start, TokenTextBlock); ok {
+		return DefDocblock, n, true
+	}
+	return DefDocline, start, false
 }
 
 func (p *Parser) docPackage(start int) (int, error) {
-	next := start
-	if n, err := p.metatablePackage(next); err == nil {
-		next = n
-	} else {
+	var next int
+	var err error
+
+	if next, err = p.metatablePackage(start); err != nil {
 		return start, err
 	}
-	next = p.repeat(next, p.doc)
-	return next, nil
+	next, err = p.repeat(next, p.doc)
+	return next, err
 }
 
 func (p *Parser) docImport(start int) (int, error) {
-	next := p.repeat(start, p.doc)
+	var next int
+	var err error
 
-	if n, err := p.defImport(next); err == nil {
-		next = n
-	} else {
+	next, err = p.repeat(start, p.doc)
+	if err == ErrInvalid {
+		return next, err
+	}
+	if err == EOF {
+		return next, EOF
+	}
+
+	if next, err = p.defImport(next); err != nil {
 		return start, err
 	}
 
-	next = p.repeat(next, p.doc)
-	return next, nil
+	next, err = p.repeat(next, p.doc)
+	return next, err
 }
 
 func (p *Parser) docUsing(start int) (int, error) {
-	next := p.repeat(start, p.doc)
+	var next int
+	var err error
 
-	if n, err := p.defUsing(next); err == nil {
-		next = n
-	} else {
+	next, err = p.repeat(start, p.doc)
+	if err == ErrInvalid {
+		return next, err
+	}
+	if err == EOF {
+		return next, EOF
+	}
+
+	if next, err = p.defUsing(next); err != nil {
 		return start, err
 	}
 
-	next = p.repeat(next, p.doc)
-	return next, nil
+	next, err = p.repeat(next, p.doc)
+	return next, err
 }
 
 func (p *Parser) docDef(start int) (int, error) {
-	next := p.repeat(start, p.doc)
+	var next int
+	var err error
 
-	if n, err := p.metatableDef(next); err == nil {
-		next = n
-	} else {
+	next, err = p.repeat(start, p.doc)
+	if err == ErrInvalid {
+		return next, err
+	}
+	if err == EOF {
+		return next, EOF
+	}
+
+	if next, err = p.metatableDef(next); err != nil {
 		return start, err
 	}
 
-	next = p.repeat(next, p.doc)
-	return next, nil
+	next, err = p.repeat(next, p.doc)
+	return next, err
 }
 
 func (p *Parser) docRecordComp(start int) (int, error) {
-	next := p.repeat(start, p.doc)
+	var next int
+	var err error
 
-	if n, err := p.metatableRecordComp(next); err == nil {
-		next = n
-	} else {
+	next, err = p.repeat(start, p.doc)
+	if err == ErrInvalid {
+		return next, err
+	}
+	if err == EOF {
+		return next, EOF
+	}
+
+	if next, err = p.metatableRecordComp(next); err != nil {
 		return start, err
 	}
 
-	next = p.repeat(next, p.doc)
-	return next, nil
+	next, err = p.repeat(next, p.doc)
+	return next, err
 }

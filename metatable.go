@@ -1,46 +1,40 @@
 package template
 
 func (p *Parser) metatable(start int) (int, error) {
-	ast := Def{kind: DefMetatable}
-	next := start
-	if ident, n, err := p.expect(next, TokenIdent); err == nil {
-		ast.left = ident
-		next = n
-	} else {
-		return start, err
+	var ident Token
+	var next int
+	var ok bool
+
+	if ident, next, ok = p.match(start, TokenIdent); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenBraceLeft); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenBraceLeft); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.attr(next); err == nil {
-		next = n
-	} else {
-		return start, err
+	// The parser is in a metatable declaration. Any error
+	// from this point on means the declaration is invalid.
+	// therefore, the parse should not try to parse another
+	// kind of declaration at the same position
+
+	if next, ok = p.attr(next); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, ok := p.optional(next, TokenComma); ok {
+	if _, n, ok := p.match(next, TokenComma); ok {
 		offset := n
 
 		for {
-			if _, n, err := p.attr(offset); err == nil {
-				offset = n
-			} else {
+			if offset, ok = p.attr(offset); !ok {
 				break
 			}
 
-			if _, n, err := p.expect(offset, TokenComma); err == nil {
-				offset = n
-			} else {
+			if _, offset, ok = p.match(offset, TokenComma); !ok {
 				break
 			}
 		}
@@ -48,92 +42,100 @@ func (p *Parser) metatable(start int) (int, error) {
 		next = offset
 	}
 
-	if _, n, err := p.expect(next, TokenBraceRight); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenBraceRight); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenSemicolon); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenSemicolon); !ok {
+		return start, ErrInvalid
 	}
 
+	kind := DefMetatable
+	ast := Def{kind: kind, left: ident}
 	p.ast = append(p.ast, ast)
 	return next, nil
 }
 
 func (p *Parser) metatablePackage(start int) (int, error) {
-	next := start
-	if n, err := p.defPackage(next); err == nil {
-		next = n
-	} else {
+	var next int
+	var err error
+
+	if next, err = p.defPackage(start); err != nil {
 		return start, err
 	}
 
-	next = p.repeat(next, p.metatable)
-
-	return next, nil
+	next, err = p.repeat(next, p.metatable)
+	return next, err
 }
 
 func (p *Parser) metatableDef(start int) (int, error) {
-	next := p.repeat(start, p.metatable)
+	var next int
+	var err error
 
-	if n, err := p.defTypeOrTempl(next); err == nil {
-		next = n
-	} else {
+	next, err = p.repeat(start, p.metatable)
+	if err == ErrInvalid {
+		return next, err
+	}
+	if err == EOF {
+		return next, EOF
+	}
+
+	next, err = p.defTypeOrTempl(next)
+	if err != nil {
 		return start, err
 	}
 
-	next = p.repeat(next, p.metatable)
-	return next, nil
+	next, err = p.repeat(next, p.metatable)
+	return next, err
 }
 
 func (p *Parser) metatableRecordComp(start int) (int, error) {
-	next := p.repeat(start, p.metatable)
+	var next int
+	var err error
+
+	next, err = p.repeat(start, p.metatable)
+	if err == ErrInvalid {
+		return next, err
+	}
+	if err == EOF {
+		return next, EOF
+	}
 
 	for {
-		var err error
-		if _, next, err = p.expect(next, TokenIdent); err != nil {
+		var ok bool
+		if _, next, ok = p.match(next, TokenIdent); !ok {
 			break
 		}
-		if _, next, err = p.expect(next, TokenColon); err != nil {
-			return start, err
+		if _, next, ok = p.match(next, TokenColon); !ok {
+			return start, ErrNoMatch
 		}
-		if _, next, err = p.expect(next, TokenIdent); err != nil {
-			return start, err
+		if _, next, ok = p.match(next, TokenIdent); !ok {
+			return start, ErrInvalid
 		}
-		if _, next, err = p.expect(next, TokenSemicolon); err != nil {
+		if _, next, ok = p.match(next, TokenSemicolon); !ok {
 			break
 		}
 	}
 
-	next = p.repeat(next, p.metatable)
-	return next, nil
+	next, err = p.repeat(next, p.metatable)
+	return next, err
 }
 
-func (p *Parser) attr(start int) (DefKind, int, error) {
-	kind := DefMetatable
-	next := start
+func (p *Parser) attr(start int) (int, bool) {
+	var next int
+	var ok bool
 
-	if _, n, err := p.expect(next, TokenIdent); err == nil {
-		next = n
-	} else {
-		return kind, start, err
+	if _, next, ok = p.match(start, TokenIdent); !ok {
+		return start, false
 	}
 
-	if _, n, err := p.expect(next, TokenEqual); err == nil {
-		next = n
-	} else {
-		return kind, start, err
+	if _, next, ok = p.match(next, TokenEqual); !ok {
+		return start, false
 	}
 
-	if _, n, err := p.expect(next, TokenString); err == nil {
-		next = n
-	} else {
-		return kind, start, err
+	if _, next, ok = p.match(next, TokenString); !ok {
+		return start, false
 	}
 
-	return kind, next, nil
+	return next, true
 }

@@ -1,74 +1,63 @@
 package template
 
-func (p *Parser) defTempl(start int) (Def, int, error) {
-	ast := Def{kind: DefTemplate}
-	next := start
+func (p *Parser) defTempl(start int) (next int, err error) {
+	var ident Token
+	var ok bool
 
-	if token, n, err := p.templDecl(next); err == nil {
-		ast.left = token
-		next = n
-	} else {
-		return ast, start, err
+	if ident, next, ok = p.templDecl(next); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return ast, start, err
+	// At this point the parsing is on a template declaration
+	// therefore, if there is an error at this point on the parse
+	// should not try to match another type of declaration at the
+	// current position
+
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.templModel(next); err == nil {
-		next = n
-	} else {
-		return ast, start, err
+	if _, next, ok = p.templModel(next); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenBraceLeft); err == nil {
-		next = n
-	} else {
-		return ast, start, err
+	if _, next, ok = p.match(next, TokenBraceLeft); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenBraceRight); err == nil {
-		next = n
-	} else {
-		return ast, start, err
+	if _, next, ok = p.match(next, TokenBraceRight); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
-		return ast, start, err
-	} else {
-		next = n
+	if _, next, ok = p.match(next, TokenSemicolon); !ok {
+		return start, ErrInvalid
 	}
 
-	return ast, next, nil
+	ast := Def{kind: DefTemplate, left: ident}
+	p.ast = append(p.ast, ast)
+	return next, nil
 }
 
-func (p *Parser) templModel(start int) (Token, int, error) {
-	var leftPar Token
-	next := start
-	token, n, err := p.expect(next, TokenParLeft)
-	if err != nil {
-		return token, start, err
-	}
-	next = n
-	leftPar = token
+func (p *Parser) templModel(start int) (Token, int, bool) {
+	var token Token
+	var next int
+	var ok bool
 
-	token, n, err = p.expect(next, TokenIdent)
-	if err != nil {
-		return token, start, err
+	if token, next, ok = p.match(next, TokenParLeft); !ok {
+		return token, start, false
 	}
-	next = n
 
-	token, n, err = p.expect(next, TokenParRight)
-	if err != nil {
-		return token, start, err
+	if _, next, ok = p.match(next, TokenIdent); !ok {
+		return token, start, false
 	}
-	next = n
 
-	return leftPar, next, nil
+	if _, next, ok = p.match(next, TokenParRight); ok {
+		return token, start, false
+	}
+
+	return token, next, true
 }
 
-func (p *Parser) templDecl(start int) (Token, int, error) {
+func (p *Parser) templDecl(start int) (Token, int, bool) {
 	return p.decl(start, TokenTempl)
 }

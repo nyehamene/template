@@ -1,8 +1,6 @@
 package template
 
-import (
-	"fmt"
-)
+import "log"
 
 type Def struct {
 	kind DefKind
@@ -39,37 +37,49 @@ type Parser struct {
 }
 
 func (p *Parser) Parse(start int) ([]Def, error) {
-	next := start
-	if n, err := p.docPackage(next); err == nil {
-		next = n
-	} else {
-		return p.ast, err
+	var next int
+	var err error
+
+	next, err = p.docPackage(start)
+	if err == ErrNoMatch {
+		log.Println("no package declaration was found")
+	} else if err == ErrInvalid {
+		log.Println("invalid package statement")
 	}
 
-	next = p.repeat(next, p.docImport)
-	next = p.repeat(next, p.docUsing)
-	next = p.repeat(next, p.docDef)
+	next, err = p.repeat(next, p.docImport)
+	if err == ErrInvalid {
+		log.Println("invalid import statement")
+	}
 
-	if err := p.expectErr(next, EOF); err != nil {
-		return p.ast, err
+	next, err = p.repeat(next, p.docUsing)
+	if err == ErrInvalid {
+		log.Println("invalid using statement")
+	}
+
+	_, err = p.repeat(next, p.docDef)
+	if err == ErrInvalid {
+		log.Println("invalid definition")
 	}
 
 	ast := p.ast
 	p.ast = nil
 
+	// TODO: return next
 	return ast, nil
 }
 
 func (p *Parser) defTypeOrTempl(start int) (next int, err error) {
 	var ast Def
 
-	if ast, next, err = p.defType(start); err != nil {
+	if next, err = p.defType(start); err != nil {
 
 		if err == EOF {
 			return start, EOF
 		}
 
-		if ast, next, err = p.defTempl(start); err != nil {
+		if next, err = p.defTempl(start); err != nil {
+			log.Println(err)
 			return start, ErrInvalid
 		}
 	}
@@ -78,67 +88,47 @@ func (p *Parser) defTypeOrTempl(start int) (next int, err error) {
 	return next, nil
 }
 
-func (p *Parser) expectErr(start int, err error) error {
-	if _, _, e := p.expect(start, TokenIdent); e != err {
-		return e
-	}
-	return nil
-}
-
-func (p *Parser) decl(start int, kind TokenKind) (Token, int, error) {
+func (p *Parser) decl(start int, kind TokenKind) (Token, int, bool) {
 	var ident Token
 	next := start
 
-	if token, n, err := p.expect(next, TokenIdent); err == nil {
+	if token, n, ok := p.match(next, TokenIdent); ok {
 		ident = token
 		next = n
 	} else {
-		return token, start, err
+		return token, start, false
 	}
 
-	if token, n, err := p.expect(next, TokenColon); err == nil {
+	if token, n, ok := p.match(next, TokenColon); ok {
 		next = n
 	} else {
-		return token, start, err
+		return token, start, false
 	}
 
-	if _, n, ok := p.optional(next, kind); ok {
+	if _, n, ok := p.match(next, kind); ok {
 		next = n
 	}
-	return ident, next, nil
+	return ident, next, true
 }
 
-type parsehandler func(int) (Token, int, error)
+type matchhandler func(int) (Token, int, bool)
 
-type parsematcher func(parsehandler) parsehandler
+type matcher func(matchhandler) matchhandler
 
-func (p *Parser) optional(start int, kind TokenKind, matchers ...parsematcher) (Token, int, bool) {
-	t, next, err := p.expect(start, kind, matchers...)
-	if err != nil {
-		return t, start, false
-	}
-
-	if t.kind != kind {
-		return t, start, false
-	}
-
-	return t, next, true
-}
-
-func (p *Parser) expect(start int, kind TokenKind, matchers ...parsematcher) (Token, int, error) {
-	var main parsehandler = func(start int) (Token, int, error) {
-		token, next, err := p.tokenizer.next(start)
+func (p *Parser) match(start int, kind TokenKind, matchers ...matcher) (Token, int, bool) {
+	var main matchhandler = func(s int) (Token, int, bool) {
+		token, next, err := p.tokenizer.next(s)
 		if err != nil {
-			return token, start, err
+			log.Println(err)
+			return token, s, false
 		}
 		if token.kind != kind {
-			r, c := p.tokenizer.Pos(token)
-			return token, start, fmt.Errorf("invalid token %s at [%d, %d]\nHelp: %s", token.kind, r, c, kind)
+			return token, s, false
 		}
-		return token, next, nil
+		return token, next, true
 	}
 
-	var handler parsehandler = main
+	var handler matchhandler = main
 	for _, matcher := range matchers {
 		handler = matcher(handler)
 	}
@@ -148,9 +138,9 @@ func (p *Parser) expect(start int, kind TokenKind, matchers ...parsematcher) (To
 	return handler(start)
 }
 
-func (p *Parser) skipBefore(kind TokenKind, more ...TokenKind) parsematcher {
-	return func(h parsehandler) parsehandler {
-		return func(start int) (Token, int, error) {
+func (p *Parser) skipBefore(kind TokenKind, more ...TokenKind) matcher {
+	return func(h matchhandler) matchhandler {
+		return func(start int) (Token, int, bool) {
 			kinds := make([]TokenKind, 0, len(more)+1)
 			kinds = append(kinds, kind)
 			kinds = append(kinds, more...)
@@ -158,7 +148,8 @@ func (p *Parser) skipBefore(kind TokenKind, more ...TokenKind) parsematcher {
 			for {
 				toSkip, next, err := p.tokenizer.next(beforeToken)
 				if err != nil {
-					return toSkip, start, err
+					log.Println(err)
+					return toSkip, start, false
 				}
 				for _, kind := range kinds {
 					if toSkip.kind == kind {
@@ -174,16 +165,15 @@ func (p *Parser) skipBefore(kind TokenKind, more ...TokenKind) parsematcher {
 	}
 }
 
-type parseFunc func(int) (int, error)
+type repeatFunc func(int) (int, error)
 
-func (p *Parser) repeat(start int, fn parseFunc) int {
+func (p *Parser) repeat(start int, fn repeatFunc) (int, error) {
+	var err error
 	next := start
 	for {
-		if n, err := fn(next); err == nil {
-			next = n
-		} else {
+		if next, err = fn(next); err != nil {
 			break
 		}
 	}
-	return next
+	return next, err
 }

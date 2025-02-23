@@ -1,199 +1,198 @@
 package template
 
-import "fmt"
+import "log"
 
-func (p *Parser) defPackage(start int) (int, error) {
-	ast := Def{}
-	next := start
+func (p *Parser) defPackage(start int) (next int, err error) {
+	var ident Token
+	var ok bool
 
-	if ident, n, err := p.expect(next, TokenIdent); err == nil {
-		ast.left = ident
-		next = n
-	} else {
-		// NOTE: for better error reporting ast.left could be set
-		// to the erroneous token
-		return start, err
+	if ident, next, ok = p.match(start, TokenIdent); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, ok := p.optional(next, TokenPackage); ok {
-		next = n
+	// optional type
+	var okTokenPackage bool
+	_, next, okTokenPackage = p.match(next, TokenPackage)
+
+	// If the type is a package, and there is an error that means
+	// the package declaration is invalid, therefore, the parse should not
+	// try to match other types of declarations in the same position.
+	defer func() {
+		if err != nil && okTokenPackage {
+			err = ErrInvalid
+		}
+	}()
+
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return start, err
+	var kind DefKind
+	if kind, next, ok = p.packageTempl(next); !ok {
+		return start, ErrNoMatch
 	}
 
-	if kind, n, err := p.packageTempl(next); err == nil {
-		ast.kind = kind
-		next = n
-	} else {
-		return start, err
+	// if we successfully parse a package templ type then we are in a package
+	// declaration
+	okTokenPackage = true
+
+	if _, next, ok = p.match(next, TokenSemicolon); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenSemicolon); err == nil {
-		next = n
-	} else {
-		return start, err
-	}
-
+	ast := Def{kind: kind, left: ident}
 	p.ast = append(p.ast, ast)
 	return next, nil
 }
 
-func (p *Parser) defImport(start int) (int, error) {
-	ast := Def{kind: DefImport}
-	next := start
+func (p *Parser) defImport(start int) (next int, err error) {
+	var ident Token
+	var ok bool
 
-	if ident, n, err := p.expect(next, TokenIdent); err == nil {
-		ast.left = ident
-		next = n
-	} else {
-		return start, err
+	if ident, next, ok = p.match(start, TokenIdent); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, ok := p.optional(next, TokenImport); ok {
-		next = n
+	// optional type
+	var okTokenImport bool
+	_, next, okTokenImport = p.match(next, TokenImport)
+
+	// If there is an error, that means the import declaration
+	// is invalid, therefore the parse should not try to parse
+	// another type of declaration in the same position.
+	defer func() {
+		if err != nil && okTokenImport {
+			err = ErrInvalid
+		}
+	}()
+
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenImport); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenImport); err == nil {
-		next = n
-	} else {
-		return start, err
+	// If the import keyword is matched at this point
+	// then we are in an import declaration
+	okTokenImport = true
+
+	if _, next, ok = p.match(next, TokenParLeft); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenParLeft); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenString); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenString); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenParRight); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenParRight); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenSemicolon); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenSemicolon); err == nil {
-		next = n
-	} else {
-		return start, err
-	}
-
+	ast := Def{kind: DefImport, left: ident}
 	p.ast = append(p.ast, ast)
 	return next, nil
 }
 
-func (p *Parser) defUsing(start int) (int, error) {
-	ast := Def{kind: DefUsing}
-	next := start
+func (p *Parser) defUsing(start int) (next int, err error) {
+	var ident Token
+	var ok bool
 
-	if ident, n, err := p.expect(next, TokenIdent); err == nil {
-		ast.left = ident
-		next = n
-	} else {
-		return start, err
+	if ident, next, ok = p.match(start, TokenIdent); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, ok := p.optional(next, TokenImport); ok {
-		next = n
+	// optional type
+	var okTokenImport bool
+	_, next, okTokenImport = p.match(next, TokenImport)
+
+	// If there is an error, that means the import declaration
+	// is invalid, therefore the parse should not try to parse
+	// another type of declaration in the same position.
+	defer func() {
+		if err != nil && okTokenImport {
+			err = ErrInvalid
+		}
+	}()
+
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenUsing); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenUsing); err == nil {
-		next = n
-	} else {
-		return start, err
+	// At this point the parse is parsing a using declaration
+	// therefore, any errors from here on means the declaration
+	// is invalid
+
+	if _, next, ok = p.match(next, TokenIdent); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenIdent); err == nil {
-		next = n
-	} else {
-		return start, err
+	if _, next, ok = p.match(next, TokenSemicolon); !ok {
+		return start, ErrInvalid
 	}
 
-	if _, n, err := p.expect(next, TokenSemicolon); err == nil {
-		next = n
-	} else {
-		return start, err
-	}
-
+	ast := Def{kind: DefUsing, left: ident}
 	p.ast = append(p.ast, ast)
 	return next, nil
 }
 
-func (p *Parser) packageTempl(start int) (DefKind, int, error) {
-	next := start
-	kind := DefTagPackage
+func (p *Parser) packageTempl(start int) (DefKind, int, bool) {
+	var next int
+	var ok bool
+	var kind DefKind
 
-	if k, n, ok := p.packageTempl0(next); ok {
-		kind = k
-		next = n
-	} else {
-		return kind, start, fmt.Errorf("invalid package def")
+	if kind, next, ok = p.packageTempl0(start); !ok {
+		return kind, start, false
 	}
 
-	if _, n, err := p.expect(next, TokenParLeft); err == nil {
-		next = n
-	} else {
-		return kind, start, err
+	if _, next, ok = p.match(next, TokenParLeft); !ok {
+		return kind, start, false
 	}
 
-	if _, n, err := p.expect(next, TokenString); err == nil {
-		next = n
-	} else {
-		return kind, start, err
+	if _, next, ok = p.match(next, TokenString); !ok {
+		return kind, start, false
 	}
 
-	if _, n, err := p.expect(next, TokenParRight); err == nil {
-		next = n
-	} else {
-		return kind, start, err
+	if _, next, ok = p.match(next, TokenParRight); !ok {
+		return kind, start, false
 	}
 
-	return kind, next, nil
+	return kind, next, true
 }
 
 func (p *Parser) packageTempl0(start int) (DefKind, int, bool) {
-	handler := p.skipBefore(TokenSpace)(p.tokenizer.next)
-	token, n, err := handler(start)
-	if err != nil {
+	handler := func(s int) (Token, int, bool) {
+		t, n, err := p.tokenizer.next(s)
+		if err != nil {
+			log.Println(err)
+		}
+		return t, n, err == nil
+	}
+
+	handler = p.skipBefore(TokenSpace)(handler)
+	token, n, ok := handler(start)
+	if !ok {
 		return DefTagPackage, start, false
 	}
 	switch token.kind {

@@ -1,86 +1,85 @@
 package template
 
-import "fmt"
+import "log"
 
-func (p *Parser) defType(start int) (Def, int, error) {
-	ast := Def{}
-	next := start
+func (p *Parser) defType(start int) (next int, err error) {
+	var ident Token
+	var ok bool
 
-	if token, n, err := p.typeDecl(next); err == nil {
-		ast.left = token
-		next = n
-	} else {
-		return ast, start, err
+	if ident, next, ok = p.typeDecl(start); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenColon); err == nil {
-		next = n
-	} else {
-		return ast, start, err
+	// At this point the parsing is in a type declaration
+	// therefore, any error from this point on means the
+	// declaration is invalid. And the parse should not try
+	// to parse another kind of token at the current position
+
+	if _, next, ok = p.match(next, TokenColon); !ok {
+		return start, ErrInvalid
 	}
 
-	if kind, n, ok := p.defRecord(next); ok {
-		ast.kind = kind
-		next = n
-	} else if kind, n, ok := p.defAlias(next); ok {
-		ast.kind = kind
-		next = n
-	} else {
-		// TODO: get the offset of the next none space token
-		return ast, start, fmt.Errorf("invalid type")
+	if next, err = p.defRecord(next, ident); err == nil {
+		goto matchSemicolon
 	}
 
-	if _, n, err := p.expect(next, TokenSemicolon); err != nil {
-		return ast, start, err
-	} else {
-		next = n
+	if next, err = p.defAlias(next, ident); err != nil {
+		return start, ErrInvalid
 	}
 
-	return ast, next, nil
+matchSemicolon:
+	if _, next, ok = p.match(next, TokenSemicolon); !ok {
+		return start, ErrInvalid
+	}
+
+	return next, nil
 }
 
-func (p *Parser) defAlias(start int) (DefKind, int, bool) {
-	next := start
+func (p *Parser) defAlias(start int, ident Token) (int, error) {
+	var next int
+	var ok bool
 
-	if _, n, err := p.expect(next, TokenAlias); err == nil {
-		next = n
-	} else {
-		return DefAlias, start, false
+	if _, next, ok = p.match(start, TokenAlias); !ok {
+		return start, ErrNoMatch
 	}
 
-	if _, n, err := p.expect(next, TokenIdent); err == nil {
-		next = n
-	} else {
-		return DefAlias, start, false
+	if _, next, ok = p.match(next, TokenIdent); !ok {
+		return start, ErrInvalid
 	}
 
-	return DefAlias, next, true
+	ast := Def{kind: DefAlias, left: ident}
+	p.ast = append(p.ast, ast)
+	return next, nil
 }
 
-func (p *Parser) defRecord(start int) (DefKind, int, bool) {
+func (p *Parser) defRecord(start int, ident Token) (int, error) {
+	var next int
+	var ok bool
 	var err error
-	next := start
-	if _, next, err = p.expect(next, TokenRecord); err != nil {
-		return DefRecord, start, false
+
+	if _, next, ok = p.match(start, TokenRecord); !ok {
+		return start, ErrNoMatch
 	}
-	if _, next, err = p.expect(next, TokenBraceLeft); err != nil {
-		return DefRecord, start, false
+
+	if _, next, ok = p.match(next, TokenBraceLeft); !ok {
+		return start, ErrInvalid
 	}
 
 	if next, err = p.docRecordComp(next); err != nil {
-		return DefRecord, start, false
+		// TODO: wrap err in ErrInvalid
+		log.Println(err)
+		return start, ErrInvalid
 	}
 
-	// if _, n, ok := p.optional(next, TokenSemicolon); ok {
-	// 	next = n
-	// }
-
-	if _, next, err = p.expect(next, TokenBraceRight); err != nil {
-		return DefRecord, start, false
+	if _, next, ok = p.match(next, TokenBraceRight); !ok {
+		return start, ErrInvalid
 	}
-	return DefRecord, next, true
+
+	ast := Def{kind: DefRecord, left: ident}
+	p.ast = append(p.ast, ast)
+	return next, nil
 }
 
-func (p *Parser) typeDecl(start int) (Token, int, error) {
+func (p *Parser) typeDecl(start int) (Token, int, bool) {
 	return p.decl(start, TokenType)
 }
