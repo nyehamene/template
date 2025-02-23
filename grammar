@@ -6,8 +6,8 @@ using_doc   := { doc } using             { doc } =:
 def_doc     := { doc } def_metatable     { doc } =:
 comp_doc    := { doc } comp_metatable    { doc } =:
 
-package_metatable :=               package { metatable } =:
-def_metatable     := { metatable } def     { metatable } =:
+package_metatable :=               package           { metatable } =:
+def_metatable     := { metatable } def_type_or_templ { metatable } =:
 comp_metatable    := { metatable } comp    { metatable } =:
 
 package := $ident ":" [ "package" ] ":" package_templ            ";" =:
@@ -17,7 +17,7 @@ using := idents ":" [ "import" ] ":" "using" $ident                  ";" =:
 type  := idents ":" [ "type"  ]  ":" ( record | alias )              ";" =:
 templ := idents ":" [ "templ" ]  ":" templ_model "{"  templ_body "}" ";" =:
 
-def := ( type | templ ) =:
+def_type_or_templ := type | templ =:
 
 record := "record" "{" [ comp_doc  { ";"  comp_doc } ] "}" =:
 alias  := "alias" $ident =:

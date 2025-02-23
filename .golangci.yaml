@@ -1,0 +1,9 @@
+linters:
+  enable:
+    - godox
+    - misspell
+    - mnd
+    - prealloc
+    - predeclared
+    - testableexamples
+    - usestdlibvars

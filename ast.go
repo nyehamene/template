@@ -1,25 +1,19 @@
 package template
 
 import (
-	"errors"
 	"fmt"
 )
 
-func NewParser(t *Tokenizer) Parser {
-	if t.source == nil {
-		panic("source must not be nil")
-	}
-	return Parser{t, []Def{}}
+type Def struct {
+	kind DefKind
+	left Token
 }
-
-type parsehandler func(int) (Token, int, error)
-
-type parsematcher func(parsehandler) parsehandler
 
 type DefKind int
 
 const (
-	DefTagPackage DefKind = iota
+	DefInvalid DefKind = iota
+	DefTagPackage
 	DefListPackage
 	DefHtmlPackage
 	DefRecord
@@ -32,9 +26,11 @@ const (
 	DefMetatable
 )
 
-type Def struct {
-	kind DefKind
-	left Token
+func NewParser(t *Tokenizer) Parser {
+	if t.source == nil {
+		panic("source must not be nil")
+	}
+	return Parser{t, []Def{}}
 }
 
 type Parser struct {
@@ -64,32 +60,22 @@ func (p *Parser) Parse(start int) ([]Def, error) {
 	return ast, nil
 }
 
-func (p *Parser) defTypeOrTempl(start int) (int, error) {
-	var err error
+func (p *Parser) defTypeOrTempl(start int) (next int, err error) {
 	var ast Def
-	var next = start
 
-	ast, next, err = p.defType(next)
-	if err == nil {
-		p.ast = append(p.ast, ast)
-		return next, nil
+	if ast, next, err = p.defType(start); err != nil {
+
+		if err == EOF {
+			return start, EOF
+		}
+
+		if ast, next, err = p.defTempl(start); err != nil {
+			return start, ErrInvalid
+		}
 	}
 
-	if err == EOF {
-		return start, EOF
-	}
-
-	err1 := err
-
-	ast, next, err = p.defTempl(start)
-	if err == nil {
-		p.ast = append(p.ast, ast)
-		return next, nil
-	}
-
-	err = errors.Join(err1, err)
-
-	return start, err
+	p.ast = append(p.ast, ast)
+	return next, nil
 }
 
 func (p *Parser) expectErr(start int, err error) error {
@@ -121,6 +107,10 @@ func (p *Parser) decl(start int, kind TokenKind) (Token, int, error) {
 	}
 	return ident, next, nil
 }
+
+type parsehandler func(int) (Token, int, error)
+
+type parsematcher func(parsehandler) parsehandler
 
 func (p *Parser) optional(start int, kind TokenKind, matchers ...parsematcher) (Token, int, bool) {
 	t, next, err := p.expect(start, kind, matchers...)
@@ -184,7 +174,6 @@ func (p *Parser) skipBefore(kind TokenKind, more ...TokenKind) parsematcher {
 	}
 }
 
-// TODO: remove Def from return values
 type parseFunc func(int) (int, error)
 
 func (p *Parser) repeat(start int, fn parseFunc) int {
