@@ -14,19 +14,19 @@ func (k Kind) String() string {
 		return ","
 	case Colon:
 		return ":"
-	case Equal:
+	case Eq:
 		return "="
 	case Dot:
 		return "."
 	case Semicolon:
 		return ";"
+	case BracketOpen:
+		return "["
+	case BracketClose:
+		return "]"
 	case BraceOpen:
 		return "{"
 	case BraceClose:
-		return "}"
-	case BracketOpen:
-		return "{"
-	case BracketClose:
 		return "}"
 	case ParenOpen:
 		return "("

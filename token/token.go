@@ -16,17 +16,17 @@ const (
 	EOF
 	EOL
 
-	Comma
-	Colon
-	Equal
-	Dot
-	Semicolon
-	BraceOpen
 	BraceClose
-	BracketOpen
+	BraceOpen
 	BracketClose
-	ParenOpen
+	BracketOpen
+	Colon
+	Comma
+	Dot
+	Eq
 	ParenClose
+	ParenOpen
+	Semicolon
 	Space
 
 	KeywordBegin
