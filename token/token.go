@@ -30,13 +30,13 @@ const (
 	Space
 
 	KeywordBegin
-	Package
-	Import
-	Using
 	Alias
+	Import
+	Package
+	Record
 	Templ
 	Type
-	Record
+	Using
 	KeywordEnd
 
 	LiteralBegin
@@ -71,7 +71,7 @@ func IsSpace(b byte) bool {
 	return ok
 }
 
-func IsKeyword(ident string) bool {
-	_, ok := keywords[ident]
-	return ok
+func IsKeyword(ident string) (kind Kind, ok bool) {
+	kind, ok = keywords[ident]
+	return
 }
