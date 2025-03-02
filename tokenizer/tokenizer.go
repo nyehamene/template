@@ -17,6 +17,7 @@ func New(s []byte) Tokenizer {
 		errFunc:  defaultErrorHandler,
 		errCount: 0,
 	}
+	tok.advance()
 	return tok
 }
 
@@ -58,23 +59,68 @@ func (t *Tokenizer) error(offset int, lit, msg string) {
 	t.errCount += 1
 }
 
-func (t *Tokenizer) advance() {
+func (t Tokenizer) eof() bool {
 	offset := t.offset
+	if end := len(t.src); offset >= end {
+		return true
+	}
+	return false
+}
 
-	if l := len(t.src); offset >= l {
-		t.ch = eof
-		t.offset = l
-		return
+func (t *Tokenizer) peek() rune {
+	if t.eof() {
+		return eof
 	}
 
+	offset := t.offset
 	ch := rune(t.src[offset])
-	t.ch = ch
-	t.chOffset = offset
-	t.offset = offset + 1
+	return ch
+}
+
+func (t *Tokenizer) advance() rune {
+	next := t.peek()
+	if next == eof {
+		t.ch = eof
+		t.offset = len(t.src)
+		return eof
+	}
+
+	t.ch = next
+	t.chOffset = t.offset
+	t.offset += 1
+	return next
+}
+
+func (t Tokenizer) match(tok *Tokenizer, ch rune, others ...rune) bool {
+	if t.ch != ch {
+		return false
+	}
+
+	for _, r := range others {
+		ch := t.advance()
+		if ch != r {
+			return false
+		}
+	}
+	for i := 0; i <= len(others); i++ {
+		_ = tok.advance()
+	}
+	return true
+}
+
+func (t *Tokenizer) skipSpace() {
+	for {
+		ch := t.ch
+		// TODO: preserve newline when inserting semicolon automatically
+		if !token.IsSpace(ch) && ch != '\n' {
+			break
+		}
+		t.advance()
+	}
 }
 
 func (t *Tokenizer) Next() token.Token {
-	t.advance()
+	t.skipSpace()
 
 	ch := t.ch
 	offset := t.chOffset
@@ -82,6 +128,8 @@ func (t *Tokenizer) Next() token.Token {
 	if ch == eof {
 		return token.New(token.EOF, offset)
 	}
+
+	t.advance()
 
 	var kind token.Kind
 
@@ -109,12 +157,15 @@ func (t *Tokenizer) Next() token.Token {
 	case ';':
 		kind = token.Semicolon
 	case '"':
-		t.advance()
-		t.string()
-		kind = token.String
+		if t.match(t, '"', '"') {
+			t.textBlock()
+			kind = token.TextBlock
+		} else {
+			t.string()
+			kind = token.String
+		}
 	default:
 		if isLetter(ch) {
-			t.advance()
 			t.ident()
 			kind = token.Ident
 			lit := string(t.src[offset:t.offset])
@@ -134,8 +185,7 @@ func (t *Tokenizer) Next() token.Token {
 func (t *Tokenizer) ident() {
 	ch := t.ch
 	for isLetter(ch) || isDigit(ch) {
-		t.advance()
-		ch = t.ch
+		ch = t.advance()
 	}
 }
 
@@ -152,5 +202,37 @@ func (t *Tokenizer) string() {
 		if ch == '"' {
 			break
 		}
+	}
+}
+
+func (t *Tokenizer) textBlock() {
+	textBlockLine := func() {
+		for {
+			ch := t.ch
+			if ch == '\n' || ch <= eof {
+				break
+			}
+			t.advance()
+		}
+	}
+
+	markerOffset := 3
+	minLineCount := 2
+	lineCount := 0
+
+	offset := t.chOffset - markerOffset
+
+	for {
+		lineCount += 1
+		textBlockLine()
+		t.skipSpace()
+		if !t.match(t, '"', '"', '"') {
+			break
+		}
+	}
+
+	if lineCount < minLineCount {
+		str := string(t.src[offset:t.offset])
+		t.error(offset, str, "a text block must have at least 2 lines of text")
 	}
 }

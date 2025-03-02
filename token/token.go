@@ -14,7 +14,6 @@ type Kind int
 const (
 	Invalid Kind = iota
 	EOF
-	EOL
 
 	BraceClose
 	BraceOpen
@@ -58,7 +57,7 @@ var keywords = map[string]Kind{
 	"using":   Using,
 }
 
-var whitespaces = map[byte]bool{
+var whitespaces = map[rune]bool{
 	' ':  true,
 	'\t': true,
 	'\r': true,
@@ -66,8 +65,8 @@ var whitespaces = map[byte]bool{
 	'\f': true,
 }
 
-func IsSpace(b byte) bool {
-	_, ok := whitespaces[b]
+func IsSpace(r rune) bool {
+	_, ok := whitespaces[r]
 	return ok
 }
 

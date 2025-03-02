@@ -41,67 +41,19 @@ func using(offset int) token.Token {
 	return newToken(token.Using, offset)
 }
 
-func eof(offset int) token.Token {
-	return newToken(token.EOF, offset)
-}
-
 func str(offset int) token.Token {
 	return newToken(token.String, offset)
+}
+
+func textBlock(offset int) token.Token {
+	return newToken(token.TextBlock, offset)
 }
 
 func newToken(kind token.Kind, offset int) token.Token {
 	return token.New(kind, offset)
 }
 
-func TestNext(t *testing.T) {
-	testcases := map[string][]token.Token{
-		"}": {newToken(token.BraceClose, 0)},
-		"{": {newToken(token.BraceOpen, 0)},
-		"]": {newToken(token.BracketClose, 0)},
-		"[": {newToken(token.BracketOpen, 0)},
-		":": {newToken(token.Colon, 0)},
-		",": {newToken(token.Comma, 0)},
-		".": {newToken(token.Dot, 0)},
-		"=": {newToken(token.Eq, 0)},
-		")": {newToken(token.ParenClose, 0)},
-		"(": {newToken(token.ParenOpen, 0)},
-		";": {newToken(token.Semicolon, 0)},
-	}
-	HelperRunTestCases(t, testcases)
-}
-
-func TestNextIdent(t *testing.T) {
-	testcases := map[string][]token.Token{
-		"_":   {ident(0)},
-		"i":   {ident(0)},
-		"foo": {ident(0)},
-		"a12": {ident(0)},
-		"_12": {ident(0)},
-	}
-	HelperRunTestCases(t, testcases)
-}
-
-func TestNextKeyword(t *testing.T) {
-	testcases := map[string][]token.Token{
-		"alias":   {alias(0)},
-		"import":  {import0(0)},
-		"package": {package0(0)},
-		"record":  {record(0)},
-		"templ":   {templ(0)},
-		"type":    {type0(0)},
-		"using":   {using(0)},
-	}
-	HelperRunTestCases(t, testcases)
-}
-
-func TestNextString(t *testing.T) {
-	testcases := map[string][]token.Token{
-		`""`:    {str(0)},
-		`"i"`:   {str(0)},
-		`"foo"`: {str(0)},
-	}
-	HelperRunTestCases(t, testcases)
-}
+type TestCase map[string][]token.Token
 
 func HelperRunTestCases(t *testing.T, testcases map[string][]token.Token) {
 	i := 0
@@ -128,4 +80,68 @@ func HelperRunTestCases(t *testing.T, testcases map[string][]token.Token) {
 		})
 		i += 1
 	}
+}
+
+func TestNext(t *testing.T) {
+	testcases := TestCase{
+		"}": {newToken(token.BraceClose, 0)},
+		"{": {newToken(token.BraceOpen, 0)},
+		"]": {newToken(token.BracketClose, 0)},
+		"[": {newToken(token.BracketOpen, 0)},
+		":": {newToken(token.Colon, 0)},
+		",": {newToken(token.Comma, 0)},
+		".": {newToken(token.Dot, 0)},
+		"=": {newToken(token.Eq, 0)},
+		")": {newToken(token.ParenClose, 0)},
+		"(": {newToken(token.ParenOpen, 0)},
+		";": {newToken(token.Semicolon, 0)},
+	}
+	HelperRunTestCases(t, testcases)
+}
+
+func TestNextIdent(t *testing.T) {
+	testcases := TestCase{
+		"_":   {ident(0)},
+		"i":   {ident(0)},
+		"foo": {ident(0)},
+		"a12": {ident(0)},
+		"_12": {ident(0)},
+	}
+	HelperRunTestCases(t, testcases)
+}
+
+func TestNextKeyword(t *testing.T) {
+	testcases := TestCase{
+		"alias":   {alias(0)},
+		"import":  {import0(0)},
+		"package": {package0(0)},
+		"record":  {record(0)},
+		"templ":   {templ(0)},
+		"type":    {type0(0)},
+		"using":   {using(0)},
+	}
+	HelperRunTestCases(t, testcases)
+}
+
+func TestNextString(t *testing.T) {
+	testcases := TestCase{
+		`""`:    {str(0)},
+		`"i"`:   {str(0)},
+		`"foo"`: {str(0)},
+	}
+	HelperRunTestCases(t, testcases)
+}
+
+func TestNextTextBlock(t *testing.T) {
+	testcases := TestCase{
+		`""" line 1
+		 """ line 2`: {textBlock(0)},
+		`"""
+		 """ line 2`: {textBlock(0)},
+		`""" line 1
+		 """`: {textBlock(0)},
+		`"""
+		 """`: {textBlock(0)},
+	}
+	HelperRunTestCases(t, testcases)
 }

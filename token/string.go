@@ -34,8 +34,6 @@ func (k Kind) String() string {
 		return ")"
 	case Space:
 		return "spc"
-	case EOL:
-		return "eol"
 	case Ident:
 		return "ident"
 	case Package:
