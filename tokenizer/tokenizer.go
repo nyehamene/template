@@ -190,7 +190,7 @@ func (t *Tokenizer) ident() {
 }
 
 func (t *Tokenizer) string() {
-	start := t.chOffset - 1
+	start := t.offset - 1
 	for {
 		ch := t.ch
 		if ch == '\n' || ch <= eof {
@@ -220,7 +220,7 @@ func (t *Tokenizer) textBlock() {
 	minLineCount := 2
 	lineCount := 0
 
-	offset := t.chOffset - markerOffset
+	offset := t.offset - markerOffset
 
 	for {
 		lineCount += 1
