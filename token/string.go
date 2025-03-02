@@ -20,6 +20,8 @@ func (k Kind) String() string {
 		return "."
 	case Semicolon:
 		return ";"
+	case EOL:
+		return "\\n"
 	case BracketOpen:
 		return "["
 	case BracketClose:

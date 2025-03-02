@@ -6,18 +6,18 @@ import (
 )
 
 const (
-	eof = -1
+	eof = rune(-1)
 )
 
 func New(s []byte) Tokenizer {
 	tok := Tokenizer{
-		src:      s,
-		ch:       0,
-		offset:   0,
-		errFunc:  defaultErrorHandler,
-		errCount: 0,
+		src:           s,
+		ch:            0,
+		offset:        0,
+		errCount:      0,
+		errFunc:       defaultErrorHandler,
+		semicolonFunc: defaultSemicolonHandler,
 	}
-	tok.advance()
 	return tok
 }
 
@@ -40,15 +40,35 @@ func defaultErrorHandler(offset int, ch string, msg string) {
 	fmt.Printf("at %d\n", offset)
 }
 
+func defaultSemicolonHandler(t *Tokenizer, kind token.Kind) {
+	switch kind {
+	case token.Invalid, token.Comment:
+		// preserve insertSemicolon
+	case token.Ident,
+		token.String,
+		token.TextBlock,
+		token.BracketClose,
+		token.BraceClose,
+		token.ParenClose:
+		t.insertSemicolon = true
+	default:
+		t.insertSemicolon = false
+	}
+}
+
 type ErrorHandler func(offset int, ch string, msg string)
 
+type semicolonHandler func(*Tokenizer, token.Kind)
+
 type Tokenizer struct {
-	src      []byte
-	ch       rune
-	chOffset int
-	offset   int
-	errFunc  ErrorHandler
-	errCount int
+	src             []byte
+	ch              rune
+	chOffset        int
+	offset          int
+	insertSemicolon bool
+	errFunc         ErrorHandler
+	errCount        int
+	semicolonFunc   semicolonHandler
 }
 
 func (t Tokenizer) ErrorCount() int {
@@ -78,59 +98,86 @@ func (t *Tokenizer) peek() rune {
 	return ch
 }
 
-func (t *Tokenizer) advance() rune {
-	next := t.peek()
-	if next == eof {
+func (t *Tokenizer) advance() {
+	if t.eof() {
 		t.ch = eof
 		t.offset = len(t.src)
-		return eof
+		t.chOffset = t.offset
+		return
 	}
 
-	t.ch = next
-	t.chOffset = t.offset
+	offset := t.offset
+	ch := t.src[offset]
+
+	t.ch = rune(ch)
+	t.chOffset = offset
 	t.offset += 1
-	return next
 }
 
-func (t Tokenizer) match(tok *Tokenizer, ch rune, others ...rune) bool {
-	if t.ch != ch {
+func (t Tokenizer) match(tok *Tokenizer, chs ...rune) bool {
+	if len(chs) == 0 {
 		return false
 	}
-
-	for _, r := range others {
-		ch := t.advance()
+	for _, r := range chs {
+		ch := t.peek()
 		if ch != r {
 			return false
 		}
+		t.advance()
 	}
-	for i := 0; i <= len(others); i++ {
-		_ = tok.advance()
+	// replay advances on main tokenizer
+	for range chs {
+		tok.advance()
 	}
 	return true
 }
 
 func (t *Tokenizer) skipSpace() {
 	for {
-		ch := t.ch
-		// TODO: preserve newline when inserting semicolon automatically
-		if !token.IsSpace(ch) && ch != '\n' {
+		ch := t.peek()
+		if !token.IsSpace(ch) {
 			break
 		}
 		t.advance()
 	}
 }
 
+func (t *Tokenizer) skipNewlineIfMatch(r ...rune) bool {
+	copyT := *t
+	if !copyT.match(&copyT, '\n') {
+		return false
+	}
+
+	// consume \n
+	copyT.advance()
+	copyT.skipSpace()
+	// match text block marker
+	if copyT.match(&copyT, r...) {
+		// consume last char (a.k.a move to \n)
+		t.advance()
+		// consume optional space after \n
+		t.skipSpace()
+		return true
+	}
+	return false
+}
+
 func (t *Tokenizer) Next() token.Token {
 	t.skipSpace()
+	// consume the next char (not whitespace)
+	t.advance()
 
 	ch := t.ch
 	offset := t.chOffset
 
+	if t.insertSemicolon && (ch == '\n' || ch == eof) {
+		t.insertSemicolon = false
+		return token.New(token.Semicolon, offset)
+	}
+
 	if ch == eof {
 		return token.New(token.EOF, offset)
 	}
-
-	t.advance()
 
 	var kind token.Kind
 
@@ -157,6 +204,8 @@ func (t *Tokenizer) Next() token.Token {
 		kind = token.ParenOpen
 	case ';':
 		kind = token.Semicolon
+	case '\n':
+		kind = token.EOL
 	case '"':
 		if t.match(t, '"', '"') {
 			t.textBlock()
@@ -182,37 +231,44 @@ func (t *Tokenizer) Next() token.Token {
 		t.error(offset, string(ch), "Invalid char")
 	}
 
+	t.semicolonFunc(t, kind)
+
 	tok := token.New(kind, offset)
 	return tok
 }
 
 func (t *Tokenizer) ident() {
-	ch := t.ch
-	for isLetter(ch) || isDigit(ch) {
-		ch = t.advance()
+	for {
+		ch := t.peek()
+		if !isLetter(ch) && !isDigit(ch) {
+			break
+		}
+		t.advance()
 	}
 }
 
 func (t *Tokenizer) string() {
-	start := t.offset - 1
+	start := t.offset
+
 	for {
-		ch := t.ch
+		ch := t.peek()
 		if ch == '\n' || ch <= eof {
 			str := string(t.src[start:t.offset])
 			t.error(t.offset, str, "Unterminated string")
 			break
 		}
-		t.advance()
 		if ch == '"' {
+			t.advance()
 			break
 		}
+		t.advance()
 	}
 }
 
 func (t *Tokenizer) textBlock() {
-	textBlockLine := func() {
+	textBlockLine := func(tok *Tokenizer) {
 		for {
-			ch := t.ch
+			ch := tok.peek()
 			if ch == '\n' || ch <= eof {
 				break
 			}
@@ -228,9 +284,8 @@ func (t *Tokenizer) textBlock() {
 
 	for {
 		lineCount += 1
-		textBlockLine()
-		t.skipSpace()
-		if !t.match(t, '"', '"', '"') {
+		textBlockLine(t)
+		if !t.skipNewlineIfMatch('"', '"', '"') {
 			break
 		}
 	}
@@ -248,15 +303,20 @@ func (t *Tokenizer) comment() {
 		t.error(t.chOffset, cmt, "Invalid comment")
 	}
 
-	for {
-		ch := t.ch
-		if ch == '\n' {
+	commentLine := func(t *Tokenizer) {
+		for {
+			ch := t.peek()
+			if ch == '\n' || ch == eof {
+				break
+			}
 			t.advance()
+		}
+	}
+
+	for {
+		commentLine(t)
+		if !t.skipNewlineIfMatch('/', '/') {
 			break
 		}
-		if ch == eof {
-			break
-		}
-		t.advance()
 	}
 }

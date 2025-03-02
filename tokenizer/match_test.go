@@ -1,6 +1,7 @@
 package tokenizer
 
 import (
+	"temlang/tem/token"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -17,11 +18,11 @@ func TestMatchSucceeded(t *testing.T) {
 		t.Errorf("expected match %v got %v", match, ok)
 	}
 
-	if end := len(src); tok.offset != end {
+	if end := len(src) - 1; tok.offset != end {
 		t.Errorf("expected offset %d got %d", end, tok.offset)
 	}
 
-	if chEnd := 3; tok.chOffset != chEnd {
+	if chEnd := 2; tok.chOffset != chEnd {
 		t.Errorf("expected ch offset %d got %d", chEnd, tok.chOffset)
 	}
 
@@ -34,6 +35,9 @@ func TestMatchFailed(t *testing.T) {
 	src := "abxd"
 	tok := New([]byte(src))
 	tok.skipSpace()
+	tok.semicolonFunc = func(t *Tokenizer, k token.Kind) {
+		t.insertSemicolon = false
+	}
 
 	prev := tok
 
@@ -45,7 +49,9 @@ func TestMatchFailed(t *testing.T) {
 
 	// func struct field are never equals unless both are nil
 	prev.errFunc = nil
+	prev.semicolonFunc = nil
 	tok.errFunc = nil
+	tok.semicolonFunc = nil
 
 	if diff := cmp.Diff(prev, tok, cmp.AllowUnexported(prev, tok)); diff != "" {
 		t.Error(diff)

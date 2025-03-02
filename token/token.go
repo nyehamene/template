@@ -14,10 +14,15 @@ type Kind int
 const (
 	Invalid Kind = iota
 	EOF
+	EOL
 
+	// BraceClose close curly brace }
 	BraceClose
+	// BraceOpen open curly brace {
 	BraceOpen
+	// BracketClose close square bracket ]
 	BracketClose
+	// BracketOpen open square bracket [
 	BracketOpen
 	Colon
 	Comma
