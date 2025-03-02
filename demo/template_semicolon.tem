@@ -1,0 +1,40 @@
+p : "define a package"
+p : package : package_tag("home")
+p : package : package_list("home")
+p : package : package_html("home")
+p :: package_html("home")
+
+// use a type defined in another namespace in the same package
+Button : type : p.namespace.Type
+
+User : "define a model"
+User : type : record {
+	name: string
+	email: string
+	password: string
+	}
+
+User :: record {
+	name: string
+	email: string
+	password: string
+	}
+
+User : """
+	""" A multi-line documentation
+	""" - The record keyword is omitted in the first comment below
+	"""
+	""" - The both the record and type keywords are omitted in the
+	""" - second comment below
+	"""
+	""" Supports markdown syntax
+	"""
+
+render : "define a template"
+render : templ : (User) {
+    <div
+    	<p Username: (name)/>
+    	<p Email:    (email)/>
+    	<p Password: (password)/>
+    	/>
+    }
