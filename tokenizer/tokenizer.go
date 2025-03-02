@@ -164,6 +164,9 @@ func (t *Tokenizer) Next() token.Token {
 			t.string()
 			kind = token.String
 		}
+	case '/':
+		t.comment()
+		kind = token.Comment
 	default:
 		if isLetter(ch) {
 			t.ident()
@@ -234,5 +237,25 @@ func (t *Tokenizer) textBlock() {
 	if lineCount < minLineCount {
 		str := string(t.src[offset:t.offset])
 		t.error(offset, str, "a text block must have at least 2 lines of text")
+	}
+}
+
+func (t *Tokenizer) comment() {
+	if !t.match(t, '/') {
+		offset := t.offset - 1
+		cmt := string(t.src[offset:t.offset])
+		t.error(t.chOffset, cmt, "Invalid comment")
+	}
+
+	for {
+		ch := t.ch
+		if ch == '\n' {
+			t.advance()
+			break
+		}
+		if ch == eof {
+			break
+		}
+		t.advance()
 	}
 }

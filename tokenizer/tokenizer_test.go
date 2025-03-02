@@ -49,6 +49,10 @@ func textBlock(offset int) token.Token {
 	return newToken(token.TextBlock, offset)
 }
 
+func comment(offset int) token.Token {
+	return newToken(token.Comment, offset)
+}
+
 func newToken(kind token.Kind, offset int) token.Token {
 	return token.New(kind, offset)
 }
@@ -142,6 +146,13 @@ func TestNextTextBlock(t *testing.T) {
 		 """`: {textBlock(0)},
 		`"""
 		 """`: {textBlock(0)},
+	}
+	HelperRunTestCases(t, testcases)
+}
+
+func TestNextComment(t *testing.T) {
+	testcases := TestCase{
+		`// one line comment`: {comment(0)},
 	}
 	HelperRunTestCases(t, testcases)
 }
