@@ -205,6 +205,12 @@ func (t *Tokenizer) Next() token.Token {
 	case ';':
 		kind = token.Semicolon
 	case '\n':
+		for {
+			t.skipSpace()
+			if !t.match(t, '\n') {
+				break
+			}
+		}
 		kind = token.EOL
 	case '"':
 		if t.match(t, '"', '"') {

@@ -211,3 +211,24 @@ func TestNextInsertSemicolonEOF(t *testing.T) {
 	}
 	HelperRunTestCasesAllowSemicolonInsertion(t, testcases)
 }
+
+func TestNextNewline(t *testing.T) {
+	testcases := TestCase{
+		"\n\n\n":   {newToken(token.EOL, 0)},
+		"\n \n \n": {newToken(token.EOL, 0)},
+	}
+	for src, expected := range testcases {
+		tok := New([]byte(src))
+		gots := []token.Token{}
+		for {
+			got := tok.Next()
+			if got.Kind == token.EOF {
+				break
+			}
+			gots = append(gots, got)
+		}
+		if diff := cmp.Diff(expected, gots); diff != "" {
+			t.Error(diff)
+		}
+	}
+}
