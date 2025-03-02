@@ -34,8 +34,9 @@ func isDigit(c rune) bool {
 }
 
 func defaultErrorHandler(offset int, ch string, msg string) {
-	fmt.Printf("%s\t", msg)
-	fmt.Printf("%v\t", ch)
+	fmt.Printf("error: ")
+	fmt.Printf("%s ", msg)
+	fmt.Printf("%v ", ch)
 	fmt.Printf("at %d\n", offset)
 }
 

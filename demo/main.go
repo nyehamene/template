@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"temlang/tem/token"
+	"temlang/tem/tokenizer"
 )
 
 func main() {
@@ -35,6 +38,15 @@ func main() {
 	parse(source)
 }
 
-func tokenize(s []byte) {}
+func tokenize(s []byte) {
+	tok := tokenizer.New(s)
+	for {
+		t := tok.Next()
+		if t.Kind == token.EOF {
+			break
+		}
+		fmt.Println(t)
+	}
+}
 
 func parse(s []byte) {}
