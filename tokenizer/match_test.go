@@ -32,13 +32,13 @@ func TestMatchSucceeded(t *testing.T) {
 }
 
 func TestMatchFailed(t *testing.T) {
-	src := "abxd"
-	tok := New([]byte(src))
-	tok.skipSpace()
-	tok.semicolonFunc = func(t *Tokenizer, k token.Kind) {
+	semiFunc := func(t *Tokenizer, k token.Kind) {
 		t.insertSemicolon = false
 	}
 
+	src := "abxd"
+	tok := New([]byte(src), SetSemicolonHandler(semiFunc))
+	tok.skipSpace()
 	prev := tok
 
 	ok := tok.match(&tok, 'a', 'b', 'c')

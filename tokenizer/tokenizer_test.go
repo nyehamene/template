@@ -1,8 +1,9 @@
-package tokenizer
+package tokenizer_test
 
 import (
 	"fmt"
 	"temlang/tem/token"
+	"temlang/tem/tokenizer"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -65,14 +66,13 @@ type TestCase map[string][]token.Token
 func HelperRunTestCases(
 	t *testing.T,
 	testcases map[string][]token.Token,
-	semicolonFunc semicolonHandler,
+	semicolonFunc tokenizer.SemicolonHandler,
 ) {
 	i := 0
 	for src, expected := range testcases {
 		t.Run(fmt.Sprintf("%d\t%s", i, src), func(t *testing.T) {
 			gots := []token.Token{}
-			tok := New([]byte(src))
-			tok.semicolonFunc = semicolonFunc
+			tok := tokenizer.New([]byte(src), tokenizer.SetSemicolonHandler(semicolonFunc))
 
 			for {
 				got := tok.Next()
@@ -98,13 +98,11 @@ func HelperRunTestCases(
 }
 
 func HelperRunTestCasesAllowSemicolonInsertion(t *testing.T, testcases map[string][]token.Token) {
-	HelperRunTestCases(t, testcases, defaultSemicolonHandler)
+	HelperRunTestCases(t, testcases, tokenizer.DefaultSemicolonHandler)
 }
 
 func HelperRunTestCasesNoSemicolonInsertion(t *testing.T, testcases map[string][]token.Token) {
-	HelperRunTestCases(t, testcases, func(t *Tokenizer, k token.Kind) {
-		t.insertSemicolon = false
-	})
+	HelperRunTestCases(t, testcases, func(t *tokenizer.Tokenizer, k token.Kind) { /* do nothing */ })
 }
 
 func TestNext(t *testing.T) {
@@ -218,7 +216,7 @@ func TestNextNewline(t *testing.T) {
 		"\n \n \n": {newToken(token.EOL, 0)},
 	}
 	for src, expected := range testcases {
-		tok := New([]byte(src))
+		tok := tokenizer.New([]byte(src))
 		gots := []token.Token{}
 		for {
 			got := tok.Next()

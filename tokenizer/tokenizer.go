@@ -9,14 +9,20 @@ const (
 	eof = rune(-1)
 )
 
-func New(s []byte) Tokenizer {
+func New(s []byte, opts ...Option) Tokenizer {
+	// TODO: add namespace file path field to tokenizer struct
 	tok := Tokenizer{
-		src:           s,
-		ch:            0,
-		offset:        0,
-		errCount:      0,
-		errFunc:       defaultErrorHandler,
-		semicolonFunc: defaultSemicolonHandler,
+		src:             s,
+		ch:              0,
+		chOffset:        0,
+		offset:          0,
+		errCount:        0,
+		errFunc:         DefaultErrorHandler,
+		semicolonFunc:   DefaultSemicolonHandler,
+		insertSemicolon: false,
+	}
+	for _, opt := range opts {
+		opt(&tok)
 	}
 	return tok
 }
@@ -33,14 +39,14 @@ func isDigit(c rune) bool {
 	return c >= '0' && c <= '9'
 }
 
-func defaultErrorHandler(offset int, ch string, msg string) {
+func DefaultErrorHandler(offset int, ch string, msg string) {
 	fmt.Printf("error: ")
 	fmt.Printf("%s ", msg)
 	fmt.Printf("%v ", ch)
 	fmt.Printf("at %d\n", offset)
 }
 
-func defaultSemicolonHandler(t *Tokenizer, kind token.Kind) {
+func DefaultSemicolonHandler(t *Tokenizer, kind token.Kind) {
 	switch kind {
 	case token.Invalid, token.Comment:
 		// preserve insertSemicolon
@@ -58,7 +64,7 @@ func defaultSemicolonHandler(t *Tokenizer, kind token.Kind) {
 
 type ErrorHandler func(offset int, ch string, msg string)
 
-type semicolonHandler func(*Tokenizer, token.Kind)
+type SemicolonHandler func(*Tokenizer, token.Kind)
 
 type Tokenizer struct {
 	src             []byte
@@ -68,7 +74,7 @@ type Tokenizer struct {
 	insertSemicolon bool
 	errFunc         ErrorHandler
 	errCount        int
-	semicolonFunc   semicolonHandler
+	semicolonFunc   SemicolonHandler
 }
 
 func (t Tokenizer) ErrorCount() int {
