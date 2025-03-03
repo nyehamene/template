@@ -169,23 +169,40 @@ func (t *Tokenizer) skipNewlineIfMatch(r ...rune) bool {
 }
 
 func (t *Tokenizer) Next() token.Token {
+	var kind token.Kind
+
 	t.skipSpace()
+
+	// used to restore tokenizer state after inserting a semicolon
+	// before a trailing comment
+	insertSemiBeforeComment := false
+	prevCh := t.ch
+	prevOffset := t.offset
+	prevChOffset := t.chOffset
+
 	// consume the next char (not whitespace)
 	t.advance()
 
 	ch := t.ch
 	offset := t.chOffset
 
-	if t.insertSemicolon && (ch == '\n' || ch == eof) {
-		t.insertSemicolon = false
-		return token.New(token.Semicolon, offset)
+semiColonInsertion:
+	if t.insertSemicolon {
+		switch true {
+		case ch == '\n' || insertSemiBeforeComment:
+			t.offset = prevOffset
+			t.chOffset = prevChOffset
+			t.ch = prevCh
+			fallthrough
+		case ch == eof:
+			t.insertSemicolon = false
+			return token.New(token.Semicolon, offset)
+		}
 	}
 
 	if ch == eof {
 		return token.New(token.EOF, offset)
 	}
-
-	var kind token.Kind
 
 	switch ch {
 	case '}':
@@ -227,6 +244,16 @@ func (t *Tokenizer) Next() token.Token {
 			kind = token.String
 		}
 	case '/':
+		if !t.match(t, '/') {
+			offset := t.offset - 1
+			cmt := string(t.src[offset:t.offset])
+			t.error(t.chOffset, cmt, "Invalid comment marker")
+		}
+
+		if t.insertSemicolon {
+			insertSemiBeforeComment = true
+			goto semiColonInsertion
+		}
 		t.comment()
 		kind = token.Comment
 	default:
@@ -309,12 +336,6 @@ func (t *Tokenizer) textBlock() {
 }
 
 func (t *Tokenizer) comment() {
-	if !t.match(t, '/') {
-		offset := t.offset - 1
-		cmt := string(t.src[offset:t.offset])
-		t.error(t.chOffset, cmt, "Invalid comment")
-	}
-
 	commentLine := func(t *Tokenizer) {
 		for {
 			ch := t.peek()

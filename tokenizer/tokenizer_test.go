@@ -202,6 +202,34 @@ func TestNextInsertSemicolonEOF(t *testing.T) {
 	HelperRunTestCases(t, testcases)
 }
 
+func TestNextSemicolonBeforeTrailingComment(t *testing.T) {
+	testcases := TestCase{
+		"ident // a comment": {ident(0), semicolon(6), comment(6)},
+		") // a comment":     {newToken(token.ParenClose, 0), semicolon(2), comment(2)},
+	}
+	HelperRunTestCases(t, testcases)
+}
+
+func TestNextInsertSemicolonAndNewline(t *testing.T) {
+	testcases := TestCase{
+		"ident\n": {ident(0), semicolon(5), newToken(token.EOL, 5)},
+	}
+	for src, expected := range testcases {
+		tok := tokenizer.New([]byte(src))
+		gots := []token.Token{}
+		for {
+			got := tok.Next()
+			if got.Kind == token.EOF {
+				break
+			}
+			gots = append(gots, got)
+		}
+		if diff := cmp.Diff(expected, gots); diff != "" {
+			t.Error(diff)
+		}
+	}
+}
+
 func TestNextNewline(t *testing.T) {
 	testcases := TestCase{
 		"\n\n\n":   {newToken(token.EOL, 0)},
