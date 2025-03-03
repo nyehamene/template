@@ -1,10 +1,10 @@
-source := namespace { import } { using } { decl } =:
+source := package { import } { using } { decl } =:
 
-namespace            := { doc } namespace_tag { doc } =:
-namespace_tag        := { tag } namespace_decl { tag } =:
-namespace_decl       := ident ":" [ "package" ] ":" "package" "(" string ")" namespace_templ ";" =:
-namespace_templ      := "templ" "(" namespace_templ_kind ")" =:
-namespace_templ_kind := ( "tag" | "list" | "html" ) =:
+package            := { doc } package_tag { doc } =:
+package_tag        := { tag } package_decl { tag } =:
+package_decl       := ident ":" [ "package" ] ":" "package" "(" string ")" package_templ ";" =:
+package_templ      := "templ" "(" package_templ_kind ")" =:
+package_templ_kind := ( "tag" | "list" | "html" ) =:
 
 import      := { doc } import_tag { doc } =:
 import_tag  := { tag } import_decl { tag } =:
