@@ -1,36 +1,48 @@
-source := package { import } { using } { def } =:
+source := package { import } { using } { decl } =:
 
-package      := ident ":" [ "package" ] ":" package_kind ";" =:
+package      := { doc } package_tag { doc } =:
+package_tag  := { tag } package_decl { tag } =:
+package_decl := ident ":" [ "package" ] ":" package_kind ";" =:
 package_kind := package_tag | package_list | package_html =:
 package_tag  := "package" "(" "tag"  "," string ")" =:
 package_list := "package" "(" "list" "," string ")" =:
 package_html := "package" "(" "html" "," string ")" =:
 
-import := ident ":" [ "import" ] ":" "import" "(" string ")" ";" =:
-using  := idents ":" [ "using" ]  ":" "using"  "(" ident ")"  ";" =:
+import      := { doc } import_tag { doc } =:
+import_tag  := { tag } import_decl { tag } =:
+import_decl := ident ":" [ "import" ] ":" "import" "(" string ")" ";" =:
 
-def := ( doc | metatable | type | templ ) ";" =:
+using      := { doc } using_tag { doc } =:
+using_tag  := { tag } using_decl { tag } =:
+using_decl := idents ":" [ "using" ]  ":" "using"  "(" ident ")"  ";" =:
 
-doc               := ident ":" doctext ";" =:
-doctext           := string | text_block =:
+decl       := { doc } decl_tag  { doc } =:
+decl_tag   := { tag } basic_decl { tag } =:
+basic_decl := ( type_decl | templ_decl ) ";" =:
 
-metatable       := ident ":" "{" metetable_attrs [ "," ] "}" ";" =:
-metatable_attrs := metetable_attr { "," metetable_attr } =:
-metatable_attr  := ident "=" string =:
+type_decl := idents  ":" [ "type"  ] ":" ( alias | record ) =:
+alias     := "alias" "(" ident ")" =:
 
-type        := idents  ":"    [ "type"  ] ":" ( alias | record ) =:
-alias       := "alias" ident =:
-record      := "record" "{" record_body "}" =:
-record_body := record_def { record_def } :=
-record_def  := ( doc | metatable | record_comp ) =:
-record_comp := vars ";" =:
+record           := "record" "{" [ record_body ] "}" =:
+record_body      := record_comp { record_comp } :=
+record_comp      := { doc } record_comp_tag { doc } =:
+record_comp_tag  := { tag } record_comp_decl { tag } =:
+record_comp_decl := vars ";" =:
 
-templ       := ident ":" [ "templ" ] ":" templ_block =:
-templ_block := "(" var ")" "{" templ_body "}" =:
-templ_body  := { element } =:
+templ_decl  := ident ":" [ "templ" ] ":" templ_block =:
+templ_block := "(" var ")" "{" [ templ_body ] "}" =:
+templ_body  := element { element } =:
 
 var  := ident ":" ident =:
 vars := ident { "," ident } ":" ident =:
+
+doc     := ident ":" doctext ";" =:
+doctext := string | text_block =:
+
+tag       := tag_decl =:
+tag_decl  := ident ":" "{" tag_attrs [ "," ] "}" ";" =:
+tag_attrs := tag_attr { "," tag_attr } =:
+tag_attr  := ident "=" string =:
 
 idents := ident { "," ident } =:
 fslash := "/" =:
