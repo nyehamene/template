@@ -1,5 +1,7 @@
 package tokenizer
 
+import "temlang/tem/token"
+
 type Option func(t *Tokenizer)
 
 func SetSemicolonHandler(h SemicolonHandler) Option {
@@ -11,5 +13,11 @@ func SetSemicolonHandler(h SemicolonHandler) Option {
 func SetErrorHandler(h ErrorHandler) Option {
 	return func(t *Tokenizer) {
 		t.errFunc = h
+	}
+}
+
+func NoSemicolonInsertion() Option {
+	return func(t *Tokenizer) {
+		t.semicolonFunc = func(t *Tokenizer, k token.Kind) {}
 	}
 }

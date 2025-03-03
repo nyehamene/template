@@ -66,13 +66,13 @@ type TestCase map[string][]token.Token
 func HelperRunTestCases(
 	t *testing.T,
 	testcases map[string][]token.Token,
-	semicolonFunc tokenizer.SemicolonHandler,
+	opts ...tokenizer.Option,
 ) {
 	i := 0
 	for src, expected := range testcases {
 		t.Run(fmt.Sprintf("%d\t%s", i, src), func(t *testing.T) {
 			gots := []token.Token{}
-			tok := tokenizer.New([]byte(src), tokenizer.SetSemicolonHandler(semicolonFunc))
+			tok := tokenizer.New([]byte(src), opts...)
 
 			for {
 				got := tok.Next()
@@ -97,14 +97,6 @@ func HelperRunTestCases(
 	}
 }
 
-func HelperRunTestCasesAllowSemicolonInsertion(t *testing.T, testcases map[string][]token.Token) {
-	HelperRunTestCases(t, testcases, tokenizer.DefaultSemicolonHandler)
-}
-
-func HelperRunTestCasesNoSemicolonInsertion(t *testing.T, testcases map[string][]token.Token) {
-	HelperRunTestCases(t, testcases, func(t *tokenizer.Tokenizer, k token.Kind) { /* do nothing */ })
-}
-
 func TestNext(t *testing.T) {
 	testcases := TestCase{
 		"}": {newToken(token.BraceClose, 0)},
@@ -119,7 +111,7 @@ func TestNext(t *testing.T) {
 		"(": {newToken(token.ParenOpen, 0)},
 		";": {newToken(token.Semicolon, 0)},
 	}
-	HelperRunTestCasesNoSemicolonInsertion(t, testcases)
+	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }
 
 func TestNextIdent(t *testing.T) {
@@ -130,7 +122,7 @@ func TestNextIdent(t *testing.T) {
 		"a12": {ident(0)},
 		"_12": {ident(0)},
 	}
-	HelperRunTestCasesNoSemicolonInsertion(t, testcases)
+	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }
 
 func TestNextKeyword(t *testing.T) {
@@ -143,7 +135,7 @@ func TestNextKeyword(t *testing.T) {
 		"type":    {type0(0)},
 		"using":   {using(0)},
 	}
-	HelperRunTestCasesNoSemicolonInsertion(t, testcases)
+	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }
 
 func TestNextString(t *testing.T) {
@@ -152,7 +144,7 @@ func TestNextString(t *testing.T) {
 		`"i"`:   {str(0)},
 		`"foo"`: {str(0)},
 	}
-	HelperRunTestCasesNoSemicolonInsertion(t, testcases)
+	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }
 
 func TestNextTextBlock(t *testing.T) {
@@ -166,7 +158,7 @@ func TestNextTextBlock(t *testing.T) {
 		`"""
 		 """`: {textBlock(0)},
 	}
-	HelperRunTestCasesNoSemicolonInsertion(t, testcases)
+	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }
 
 func TestNextComment(t *testing.T) {
@@ -175,7 +167,7 @@ func TestNextComment(t *testing.T) {
 		`// line 1
 		 // line 2`: {comment(0)},
 	}
-	HelperRunTestCasesAllowSemicolonInsertion(t, testcases)
+	HelperRunTestCases(t, testcases)
 }
 
 func TestNextInsertSemicolon(t *testing.T) {
@@ -192,7 +184,7 @@ func TestNextInsertSemicolon(t *testing.T) {
 		 """
 		 `: {textBlock(0), semicolon(10)},
 	}
-	HelperRunTestCasesAllowSemicolonInsertion(t, testcases)
+	HelperRunTestCases(t, testcases)
 }
 
 func TestNextInsertSemicolonEOF(t *testing.T) {
@@ -207,7 +199,7 @@ func TestNextInsertSemicolonEOF(t *testing.T) {
 		`"""
 		 """`: {textBlock(0), semicolon(10)},
 	}
-	HelperRunTestCasesAllowSemicolonInsertion(t, testcases)
+	HelperRunTestCases(t, testcases)
 }
 
 func TestNextNewline(t *testing.T) {
