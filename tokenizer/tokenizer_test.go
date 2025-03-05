@@ -149,23 +149,20 @@ func TestNextString(t *testing.T) {
 
 func TestNextTextBlock(t *testing.T) {
 	testcases := TestCase{
+		`"""`:        {textBlock(0)},
+		`""" line 1`: {textBlock(0)},
 		`""" line 1
-		 """ line 2`: {textBlock(0)},
-		`"""
-		 """ line 2`: {textBlock(0)},
-		`""" line 1
-		 """`: {textBlock(0)},
-		`"""
-		 """`: {textBlock(0)},
+		 """ line 2`: {textBlock(0), textBlock(14)},
 	}
 	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }
 
 func TestNextComment(t *testing.T) {
 	testcases := TestCase{
+		`//`:                  {comment(0)},
 		`// one line comment`: {comment(0)},
 		`// line 1
-		 // line 2`: {comment(0)},
+		 // line 2`: {comment(0), comment(13)},
 	}
 	HelperRunTestCases(t, testcases)
 }
@@ -180,8 +177,7 @@ func TestNextInsertSemicolon(t *testing.T) {
 			`: {str(0), semicolon(2)},
 		`"abc"
 			`: {str(0), semicolon(5)},
-		`"""
-		 """
+		`""" line 1
 		 `: {textBlock(0), semicolon(10)},
 	}
 	HelperRunTestCases(t, testcases)
@@ -196,8 +192,8 @@ func TestNextInsertSemicolonEOF(t *testing.T) {
 		"ident": {ident(0), semicolon(5)},
 		`""`:    {str(0), semicolon(2)},
 		`"abc"`: {str(0), semicolon(5)},
-		`"""
-		 """`: {textBlock(0), semicolon(10)},
+		`""" line 1
+		 `: {textBlock(0), semicolon(10)},
 	}
 	HelperRunTestCases(t, testcases)
 }
@@ -232,8 +228,8 @@ func TestNextInsertSemicolonAndNewline(t *testing.T) {
 
 func TestNextNewline(t *testing.T) {
 	testcases := TestCase{
-		"\n\n\n":   {newToken(token.EOL, 0)},
-		"\n \n \n": {newToken(token.EOL, 0)},
+		"\n\n":  {newToken(token.EOL, 0), newToken(token.EOL, 1)},
+		"\n \n": {newToken(token.EOL, 0), newToken(token.EOL, 2)},
 	}
 	for src, expected := range testcases {
 		tok := tokenizer.New([]byte(src))

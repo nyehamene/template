@@ -29,14 +29,6 @@ func HelperRunTestCasesError(t *testing.T, testcases TestCaseError) {
 	}
 }
 
-func TestNextTextBlockError(t *testing.T) {
-	testcases := TestCaseError{
-		`"""`:        {errCount: 1, offsetAfter: 3},
-		`""" line 1`: {errCount: 1, offsetAfter: 10},
-	}
-	HelperRunTestCasesError(t, testcases)
-}
-
 func TestNextStringError(t *testing.T) {
 	textcases := TestCaseError{
 		`"`:    {errCount: 1, offsetAfter: 1},
@@ -47,7 +39,7 @@ func TestNextStringError(t *testing.T) {
 
 func TestNextCommentError(t *testing.T) {
 	testcases := TestCaseError{
-		`/ invalid comment`: {errCount: 1, offsetAfter: 17},
+		`/ invalid comment`: {errCount: 1, offsetAfter: 2},
 	}
 	HelperRunTestCasesError(t, testcases)
 }

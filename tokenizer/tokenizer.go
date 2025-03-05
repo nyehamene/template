@@ -134,24 +134,6 @@ func (t *Tokenizer) advance() {
 	t.offset += 1
 }
 
-func (t Tokenizer) match(tok *Tokenizer, chs ...rune) bool {
-	if len(chs) == 0 {
-		return false
-	}
-	for _, r := range chs {
-		ch := t.peek()
-		if ch != r {
-			return false
-		}
-		t.advance()
-	}
-	// replay advances on main tokenizer
-	for range chs {
-		tok.advance()
-	}
-	return true
-}
-
 func (t *Tokenizer) skipSpace() {
 	for {
 		ch := t.peek()
@@ -160,26 +142,6 @@ func (t *Tokenizer) skipSpace() {
 		}
 		t.advance()
 	}
-}
-
-func (t *Tokenizer) skipNewlineIfMatch(r ...rune) bool {
-	copyT := *t
-	if !copyT.match(&copyT, '\n') {
-		return false
-	}
-
-	// consume \n
-	copyT.advance()
-	copyT.skipSpace()
-	// match text block marker
-	if copyT.match(&copyT, r...) {
-		// consume last char (a.k.a move to \n)
-		t.advance()
-		// consume optional space after \n
-		t.skipSpace()
-		return true
-	}
-	return false
 }
 
 func (t *Tokenizer) Next() token.Token {
@@ -238,26 +200,30 @@ semiColonInsertion:
 	case ';':
 		kind = token.Semicolon
 	case '\n':
-		for {
-			t.skipSpace()
-			if !t.match(t, '\n') {
-				break
-			}
-		}
 		kind = token.EOL
 	case '"':
-		if t.match(t, '"', '"') {
-			t.textBlock()
-			kind = token.TextBlock
-		} else {
+		t.advance()
+		if t.ch != '"' {
 			t.string()
 			kind = token.String
+			break
 		}
+		if t.peek() == '"' {
+			t.textBlock()
+			kind = token.TextBlock
+			break
+		}
+		// empty string literal
+		kind = token.String
 	case '/':
-		if !t.match(t, '/') {
+		// consume second /
+		t.advance()
+		if t.ch != '/' {
+			kind = token.Invalid
 			offset := t.offset - 1
 			cmt := string(t.src[offset:t.offset])
 			t.error(t.chOffset, cmt, "Invalid comment marker")
+			break
 		}
 
 		if t.insertSemicolon {
@@ -315,51 +281,19 @@ func (t *Tokenizer) string() {
 }
 
 func (t *Tokenizer) textBlock() {
-	textBlockLine := func(tok *Tokenizer) {
-		for {
-			ch := tok.peek()
-			if ch == '\n' || ch <= eof {
-				break
-			}
-			t.advance()
-		}
-	}
-
-	markerOffset := 3
-	minLineCount := 2
-	lineCount := 0
-
-	offset := t.offset - markerOffset
-
-	for {
-		lineCount += 1
-		textBlockLine(t)
-		if !t.skipNewlineIfMatch('"', '"', '"') {
-			break
-		}
-	}
-
-	if lineCount < minLineCount {
-		str := string(t.src[offset:t.offset])
-		t.error(offset, str, "a text block must have at least 2 lines of text")
-	}
+	t.consumeUntil('\n')
 }
 
 func (t *Tokenizer) comment() {
-	commentLine := func(t *Tokenizer) {
-		for {
-			ch := t.peek()
-			if ch == '\n' || ch == eof {
-				break
-			}
-			t.advance()
-		}
-	}
+	t.consumeUntil('\n')
+}
 
+func (t *Tokenizer) consumeUntil(r rune) {
 	for {
-		commentLine(t)
-		if !t.skipNewlineIfMatch('/', '/') {
+		ch := t.peek()
+		if ch == r || ch == eof {
 			break
 		}
+		t.advance()
 	}
 }
