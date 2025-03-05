@@ -1,5 +1,9 @@
+timeout=5s
 test/tokenizer:
-	@go test -timeout 5s -cover ./tokenizer
+	@go test -timeout ${timeout} -cover ./tokenizer
+
+test/queue:
+	@go test -timeout ${timeout} -cover ./queue
 
 test:
 	@make test/tokenizer
