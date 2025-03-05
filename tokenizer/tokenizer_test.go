@@ -134,6 +134,9 @@ func TestNextKeyword(t *testing.T) {
 		"templ":   {templ(0)},
 		"type":    {type0(0)},
 		"using":   {using(0)},
+		"tag":     {newToken(token.Tag, 0)},
+		"list":    {newToken(token.List, 0)},
+		"html":    {newToken(token.Html, 0)},
 	}
 	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }

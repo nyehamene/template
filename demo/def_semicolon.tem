@@ -1,4 +1,4 @@
-p :: package_tag("home")
+p :: package("home") templ(list)
 
 b :: import("books")
 

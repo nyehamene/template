@@ -41,6 +41,9 @@ const (
 	Templ
 	Type
 	Using
+	Tag
+	List
+	Html
 	KeywordEnd
 
 	LiteralBegin
@@ -60,6 +63,9 @@ var keywords = map[string]Kind{
 	"alias":   Alias,
 	"import":  Import,
 	"using":   Using,
+	"tag":     Tag,
+	"list":    List,
+	"html":    Html,
 }
 
 var whitespaces = map[rune]bool{
