@@ -81,6 +81,20 @@ func (t Tokenizer) ErrorCount() int {
 	return t.errCount
 }
 
+func (t *Tokenizer) Mark() func() {
+	prev := t.ch
+	prevChOffset := t.chOffset
+	prevInsertSemicolon := t.insertSemicolon
+	prevOffset := t.offset
+
+	return func() {
+		t.ch = prev
+		t.chOffset = prevChOffset
+		t.insertSemicolon = prevInsertSemicolon
+		t.offset = prevOffset
+	}
+}
+
 func (t *Tokenizer) error(offset int, lit, msg string) {
 	t.errFunc(offset, lit, msg)
 	t.errCount += 1
@@ -173,12 +187,10 @@ func (t *Tokenizer) Next() token.Token {
 
 	t.skipSpace()
 
+	insertSemiBeforeComment := false
 	// used to restore tokenizer state after inserting a semicolon
 	// before a trailing comment
-	insertSemiBeforeComment := false
-	prevCh := t.ch
-	prevOffset := t.offset
-	prevChOffset := t.chOffset
+	reset := t.Mark()
 
 	// consume the next char (not whitespace)
 	t.advance()
@@ -190,9 +202,7 @@ semiColonInsertion:
 	if t.insertSemicolon {
 		switch true {
 		case ch == '\n' || insertSemiBeforeComment:
-			t.offset = prevOffset
-			t.chOffset = prevChOffset
-			t.ch = prevCh
+			reset()
 			fallthrough
 		case ch == eof:
 			t.insertSemicolon = false
