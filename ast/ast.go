@@ -194,7 +194,7 @@ type UsingDecl struct {
 	pkg    TokenIndex
 }
 
-func (d *UsingDecl) SetPkg(f NamespaceFile, tok token.Token) {
+func (d *UsingDecl) SetPkg(f *NamespaceFile, tok token.Token) {
 	txt, ok := f.text(tok)
 	if !ok {
 		// TBD: maybe raise some kind of error
@@ -209,13 +209,36 @@ func (d *UsingDecl) SetPkg(f NamespaceFile, tok token.Token) {
 	d.pkg.text.index = index
 }
 
+func (d *UsingDecl) SetIdents(f *NamespaceFile, toks []token.Token) {
+	tokOffset := len(f.tokens)
+	txtOffset := len(f.texts)
+
+	for _, tok := range toks {
+		txt, ok := f.text(tok)
+		if !ok {
+			// TBD: maybe raise some kind of error
+		}
+
+		f.tokens = append(f.tokens, tok)
+		f.texts = append(f.texts, txt)
+	}
+
+	d.idents.token.index = tokOffset
+	d.idents.token.len = len(toks)
+
+	d.idents.text.index = txtOffset
+	d.idents.text.len = len(toks)
+}
+
 func (u UsingDecl) Pkg(f NamespaceFile) string {
 	txt := f.texts[u.pkg.text.index]
 	return txt
 }
 
 func (u UsingDecl) Idents(f NamespaceFile) []string {
-	txts := f.texts[u.idents.text.index:u.idents.text.len]
+	offset := u.idents.text.index
+	end := u.idents.text.len
+	txts := f.texts[offset : offset+end]
 	return txts
 }
 

@@ -87,27 +87,29 @@ func HelperImport(t *testing.T, testcase TestCase[importName]) {
 	HelperParser(t, testcase, parse, accept)
 }
 
-// type usingName struct {
-// 	Idents []string
-// 	Type   string
-// 	Pkg    string
-// }
+type usingName struct {
+	Ident  string
+	Idents []string
+	Type   string
+	Pkg    string
+}
 
-// func HelperUsing(t *testing.T, testcase usingName) {
-// 	parse := func(p *Parser) (ast.UsingDecl, bool) {
-// 		return p.ParseUsing()
-// 	}
+func HelperUsing(t *testing.T, testcase TestCase[usingName]) {
+	parse := func(p *Parser) (ast.UsingDecl, bool) {
+		return p.ParseUsing()
+	}
 
-// 	accept := func(u ast.UsingDecl, f ast.NamespaceFile) usingName {
-// 		var got usingName
-// 		got.Idents = u.Idents(f)
-// 		got.Type = u.Type(f)
-// 		got.Pkg = u.Pkg(f)
-// 		return got
-// 	}
+	accept := func(u ast.UsingDecl, f ast.NamespaceFile) usingName {
+		var got usingName
+		got.Ident = u.Ident(f)
+		got.Idents = u.Idents(f)
+		got.Type = u.Type(f)
+		got.Pkg = u.Pkg(f)
+		return got
+	}
 
-// 	HelperParser(t, testcase, parse, accept)
-// }
+	HelperParser(t, testcase, parse, accept)
+}
 
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
@@ -141,10 +143,12 @@ func TestInferedTypeImport(t *testing.T) {
 	HelperImport(t, testcase)
 }
 
-// func TestUsing(t *testing.T) {
-// 	testcase := TestCase[usingName]{
-// 		"a, bb : using : using(ccc)": {[]string{"a", "bb"}, "using", "ccc"},
-// 		"a : using : using(ccc)":     {[]string{"a", "bb"}, "using", "ccc"},
-// 	}
-// 	HelperUsing(t, testcase)
-// }
+func TestUsing(t *testing.T) {
+	testcase := TestCase[usingName]{
+		"a, bb : using : using(ccc)": {"a", []string{"a", "bb"}, "using", "ccc"},
+		"a : using : using(ccc)":     {"a", []string{"a"}, "using", "ccc"},
+		"a :: using(ccc)":            {"a", []string{"a"}, "", "ccc"},
+		"a, bb :: using(ccc)":        {"a", []string{"a", "bb"}, "", "ccc"},
+	}
+	HelperUsing(t, testcase)
+}
