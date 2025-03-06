@@ -55,10 +55,10 @@ func HelperPackage(t *testing.T, testcase TestCase[pkgName]) {
 
 	accept := func(p ast.PackageDecl, f ast.NamespaceFile) pkgName {
 		var got pkgName
-		got.Ident = f.GetName(p.Ident)
-		got.Type = f.GetName(p.Type)
-		got.Name = f.GetName(p.Name)
-		got.Templ = f.GetName(p.Templ)
+		got.Ident = p.Ident(f)
+		got.Type = p.Type(f)
+		got.Name = p.Name(f)
+		got.Templ = p.Templ(f)
 		return got
 	}
 
@@ -76,16 +76,38 @@ func HelperImport(t *testing.T, testcase TestCase[importName]) {
 		return p.ParseImport()
 	}
 
-	accept := func(p ast.ImportDecl, f ast.NamespaceFile) importName {
+	accept := func(i ast.ImportDecl, f ast.NamespaceFile) importName {
 		var got importName
-		got.Ident = f.GetName(p.Ident)
-		got.Type = f.GetName(p.Type)
-		got.Path = f.GetName(p.Path)
+		got.Ident = i.Ident(f)
+		got.Type = i.Type(f)
+		got.Path = i.Path(f)
 		return got
 	}
 
 	HelperParser(t, testcase, parse, accept)
 }
+
+// type usingName struct {
+// 	Idents []string
+// 	Type   string
+// 	Pkg    string
+// }
+
+// func HelperUsing(t *testing.T, testcase usingName) {
+// 	parse := func(p *Parser) (ast.UsingDecl, bool) {
+// 		return p.ParseUsing()
+// 	}
+
+// 	accept := func(u ast.UsingDecl, f ast.NamespaceFile) usingName {
+// 		var got usingName
+// 		got.Idents = u.Idents(f)
+// 		got.Type = u.Type(f)
+// 		got.Pkg = u.Pkg(f)
+// 		return got
+// 	}
+
+// 	HelperParser(t, testcase, parse, accept)
+// }
 
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
@@ -118,3 +140,11 @@ func TestInferedTypeImport(t *testing.T) {
 	}
 	HelperImport(t, testcase)
 }
+
+// func TestUsing(t *testing.T) {
+// 	testcase := TestCase[usingName]{
+// 		"a, bb : using : using(ccc)": {[]string{"a", "bb"}, "using", "ccc"},
+// 		"a : using : using(ccc)":     {[]string{"a", "bb"}, "using", "ccc"},
+// 	}
+// 	HelperUsing(t, testcase)
+// }

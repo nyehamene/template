@@ -96,52 +96,6 @@ func (t *Tokenizer) Mark() func() {
 	}
 }
 
-func (t *Tokenizer) Text(tok token.Token) (string, bool) {
-	if tok.Offset > len(t.src) {
-		t.error(tok.Offset, "", "cannot get token text; invalid token offset")
-		return "", false
-	}
-
-	if name, ok := token.Keyword(tok.Kind); ok {
-		return name, true
-	}
-
-	if tok.Kind > token.SymbolBegin && tok.Kind < token.SymbolEnd {
-		return tok.String(), true
-	}
-
-	reset := t.Mark()
-	defer func() {
-		reset()
-	}()
-
-	t.offset = tok.Offset
-	t.rdOffset = tok.Offset + 1
-	t.insertSemicolon = false
-
-	lexemeStart := tok.Offset
-
-	t.advance()
-
-	switch kind := tok.Kind; kind {
-	case token.Ident:
-		t.ident()
-	case token.String:
-		t.string()
-	case token.TextBlock:
-		t.textBlock()
-	case token.Comment:
-		t.comment()
-	default:
-		t.error(tok.Offset, tok.String(), "cannot get the text for this token")
-		return "", false
-	}
-
-	lexemeEnd := t.offset
-	lexeme := string(t.src[lexemeStart:lexemeEnd])
-	return lexeme, true
-}
-
 func (t *Tokenizer) error(offset int, lexeme, msg string) {
 	t.errFunc(offset, lexeme, msg)
 	t.errCount += 1
@@ -199,12 +153,12 @@ semiColonInsertion:
 			fallthrough
 		case ch == eof:
 			t.insertSemicolon = false
-			return token.New(token.Semicolon, offset)
+			return token.New(token.Semicolon, offset, t.offset)
 		}
 	}
 
 	if ch == eof {
-		return token.New(token.EOF, offset)
+		return token.New(token.EOF, offset, t.offset)
 	}
 
 	switch ch {
@@ -293,7 +247,7 @@ semiColonInsertion:
 
 	t.semicolonFunc(t, kind)
 
-	tok := token.New(kind, offset)
+	tok := token.New(kind, offset, t.offset)
 	return tok
 }
 

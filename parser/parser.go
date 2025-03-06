@@ -40,16 +40,6 @@ func (p *Parser) Mark() func() {
 	return p.tokenizer.Mark()
 }
 
-func (p *Parser) addToken(tok token.Token) ast.TokenIndex {
-	var index ast.TokenIndex
-	if txt, ok := p.tokenizer.Text(tok); ok {
-		index = p.file.AddToken(tok, txt)
-	} else {
-		p.errorf("invalid token: cannot get text at %s", tok)
-	}
-	return index
-}
-
 func (p *Parser) advance() bool {
 	if p.currentToken.Kind == token.EOF {
 		return false
@@ -198,19 +188,11 @@ switchStart:
 		p.errorf("invalid package declaraton; expected ; at %s", res.Get())
 	}
 
-	identIndex := p.addToken(ident)
-	typeIndex := p.addToken(type0)
-	nameIndex := p.addToken(name)
-	templIndex := p.addToken(templ)
+	decl.SetIdent(p.file, ident)
+	decl.SetType(p.file, type0)
+	decl.SetName(p.file, name)
+	decl.SetTempl(p.file, templ)
 
-	decl = ast.PackageDecl{
-		Decl: ast.Decl{
-			Ident: identIndex,
-			Type:  typeIndex,
-		},
-		Name:  nameIndex,
-		Templ: templIndex,
-	}
 	return decl, true
 }
 
@@ -281,17 +263,9 @@ switchStart:
 		errFunc(res)
 	}
 
-	identIndex := p.addToken(ident)
-	typeIndex := p.addToken(type0)
-	pathIndex := p.addToken(path)
-
-	decl = ast.ImportDecl{
-		Decl: ast.Decl{
-			Ident: identIndex,
-			Type:  typeIndex,
-		},
-		Path: pathIndex,
-	}
+	decl.SetIdent(p.file, ident)
+	decl.SetType(p.file, type0)
+	decl.SetPath(p.file, path)
 
 	return decl, true
 }
