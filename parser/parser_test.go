@@ -97,3 +97,87 @@ func TestParseInferedTypePackageDecl(t *testing.T) {
 		})
 	}
 }
+
+func TestParseImportDecl(t *testing.T) {
+	type Name struct {
+		Ident string
+		Type  string
+		Path  string
+	}
+	testcase := TestCase[Name]{
+		`i : import : import("lib/one")`:   {"i", "import", `"lib/one"`},
+		`i : import : import("lib/two")`:   {"i", "import", `"lib/two"`},
+		`i : import : import("lib/three")`: {"i", "import", `"lib/three"`},
+	}
+
+	for src, expected := range testcase {
+		t.Run(src, func(t *testing.T) {
+			file := ast.NamespaceFile{
+				Name: "testns",
+				Path: "testns.tem",
+				Src:  src,
+			}
+
+			p := New(&file)
+			imp, ok := p.ParseImport()
+
+			if !ok {
+				t.Error("parsing failed")
+			}
+
+			var got Name
+			{
+				got.Ident = p.file.GetName(imp.Ident)
+				got.Type = p.file.GetName(imp.Type)
+				got.Path = p.file.GetName(imp.Path)
+			}
+
+			if diff := cmp.Diff(expected, got); diff != "" {
+				t.Error(diff)
+			}
+
+		})
+	}
+}
+
+func TestParseInferedTypeImportDecl(t *testing.T) {
+	type Name struct {
+		Ident string
+		Type  string
+		Path  string
+	}
+	testcase := TestCase[Name]{
+		`i :: import("lib/one")`:   {"i", "", `"lib/one"`},
+		`i :: import("lib/two")`:   {"i", "", `"lib/two"`},
+		`i :: import("lib/three")`: {"i", "", `"lib/three"`},
+	}
+
+	for src, expected := range testcase {
+		t.Run(src, func(t *testing.T) {
+			file := ast.NamespaceFile{
+				Name: "testns",
+				Path: "testns.tem",
+				Src:  src,
+			}
+
+			p := New(&file)
+			imp, ok := p.ParseImport()
+
+			if !ok {
+				t.Error("parsing failed")
+			}
+
+			var got Name
+			{
+				got.Ident = p.file.GetName(imp.Ident)
+				got.Type = p.file.GetName(imp.Type)
+				got.Path = p.file.GetName(imp.Path)
+			}
+
+			if diff := cmp.Diff(expected, got); diff != "" {
+				t.Error(diff)
+			}
+
+		})
+	}
+}

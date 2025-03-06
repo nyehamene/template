@@ -213,3 +213,85 @@ switchStart:
 	}
 	return decl, true
 }
+
+func (p *Parser) ParseImport() (ast.ImportDecl, bool) {
+	var ident token.Token
+	var type0 token.Token
+	var path token.Token
+
+	var decl ast.ImportDecl
+	var res matchresult.Type
+
+	if res = p.consume(token.Ident); !res.Ok() {
+		return decl, false
+	}
+
+	if !p.match(token.Colon) {
+		return decl, false
+	}
+
+	errFunc := func(r matchresult.Type) {
+		p.errorf("invalid import declaraton; expected %s at %s",
+			r.Exp(),
+			r.Get())
+	}
+
+	ident = res.Get()
+	isImportDecl := false
+
+switchStart:
+	switch kind := p.currentToken.Kind; kind {
+	case token.Colon:
+		p.advance()
+		res = p.consume(token.Import)
+		if !res.Ok() {
+			if isImportDecl {
+				errFunc(res)
+			}
+			return decl, false
+		}
+
+		// TBD: assign type0
+
+		if res = p.consume(token.ParenOpen); !res.Ok() {
+			errFunc(res)
+			return decl, false
+		}
+
+		path = p.currentToken
+
+		if res = p.consume(token.String); !res.Ok() {
+			errFunc(res)
+			return decl, false
+		}
+		if res = p.consume(token.ParenClose); !res.Ok() {
+			errFunc(res)
+			return decl, false
+		}
+	case token.Import:
+		type0 = p.currentToken
+		isImportDecl = true
+		p.advance()
+		goto switchStart
+	default:
+		return decl, false
+	}
+
+	if res = p.consume(token.Semicolon); !res.Ok() {
+		errFunc(res)
+	}
+
+	identIndex := p.addToken(ident)
+	typeIndex := p.addToken(type0)
+	pathIndex := p.addToken(path)
+
+	decl = ast.ImportDecl{
+		Decl: ast.Decl{
+			Ident: identIndex,
+			Type:  typeIndex,
+		},
+		Path: pathIndex,
+	}
+
+	return decl, true
+}
