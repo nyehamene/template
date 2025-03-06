@@ -81,7 +81,7 @@ func IsSpace(r rune) bool {
 	return ok
 }
 
-func IsKeyword(ident string) (kind Kind, ok bool) {
+func KeywordKind(ident string) (kind Kind, ok bool) {
 	kind, ok = keywords[ident]
 	return
 }

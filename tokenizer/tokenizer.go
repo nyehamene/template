@@ -237,7 +237,7 @@ semiColonInsertion:
 			t.ident()
 			kind = token.Ident
 			lit := string(t.src[offset:t.offset])
-			if k, ok := token.IsKeyword(lit); ok {
+			if k, ok := token.KeywordKind(lit); ok {
 				kind = k
 			}
 			break
