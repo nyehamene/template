@@ -9,175 +9,112 @@ import (
 
 type TestCase[T any] map[string]T
 
-func TestPackage(t *testing.T) {
-	type Name struct {
-		Ident string
-		Type  string
-		Name  string
-		Templ string
+func HelperParser[T any, E any](
+	t *testing.T,
+	testcase TestCase[T],
+	parse func(*Parser) (E, bool),
+	accept func(E, ast.NamespaceFile) T,
+) {
+
+	for src, expected := range testcase {
+		t.Run(src, func(t *testing.T) {
+			file := ast.NamespaceFile{
+				Name: "ns",
+				Path: "testing/ns.tem",
+				Src:  src,
+			}
+
+			p := New(&file)
+			pkg, ok := parse(&p)
+
+			if !ok {
+				t.Error("parsing failed")
+			}
+
+			got := accept(pkg, file)
+
+			if diff := cmp.Diff(expected, got); diff != "" {
+				t.Error(diff)
+			}
+
+		})
 	}
-	testcase := TestCase[Name]{
+}
+
+type pkgName struct {
+	Ident string
+	Type  string
+	Name  string
+	Templ string
+}
+
+func HelperPackage(t *testing.T, testcase TestCase[pkgName]) {
+	parse := func(p *Parser) (ast.PackageDecl, bool) {
+		return p.ParsePackage()
+	}
+
+	accept := func(p ast.PackageDecl, f ast.NamespaceFile) pkgName {
+		var got pkgName
+		got.Ident = f.GetName(p.Ident)
+		got.Type = f.GetName(p.Type)
+		got.Name = f.GetName(p.Name)
+		got.Templ = f.GetName(p.Templ)
+		return got
+	}
+
+	HelperParser(t, testcase, parse, accept)
+}
+
+type importName struct {
+	Ident string
+	Type  string
+	Path  string
+}
+
+func HelperImport(t *testing.T, testcase TestCase[importName]) {
+	parse := func(p *Parser) (ast.ImportDecl, bool) {
+		return p.ParseImport()
+	}
+
+	accept := func(p ast.ImportDecl, f ast.NamespaceFile) importName {
+		var got importName
+		got.Ident = f.GetName(p.Ident)
+		got.Type = f.GetName(p.Type)
+		got.Path = f.GetName(p.Path)
+		return got
+	}
+
+	HelperParser(t, testcase, parse, accept)
+}
+
+func TestPackage(t *testing.T) {
+	testcase := TestCase[pkgName]{
 		`p : package : package("home") templ(tag)`:  {"p", "package", `"home"`, "tag"},
 		`p : package : package("home") templ(list)`: {"p", "package", `"home"`, "list"},
 		`p : package : package("home") templ(html)`: {"p", "package", `"home"`, "html"},
 	}
-
-	for src, expected := range testcase {
-		t.Run(src, func(t *testing.T) {
-			file := ast.NamespaceFile{
-				Name: "testns",
-				Path: "testns.tem",
-				Src:  src,
-				Pkg:  ast.PackageDecl{},
-			}
-
-			p := New(&file)
-			pkg, ok := p.ParsePackage()
-
-			if !ok {
-				t.Error("parsing failed")
-			}
-
-			var got Name
-			{
-				got.Ident = p.file.GetName(pkg.Ident)
-				got.Type = p.file.GetName(pkg.Type)
-				got.Name = p.file.GetName(pkg.Name)
-				got.Templ = p.file.GetName(pkg.Templ)
-			}
-
-			if diff := cmp.Diff(expected, got); diff != "" {
-				t.Error(diff)
-			}
-
-		})
-	}
+	HelperPackage(t, testcase)
 }
 
 func TestInferedTypePackage(t *testing.T) {
-	type Name struct {
-		Ident string
-		Name  string
-		Type  string
-		Templ string
+	testcase := TestCase[pkgName]{
+		`p :: package("home") templ(tag)`:  {"p", "", `"home"`, "tag"},
+		`p :: package("home") templ(list)`: {"p", "", `"home"`, "list"},
+		`p :: package("home") templ(html)`: {"p", "", `"home"`, "html"},
 	}
-	testcase := TestCase[Name]{
-		`p :: package("home") templ(tag)`:  {"p", `"home"`, "", "tag"},
-		`p :: package("home") templ(list)`: {"p", `"home"`, "", "list"},
-		`p :: package("home") templ(html)`: {"p", `"home"`, "", "html"},
-	}
-
-	for src, expected := range testcase {
-		t.Run(src, func(t *testing.T) {
-			file := ast.NamespaceFile{
-				Name: "testns",
-				Path: "testns.tem",
-				Src:  src,
-				Pkg:  ast.PackageDecl{},
-			}
-
-			p := New(&file)
-			pkg, ok := p.ParsePackage()
-
-			if !ok {
-				t.Error("parsing failed")
-			}
-
-			var got Name
-			{
-				got.Ident = p.file.GetName(pkg.Ident)
-				got.Name = p.file.GetName(pkg.Name)
-				got.Templ = p.file.GetName(pkg.Templ)
-			}
-
-			if diff := cmp.Diff(expected, got); diff != "" {
-				t.Error(diff)
-			}
-
-		})
-	}
+	HelperPackage(t, testcase)
 }
 
 func TestImport(t *testing.T) {
-	type Name struct {
-		Ident string
-		Type  string
-		Path  string
+	testcase := TestCase[importName]{
+		`i : import : import("lib/one")`: {"i", "import", `"lib/one"`},
 	}
-	testcase := TestCase[Name]{
-		`i : import : import("lib/one")`:   {"i", "import", `"lib/one"`},
-		`i : import : import("lib/two")`:   {"i", "import", `"lib/two"`},
-		`i : import : import("lib/three")`: {"i", "import", `"lib/three"`},
-	}
-
-	for src, expected := range testcase {
-		t.Run(src, func(t *testing.T) {
-			file := ast.NamespaceFile{
-				Name: "testns",
-				Path: "testns.tem",
-				Src:  src,
-			}
-
-			p := New(&file)
-			imp, ok := p.ParseImport()
-
-			if !ok {
-				t.Error("parsing failed")
-			}
-
-			var got Name
-			{
-				got.Ident = p.file.GetName(imp.Ident)
-				got.Type = p.file.GetName(imp.Type)
-				got.Path = p.file.GetName(imp.Path)
-			}
-
-			if diff := cmp.Diff(expected, got); diff != "" {
-				t.Error(diff)
-			}
-
-		})
-	}
+	HelperImport(t, testcase)
 }
 
 func TestInferedTypeImport(t *testing.T) {
-	type Name struct {
-		Ident string
-		Type  string
-		Path  string
+	testcase := TestCase[importName]{
+		`i :: import("lib/one")`: {"i", "", `"lib/one"`},
 	}
-	testcase := TestCase[Name]{
-		`i :: import("lib/one")`:   {"i", "", `"lib/one"`},
-		`i :: import("lib/two")`:   {"i", "", `"lib/two"`},
-		`i :: import("lib/three")`: {"i", "", `"lib/three"`},
-	}
-
-	for src, expected := range testcase {
-		t.Run(src, func(t *testing.T) {
-			file := ast.NamespaceFile{
-				Name: "testns",
-				Path: "testns.tem",
-				Src:  src,
-			}
-
-			p := New(&file)
-			imp, ok := p.ParseImport()
-
-			if !ok {
-				t.Error("parsing failed")
-			}
-
-			var got Name
-			{
-				got.Ident = p.file.GetName(imp.Ident)
-				got.Type = p.file.GetName(imp.Type)
-				got.Path = p.file.GetName(imp.Path)
-			}
-
-			if diff := cmp.Diff(expected, got); diff != "" {
-				t.Error(diff)
-			}
-
-		})
-	}
+	HelperImport(t, testcase)
 }
