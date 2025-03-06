@@ -116,15 +116,9 @@ func TestPackage(t *testing.T) {
 		`p : package : package("home") templ(tag)`:  {"p", "package", `"home"`, "tag"},
 		`p : package : package("home") templ(list)`: {"p", "package", `"home"`, "list"},
 		`p : package : package("home") templ(html)`: {"p", "package", `"home"`, "html"},
-	}
-	HelperPackage(t, testcase)
-}
-
-func TestInferedTypePackage(t *testing.T) {
-	testcase := TestCase[pkgName]{
-		`p :: package("home") templ(tag)`:  {"p", "", `"home"`, "tag"},
-		`p :: package("home") templ(list)`: {"p", "", `"home"`, "list"},
-		`p :: package("home") templ(html)`: {"p", "", `"home"`, "html"},
+		`p :: package("home") templ(tag)`:           {"p", "", `"home"`, "tag"},
+		`p :: package("home") templ(list)`:          {"p", "", `"home"`, "list"},
+		`p :: package("home") templ(html)`:          {"p", "", `"home"`, "html"},
 	}
 	HelperPackage(t, testcase)
 }
@@ -132,13 +126,7 @@ func TestInferedTypePackage(t *testing.T) {
 func TestImport(t *testing.T) {
 	testcase := TestCase[importName]{
 		`i : import : import("lib/one")`: {"i", "import", `"lib/one"`},
-	}
-	HelperImport(t, testcase)
-}
-
-func TestInferedTypeImport(t *testing.T) {
-	testcase := TestCase[importName]{
-		`i :: import("lib/one")`: {"i", "", `"lib/one"`},
+		`i :: import("lib/one")`:         {"i", "", `"lib/one"`},
 	}
 	HelperImport(t, testcase)
 }
