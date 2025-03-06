@@ -9,7 +9,7 @@ import (
 
 type TestCase[T any] map[string]T
 
-func TestParsePackageDecl(t *testing.T) {
+func TestPackage(t *testing.T) {
 	type Name struct {
 		Ident string
 		Type  string
@@ -54,7 +54,7 @@ func TestParsePackageDecl(t *testing.T) {
 	}
 }
 
-func TestParseInferedTypePackageDecl(t *testing.T) {
+func TestInferedTypePackage(t *testing.T) {
 	type Name struct {
 		Ident string
 		Name  string
@@ -98,7 +98,7 @@ func TestParseInferedTypePackageDecl(t *testing.T) {
 	}
 }
 
-func TestParseImportDecl(t *testing.T) {
+func TestImport(t *testing.T) {
 	type Name struct {
 		Ident string
 		Type  string
@@ -140,7 +140,7 @@ func TestParseImportDecl(t *testing.T) {
 	}
 }
 
-func TestParseInferedTypeImportDecl(t *testing.T) {
+func TestInferedTypeImport(t *testing.T) {
 	type Name struct {
 		Ident string
 		Type  string
