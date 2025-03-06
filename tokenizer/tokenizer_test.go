@@ -68,9 +68,8 @@ func HelperRunTestCases(
 	testcases map[string][]token.Token,
 	opts ...tokenizer.Option,
 ) {
-	i := 0
 	for src, expected := range testcases {
-		t.Run(fmt.Sprintf("%d\t%s", i, src), func(t *testing.T) {
+		t.Run(fmt.Sprintf("_%s", src), func(t *testing.T) {
 			gots := []token.Token{}
 			tok := tokenizer.New([]byte(src), opts...)
 
@@ -93,7 +92,6 @@ func HelperRunTestCases(
 				t.Errorf("expected no error but got %d", c)
 			}
 		})
-		i += 1
 	}
 }
 

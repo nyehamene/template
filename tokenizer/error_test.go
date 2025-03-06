@@ -21,8 +21,8 @@ func HelperRunTestCasesError(t *testing.T, testcases TestCaseError) {
 				t.Errorf("expected %d error(s) got %d", expected.errCount, errCount)
 			}
 
-			if expected.offsetAfter != tok.offset {
-				t.Errorf("expected offset %d got %d", expected.offsetAfter, tok.offset)
+			if expected.offsetAfter != tok.rdOffset {
+				t.Errorf("expected offset %d got %d", expected.offsetAfter, tok.rdOffset)
 			}
 		})
 		i += 1
