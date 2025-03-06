@@ -125,16 +125,16 @@ func TestNextIdent(t *testing.T) {
 
 func TestNextKeyword(t *testing.T) {
 	testcases := TestCase{
-		"alias":   {alias(0)},
-		"import":  {import0(0)},
-		"package": {package0(0)},
-		"record":  {record(0)},
-		"templ":   {templ(0)},
-		"type":    {type0(0)},
-		"using":   {using(0)},
-		"tag":     {newToken(token.Tag, 0)},
-		"list":    {newToken(token.List, 0)},
-		"html":    {newToken(token.Html, 0)},
+		"alias ":   {alias(0)},
+		"import ":  {import0(0)},
+		"package ": {package0(0)},
+		"record ":  {record(0)},
+		"templ ":   {templ(0)},
+		"type ":    {type0(0)},
+		"using ":   {using(0)},
+		"tag ":     {newToken(token.Tag, 0)},
+		"list ":    {newToken(token.List, 0)},
+		"html ":    {newToken(token.Html, 0)},
 	}
 	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }

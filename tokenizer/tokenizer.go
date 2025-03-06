@@ -229,7 +229,7 @@ semiColonInsertion:
 		if t.ch != '/' {
 			kind = token.Invalid
 			offset := t.rdOffset - 1
-			cmt := string(t.src[offset:t.rdOffset])
+			cmt := string(t.src[offset:t.offset])
 			t.error(t.offset, cmt, "Invalid comment marker")
 			break
 		}
@@ -245,8 +245,8 @@ semiColonInsertion:
 		if isLetter(ch) {
 			t.ident()
 			kind = token.Ident
-			lit := string(t.src[offset:t.rdOffset])
-			if k, ok := token.KeywordKind(lit); ok {
+			lexeme := string(t.src[offset:t.offset])
+			if k, ok := token.KeywordKind(lexeme); ok {
 				kind = k
 			}
 			break
