@@ -16,6 +16,7 @@ const (
 	EOF
 	EOL
 
+	SymbolBegin
 	// BraceClose close curly brace }
 	BraceClose
 	// BraceOpen open curly brace {
@@ -32,6 +33,7 @@ const (
 	ParenOpen
 	Semicolon
 	Space
+	SymbolEnd
 
 	KeywordBegin
 	Alias
@@ -84,4 +86,17 @@ func IsSpace(r rune) bool {
 func KeywordKind(ident string) (kind Kind, ok bool) {
 	kind, ok = keywords[ident]
 	return
+}
+
+func Keyword(tok Kind) (string, bool) {
+	for n, kw := range keywords {
+		if kw == tok {
+			return n, true
+		}
+	}
+	return "", false
+}
+
+func IsKeyword(tok Kind) bool {
+	return tok > KeywordBegin && tok < KeywordEnd
 }

@@ -2,13 +2,19 @@ source := package { import } { using } { decl } =:
 
 package            := { doc } package_tag { doc } =:
 package_tag        := { tag } package_decl { tag } =:
-package_decl       := ident ":" [ "package" ] ":" "package" "(" string ")" package_templ ";" =:
+package_decl       := ident ":" ":" package_name ";"
+					| ident ":" "package" ":" package_name ";"
+				   =:
+package_name       := "package" "(" string ")" package_templ =:
 package_templ      := "templ" "(" package_templ_kind ")" =:
 package_templ_kind := ( "tag" | "list" | "html" ) =:
 
 import      := { doc } import_tag { doc } =:
 import_tag  := { tag } import_decl { tag } =:
-import_decl := ident ":" [ "import" ] ":" "import" "(" string ")" ";" =:
+import_decl := ident ":" ":" import_path ";"
+			 | ident ":" "import" ":" import_path ";"
+			=:
+import_path := "import" "(" string ")" =:
 
 using      := { doc } using_tag { doc } =:
 using_tag  := { tag } using_decl { tag } =:

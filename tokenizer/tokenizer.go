@@ -41,9 +41,9 @@ func isDigit(c rune) bool {
 }
 
 func DefaultErrorHandler(offset int, ch string, msg string) {
-	fmt.Printf("error: ")
+	fmt.Printf("token error: ")
 	fmt.Printf("%s ", msg)
-	fmt.Printf("%v ", ch)
+	fmt.Printf("%s ", ch)
 	fmt.Printf("at %d\n", offset)
 }
 
@@ -96,8 +96,54 @@ func (t *Tokenizer) Mark() func() {
 	}
 }
 
-func (t *Tokenizer) error(offset int, lit, msg string) {
-	t.errFunc(offset, lit, msg)
+func (t *Tokenizer) Text(tok token.Token) (string, bool) {
+	if tok.Offset > len(t.src) {
+		t.error(tok.Offset, "", "cannot get token text; invalid token offset")
+		return "", false
+	}
+
+	if name, ok := token.Keyword(tok.Kind); ok {
+		return name, true
+	}
+
+	if tok.Kind > token.SymbolBegin && tok.Kind < token.SymbolEnd {
+		return tok.String(), true
+	}
+
+	reset := t.Mark()
+	defer func() {
+		reset()
+	}()
+
+	t.offset = tok.Offset
+	t.rdOffset = tok.Offset + 1
+	t.insertSemicolon = false
+
+	lexemeStart := tok.Offset
+
+	t.advance()
+
+	switch kind := tok.Kind; kind {
+	case token.Ident:
+		t.ident()
+	case token.String:
+		t.string()
+	case token.TextBlock:
+		t.textBlock()
+	case token.Comment:
+		t.comment()
+	default:
+		t.error(tok.Offset, tok.String(), "cannot get the text for this token")
+		return "", false
+	}
+
+	lexemeEnd := t.offset
+	lexeme := string(t.src[lexemeStart:lexemeEnd])
+	return lexeme, true
+}
+
+func (t *Tokenizer) error(offset int, lexeme, msg string) {
+	t.errFunc(offset, lexeme, msg)
 	t.errCount += 1
 }
 
@@ -106,16 +152,6 @@ func (t Tokenizer) eof() bool {
 		return true
 	}
 	return false
-}
-
-func (t *Tokenizer) peek() rune {
-	if t.eof() {
-		return eof
-	}
-
-	offset := t.rdOffset
-	ch := rune(t.src[offset])
-	return ch
 }
 
 func (t *Tokenizer) advance() {
@@ -281,13 +317,10 @@ func (t *Tokenizer) string() {
 			t.error(t.offset, str, "Unterminated string")
 			break
 		}
-		// TBD: check if performing this check after calling advance
-		// would work
+		t.advance()
 		if ch == '"' {
-			t.advance()
 			break
 		}
-		t.advance()
 	}
 }
 
