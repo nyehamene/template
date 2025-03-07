@@ -36,9 +36,9 @@ func errorInvalidDecl[T any, E any](p *Parser, k token.Kind, res matchresult.Typ
 		res.Exp())
 }
 
-func errorExpectedSemicolon(p *Parser, k token.Kind) {
+func errorExpectedSemicolon(p *Parser) {
 	p.errorf("invalid %s declaration at %s, expected %s",
-		k, token.Semicolon)
+		p.currentToken, token.Semicolon)
 }
 
 type Parser struct {
@@ -79,7 +79,7 @@ func (p *Parser) consume(tok token.Kind) MatchToken {
 	return Ok(matchedToken)
 }
 
-func (p *Parser) consumePackageName() (res MatchToken) {
+func (p *Parser) consumePackageName() (res MatchToken, pkg token.Token) {
 	var name token.Token
 
 	reset := p.Mark()
@@ -89,22 +89,28 @@ func (p *Parser) consumePackageName() (res MatchToken) {
 		}
 	}()
 
+	prev := p.currentToken
 	if ok := p.match(token.Package); !ok {
-		return matchresult.NoMatch(name, token.Package)
+		return matchresult.NoMatch(name, token.Package), pkg
 	}
+
+	pkg = prev
+
 	if ok := p.match(token.ParenOpen); !ok {
-		return matchresult.Invalid(p.currentToken, token.ParenOpen)
+		return matchresult.Invalid(p.currentToken, token.ParenOpen), pkg
 	}
 
-	name = p.currentToken
-
+	prev = p.currentToken
 	if ok := p.match(token.String); !ok {
-		return matchresult.Invalid(p.currentToken, token.String)
+		return matchresult.Invalid(p.currentToken, token.String), pkg
 	}
+
+	name = prev
+
 	if ok := p.match(token.ParenClose); !ok {
-		return matchresult.Invalid(p.currentToken, token.ParenClose)
+		return matchresult.Invalid(p.currentToken, token.ParenClose), pkg
 	}
-	return Ok(name)
+	return Ok(name), pkg
 }
 
 func (p *Parser) consumePackageTempl() (res MatchToken) {
@@ -141,7 +147,7 @@ func (p *Parser) consumePackageTempl() (res MatchToken) {
 
 func (p *Parser) ParsePackage() (ast.PackageDecl, bool) {
 	var ident token.Token
-	var type_ token.Token
+	var ty token.Token
 	var name token.Token
 	var templ token.Token
 
@@ -155,12 +161,6 @@ func (p *Parser) ParsePackage() (ast.PackageDecl, bool) {
 		return decl, false
 	}
 
-	errFunc := func(r MatchToken) {
-		p.errorf("invalid package declaraton; expected %s at %s",
-			r.Exp(),
-			r.Get())
-	}
-
 	ident = res.Get()
 	isPackageDecl := false
 
@@ -168,27 +168,31 @@ switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res := p.consumePackageName()
+		res, pkg := p.consumePackageName()
 		if res.NoMatch() {
 			if isPackageDecl {
-				errFunc(res)
+				errorInvalidDecl(p, token.Package, res)
 			}
 			return decl, false
 		}
 		if res.Invalid() {
-			errFunc(res)
+			errorInvalidDecl(p, token.Package, res)
 			return decl, false
 		}
-		// TBD: assign to type_
+
+		if ty.Kind() == token.Invalid {
+			ty = pkg
+		}
 		name = res.Get()
-		res = p.consumePackageTempl()
-		if !res.Ok() {
-			errFunc(res)
+
+		if res = p.consumePackageTempl(); !res.Ok() {
+			errorInvalidDecl(p, token.Package, res)
 			return decl, false
 		}
 		templ = res.Get()
+
 	case token.Package:
-		type_ = p.currentToken
+		ty = p.currentToken
 		isPackageDecl = true
 		p.advance()
 		goto switchStart
@@ -197,11 +201,11 @@ switchStart:
 	}
 
 	if res := p.consume(token.Semicolon); !res.Ok() {
-		p.errorf("invalid package declaraton; expected ; at %s", res.Get())
+		errorExpectedSemicolon(p)
 	}
 
 	decl.SetIdent(p.file, ident)
-	decl.SetType(p.file, type_)
+	decl.SetType(p.file, ty)
 	decl.SetName(p.file, name)
 	decl.SetTempl(p.file, templ)
 
@@ -210,7 +214,7 @@ switchStart:
 
 func (p *Parser) ParseImport() (ast.ImportDecl, bool) {
 	var ident token.Token
-	var type_ token.Token
+	var ty token.Token
 	var path token.Token
 
 	var decl ast.ImportDecl
@@ -224,12 +228,6 @@ func (p *Parser) ParseImport() (ast.ImportDecl, bool) {
 		return decl, false
 	}
 
-	errFunc := func(r MatchToken) {
-		p.errorf("invalid import declaraton; expected %s at %s",
-			r.Exp(),
-			r.Get())
-	}
-
 	ident = res.Get()
 	isImportDecl := false
 
@@ -240,31 +238,32 @@ switchStart:
 		res = p.consume(token.Import)
 		if !res.Ok() {
 			if isImportDecl {
-				errFunc(res)
+				errorInvalidDecl(p, token.Import, res)
 			}
 			return decl, false
 		}
 
-		// TBD: assign type_
-
-		if res = p.consume(token.ParenOpen); !res.Ok() {
-			errFunc(res)
-			return decl, false
+		if ty.Kind() == token.Invalid {
+			ty = res.Get()
 		}
 
+		if res = p.consume(token.ParenOpen); !res.Ok() {
+			errorInvalidDecl(p, token.Import, res)
+			return decl, false
+		}
 		if res = p.consume(token.String); !res.Ok() {
-			errFunc(res)
+			errorInvalidDecl(p, token.Import, res)
 			return decl, false
 		}
 
 		path = res.Get()
 
 		if res = p.consume(token.ParenClose); !res.Ok() {
-			errFunc(res)
+			errorInvalidDecl(p, token.Import, res)
 			return decl, false
 		}
 	case token.Import:
-		type_ = p.currentToken
+		ty = p.currentToken
 		isImportDecl = true
 		p.advance()
 		goto switchStart
@@ -273,11 +272,11 @@ switchStart:
 	}
 
 	if res = p.consume(token.Semicolon); !res.Ok() {
-		errFunc(res)
+		errorExpectedSemicolon(p)
 	}
 
 	decl.SetIdent(p.file, ident)
-	decl.SetType(p.file, type_)
+	decl.SetType(p.file, ty)
 	decl.SetPath(p.file, path)
 
 	return decl, true
@@ -286,7 +285,7 @@ switchStart:
 func (p *Parser) ParseUsing() (ast.UsingDecl, bool) {
 	var ident token.Token
 	var idents []token.Token
-	var type_ token.Token
+	var ty token.Token
 	var pkg token.Token
 
 	var decl ast.UsingDecl
@@ -313,12 +312,6 @@ func (p *Parser) ParseUsing() (ast.UsingDecl, bool) {
 		return decl, false
 	}
 
-	errFunc := func(r MatchToken) {
-		p.errorf("invalid import declaraton; expected %s at %s",
-			r.Exp(),
-			r.Get())
-	}
-
 	isUsingDecl := false
 
 switchStart:
@@ -328,30 +321,31 @@ switchStart:
 		res = p.consume(token.Using)
 		if !res.Ok() {
 			if isUsingDecl {
-				errFunc(res)
+				errorInvalidDecl(p, token.Using, res)
 			}
 			return decl, false
 		}
 
-		// TBD: assign type_
-
+		if ty.Kind() == token.Invalid {
+			ty = res.Get()
+		}
 		if res = p.consume(token.ParenOpen); !res.Ok() {
-			errFunc(res)
+			errorInvalidDecl(p, token.Using, res)
 			return decl, false
 		}
 		if res = p.consume(token.Ident); !res.Ok() {
-			errFunc(res)
+			errorInvalidDecl(p, token.Using, res)
 			return decl, false
 		}
 
 		pkg = res.Get()
 
 		if res = p.consume(token.ParenClose); !res.Ok() {
-			errFunc(res)
+			errorInvalidDecl(p, token.Using, res)
 			return decl, false
 		}
 	case token.Using:
-		type_ = p.currentToken
+		ty = p.currentToken
 		isUsingDecl = true
 		p.advance()
 		goto switchStart
@@ -360,11 +354,11 @@ switchStart:
 	}
 
 	if res = p.consume(token.Semicolon); !res.Ok() {
-		errFunc(res)
+		errorExpectedSemicolon(p)
 	}
 
 	decl.SetIdent(p.file, ident)
-	decl.SetType(p.file, type_)
+	decl.SetType(p.file, ty)
 	decl.SetPkg(p.file, pkg)
 	decl.SetIdents(p.file, idents)
 
@@ -427,7 +421,7 @@ switchStart:
 	}
 
 	if !p.match(token.Semicolon) {
-		errorExpectedSemicolon(p, token.Alias)
+		errorExpectedSemicolon(p)
 	}
 
 	decl.SetIdent(p.file, ident)
