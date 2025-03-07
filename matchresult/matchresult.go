@@ -1,17 +1,15 @@
 package matchresult
 
-import "temlang/tem/token"
-
-func Ok(tok token.Token) Type {
-	return Type{tok, tok.Kind, stateOk}
+func Ok[T any, E any](t T, e E) Type[T, E] {
+	return Type[T, E]{t, e, stateOk}
 }
 
-func NoMatch(at token.Token, exp token.Kind) Type {
-	return Type{at, exp, stateNoMatch}
+func NoMatch[T any, E any](at T, exp E) Type[T, E] {
+	return Type[T, E]{at, exp, stateNoMatch}
 }
 
-func Invalid(at token.Token, exp token.Kind) Type {
-	return Type{at, exp, stateInvalid}
+func Invalid[T any, E any](at T, exp E) Type[T, E] {
+	return Type[T, E]{at, exp, stateInvalid}
 }
 
 type state int
@@ -22,29 +20,29 @@ const (
 	stateInvalid
 )
 
-type Type struct {
-	tok token.Token
+type Type[T any, E any] struct {
+	value T
 	// token kind expected before an error
-	exp   token.Kind
+	exp   E
 	state state
 }
 
-func (m Type) Get() token.Token {
-	return m.tok
+func (m Type[T, E]) Get() T {
+	return m.value
 }
 
-func (m Type) Exp() token.Kind {
+func (m Type[T, E]) Exp() E {
 	return m.exp
 }
 
-func (m Type) Ok() bool {
+func (m Type[T, E]) Ok() bool {
 	return m.state == stateOk
 }
 
-func (m Type) NoMatch() bool {
+func (m Type[T, E]) NoMatch() bool {
 	return m.state == stateNoMatch
 }
 
-func (m Type) Invalid() bool {
+func (m Type[T, E]) Invalid() bool {
 	return m.state != stateOk && m.state != stateNoMatch
 }

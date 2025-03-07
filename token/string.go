@@ -3,7 +3,7 @@ package token
 import "fmt"
 
 func (t Token) String() string {
-	return fmt.Sprintf("%s %d", t.Kind, t.start)
+	return fmt.Sprintf("%s %d", t.Kind(), t.start)
 }
 
 func (k Kind) String() string {

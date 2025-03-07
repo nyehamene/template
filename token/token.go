@@ -1,13 +1,17 @@
 package token
 
 func New(kind Kind, offset, end int) Token {
-	return Token{Kind: kind, start: offset, end: end}
+	return Token{kind: kind, start: offset, end: end}
 }
 
 type Token struct {
-	Kind  Kind
+	kind  Kind
 	start int
 	end   int
+}
+
+func (t Token) Kind() Kind {
+	return t.kind
 }
 
 func (t Token) Start() int {

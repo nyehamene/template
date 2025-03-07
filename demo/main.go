@@ -42,7 +42,7 @@ func tokenize(s []byte) {
 	tok := tokenizer.New(s)
 	for {
 		t := tok.Next()
-		if t.Kind == token.EOF {
+		if t.Kind() == token.EOF {
 			break
 		}
 		fmt.Println(t)

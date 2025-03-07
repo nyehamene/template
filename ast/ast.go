@@ -41,11 +41,11 @@ func (n *NamespaceFile) text(tok token.Token) (string, bool) {
 		return "", false
 	}
 
-	if name, ok := token.Keyword(tok.Kind); ok {
+	if name, ok := token.Keyword(tok.Kind()); ok {
 		return name, true
 	}
 
-	if tok.Kind > token.SymbolBegin && tok.Kind < token.SymbolEnd {
+	if tok.Kind() > token.SymbolBegin && tok.Kind() < token.SymbolEnd {
 		return tok.String(), true
 	}
 
@@ -55,8 +55,8 @@ func (n *NamespaceFile) text(tok token.Token) (string, bool) {
 	return lexeme, true
 }
 
-func (f *NamespaceFile) addText(tok token.Token) int {
-	txt, ok := f.text(tok)
+func (f *NamespaceFile) addText(tok *TokenIndex, val token.Token) {
+	txt, ok := f.text(val)
 	if !ok {
 		// TBD: maybe raise some kind of error
 		panic("unreachable")
@@ -64,14 +64,14 @@ func (f *NamespaceFile) addText(tok token.Token) int {
 
 	index := len(f.texts)
 	f.texts = append(f.texts, txt)
-	return index
+	tok.text.index = index
 }
 
-func (f *NamespaceFile) addToken(tok token.Token) int {
+func (f *NamespaceFile) addToken(tok *TokenIndex, val token.Token) {
 	index := len(f.tokens)
-	f.tokens = append(f.tokens, tok)
+	f.tokens = append(f.tokens, val)
 	f.tokenLen += 1
-	return index
+	tok.token.index = index
 }
 
 type TokenIndex struct {
@@ -93,8 +93,8 @@ type Decl struct {
 }
 
 func (d *Decl) SetType(f *NamespaceFile, tok token.Token) {
-	d.type_.token.index = f.addToken(tok)
-	d.type_.text.index = f.addText(tok)
+	f.addToken(&d.type_, tok)
+	f.addText(&d.type_, tok)
 }
 
 func (p Decl) Type(f NamespaceFile) string {
@@ -102,9 +102,9 @@ func (p Decl) Type(f NamespaceFile) string {
 	return txt
 }
 
-func (d *Decl) SetIdent(n *NamespaceFile, tok token.Token) {
-	d.ident.token.index = n.addToken(tok)
-	d.ident.text.index = n.addText(tok)
+func (d *Decl) SetIdent(f *NamespaceFile, tok token.Token) {
+	f.addToken(&d.ident, tok)
+	f.addText(&d.ident, tok)
 }
 
 func (u Decl) Ident(f NamespaceFile) string {
@@ -118,13 +118,45 @@ type NamedDecl struct {
 }
 
 func (d *NamedDecl) SetName(f *NamespaceFile, tok token.Token) {
-	d.name.token.index = f.addToken(tok)
-	d.name.text.index = f.addText(tok)
+	f.addToken(&d.name, tok)
+	f.addText(&d.name, tok)
 }
 
 func (p NamedDecl) Name(f NamespaceFile) string {
 	txt := f.texts[p.name.text.index]
 	return txt
+}
+
+type manyIdentDecl struct {
+	Decl
+	idents TokenIndex
+}
+
+func (d *manyIdentDecl) SetIdents(f *NamespaceFile, toks []token.Token) {
+	tokOffset := len(f.tokens)
+	txtOffset := len(f.texts)
+
+	for _, tok := range toks {
+		txt, ok := f.text(tok)
+		if !ok {
+			panic("unreachable")
+		}
+		f.tokens = append(f.tokens, tok)
+		f.texts = append(f.texts, txt)
+	}
+
+	d.idents.token.index = tokOffset
+	d.idents.token.len = len(toks)
+
+	d.idents.text.index = txtOffset
+	d.idents.text.len = len(toks)
+}
+
+func (u manyIdentDecl) Idents(f NamespaceFile) []string {
+	offset := u.idents.text.index
+	end := u.idents.text.len
+	txts := f.texts[offset : offset+end]
+	return txts
 }
 
 type PackageDecl struct {
@@ -133,8 +165,8 @@ type PackageDecl struct {
 }
 
 func (d *PackageDecl) SetTempl(f *NamespaceFile, tok token.Token) {
-	d.templ.token.index = f.addToken(tok)
-	d.templ.text.index = f.addText(tok)
+	f.addToken(&d.templ, tok)
+	f.addText(&d.templ, tok)
 }
 
 func (p PackageDecl) Templ(f NamespaceFile) string {
@@ -148,8 +180,8 @@ type ImportDecl struct {
 }
 
 func (d *ImportDecl) SetPath(f *NamespaceFile, tok token.Token) {
-	d.path.token.index = f.addToken(tok)
-	d.path.text.index = f.addText(tok)
+	f.addToken(&d.path, tok)
+	f.addText(&d.path, tok)
 }
 
 func (i ImportDecl) Path(f NamespaceFile) string {
@@ -158,30 +190,13 @@ func (i ImportDecl) Path(f NamespaceFile) string {
 }
 
 type UsingDecl struct {
-	Decl
-	idents TokenIndex
-	pkg    TokenIndex
+	manyIdentDecl
+	pkg TokenIndex
 }
 
 func (d *UsingDecl) SetPkg(f *NamespaceFile, tok token.Token) {
-	d.pkg.token.index = f.addToken(tok)
-	d.pkg.text.index = f.addText(tok)
-}
-
-func (d *UsingDecl) SetIdents(f *NamespaceFile, toks []token.Token) {
-	tokOffset := len(f.tokens)
-	txtOffset := len(f.texts)
-
-	for _, tok := range toks {
-		f.addToken(tok)
-		f.addText(tok)
-	}
-
-	d.idents.token.index = tokOffset
-	d.idents.token.len = len(toks)
-
-	d.idents.text.index = txtOffset
-	d.idents.text.len = len(toks)
+	f.addToken(&d.pkg, tok)
+	f.addText(&d.pkg, tok)
 }
 
 func (u UsingDecl) Pkg(f NamespaceFile) string {
@@ -189,23 +204,25 @@ func (u UsingDecl) Pkg(f NamespaceFile) string {
 	return txt
 }
 
-func (u UsingDecl) Idents(f NamespaceFile) []string {
-	offset := u.idents.text.index
-	end := u.idents.text.len
-	txts := f.texts[offset : offset+end]
-	return txts
-}
-
 // type TypeDecl struct {
 // 	Decl
 //	offset Index
 // }
 
-// type AliasDecl struct {
-// 	Vars   TokenSlice
-// 	Target Index
-//	offset Index
-// }
+type AliasDecl struct {
+	manyIdentDecl
+	target TokenIndex
+}
+
+func (d *AliasDecl) SetTarget(f *NamespaceFile, tok token.Token) {
+	f.addToken(&d.target, tok)
+	f.addText(&d.target, tok)
+}
+
+func (d AliasDecl) Target(f NamespaceFile) string {
+	txt := f.texts[d.target.text.index]
+	return txt
+}
 
 // type RecordDecl struct {
 // 	Decl

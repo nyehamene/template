@@ -79,10 +79,10 @@ func HelperRunTestCases(
 
 			for {
 				got := tok.Next()
-				if got.Kind == token.EOF {
+				if got.Kind() == token.EOF {
 					break
 				}
-				if got.Kind == token.EOL {
+				if got.Kind() == token.EOL {
 					continue
 				}
 				gots = append(gots, got)
@@ -220,7 +220,7 @@ func TestNextInsertSemicolonAndNewline(t *testing.T) {
 		gots := []token.Token{}
 		for {
 			got := tok.Next()
-			if got.Kind == token.EOF {
+			if got.Kind() == token.EOF {
 				break
 			}
 			gots = append(gots, got)
@@ -241,7 +241,7 @@ func TestNextNewline(t *testing.T) {
 		gots := []token.Token{}
 		for {
 			got := tok.Next()
-			if got.Kind == token.EOF {
+			if got.Kind() == token.EOF {
 				break
 			}
 			gots = append(gots, got)

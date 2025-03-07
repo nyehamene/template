@@ -111,6 +111,30 @@ func HelperUsing(t *testing.T, testcase TestCase[usingName]) {
 	HelperParser(t, testcase, parse, accept)
 }
 
+type typeAliasName struct {
+	Ident  string
+	Idents []string
+	Type   string
+	Target string
+}
+
+func HelperTypeAlias(t *testing.T, testcase TestCase[typeAliasName]) {
+	parse := func(p *Parser) (ast.AliasDecl, bool) {
+		return p.ParseAlias()
+	}
+
+	accept := func(d ast.AliasDecl, f ast.NamespaceFile) typeAliasName {
+		var got typeAliasName
+		got.Ident = d.Ident(f)
+		got.Idents = d.Idents(f)
+		got.Type = d.Type(f)
+		got.Target = d.Target(f)
+		return got
+	}
+
+	HelperParser(t, testcase, parse, accept)
+}
+
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
 		`p : package : package("home") templ(tag)`:  {"p", "package", `"home"`, "tag"},
@@ -139,4 +163,14 @@ func TestUsing(t *testing.T) {
 		"a, bb :: using(ccc)":        {"a", []string{"a", "bb"}, "", "ccc"},
 	}
 	HelperUsing(t, testcase)
+}
+
+func TestTypeAlias(t *testing.T) {
+	testcase := TestCase[typeAliasName]{
+		"a : type : type(t)":    {"a", []string{"a"}, "type", "t"},
+		"a :: type(t)":          {"a", []string{"a"}, "type", "t"},
+		"a, b : type : type(t)": {"a", []string{"a", "b"}, "type", "t"},
+		"a, b :: type(t)":       {"a", []string{"a", "b"}, "type", "t"},
+	}
+	HelperTypeAlias(t, testcase)
 }
