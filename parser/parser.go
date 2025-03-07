@@ -36,6 +36,12 @@ func errorInvalidDecl[T any, E any](p *Parser, k token.Kind, res matchresult.Typ
 		res.Exp())
 }
 
+func errorInvalidToken[T any, E any](p *Parser, res matchresult.Type[T, E]) {
+	p.errorf("invalid token: expected %s at %s",
+		res.Get(),
+		res.Exp())
+}
+
 func errorExpectedSemicolon(p *Parser) {
 	p.errorf("invalid %s declaration at %s, expected %s",
 		p.currentToken, token.Semicolon)
@@ -113,6 +119,57 @@ func (p *Parser) consumePackageName() (res MatchToken, pkg token.Token) {
 	return Ok(name), pkg
 }
 
+func (p *Parser) consumeIdents() (res MatchManyToken, tok token.Token) {
+	var idents []token.Token
+	var ident token.Token
+
+	prev := p.currentToken
+	if res := p.consume(token.Ident); !res.Ok() {
+		return NoMatchMany(p.currentToken, res.Exp()), ident
+	}
+
+	ident = prev
+	idents = append(idents, prev)
+
+	for {
+		if res := p.consume(token.Comma); !res.Ok() {
+			break
+		}
+
+		prev := p.currentToken
+		if res := p.consume(token.Ident); !res.Ok() {
+			return InvalidMany(p.currentToken, token.Ident), ident
+		}
+		idents = append(idents, prev)
+	}
+
+	return OkMany(idents), ident
+}
+
+func (p *Parser) consumeKwExpr(kwk token.Kind, exprk token.Kind) (MatchToken, token.Token) {
+	var empty token.Token
+
+	prevKw := p.currentToken
+	if kind := kwk; !p.match(kind) {
+		return NoMatch(p.currentToken, kind), empty
+	}
+
+	if kind := token.ParenOpen; !p.match(kind) {
+		return Invalid(p.currentToken, kind), empty
+	}
+
+	prevExpr := p.currentToken
+	if kind := exprk; !p.match(kind) {
+		return Invalid(p.currentToken, kind), empty
+	}
+
+	if kind := token.ParenClose; !p.match(kind) {
+		return Invalid(p.currentToken, kind), empty
+	}
+
+	return Ok(prevExpr), prevKw
+}
+
 func (p *Parser) consumePackageTempl() (res MatchToken) {
 	var templ token.Token
 
@@ -146,22 +203,20 @@ func (p *Parser) consumePackageTempl() (res MatchToken) {
 }
 
 func (p *Parser) ParsePackage() (ast.PackageDecl, bool) {
-	var ident token.Token
-	var ty token.Token
-	var name token.Token
-	var templ token.Token
+	var (
+		ident, ty, name, templ token.Token
+		decl                   ast.PackageDecl
+	)
 
-	var decl ast.PackageDecl
-	var res MatchToken
-
-	if res = p.consume(token.Ident); !res.Ok() {
+	prev := p.currentToken
+	if !p.match(token.Ident) {
 		return decl, false
 	}
 	if !p.match(token.Colon) {
 		return decl, false
 	}
 
-	ident = res.Get()
+	ident = prev
 	isPackageDecl := false
 
 switchStart:
@@ -179,10 +234,10 @@ switchStart:
 			errorInvalidDecl(p, token.Package, res)
 			return decl, false
 		}
-
 		if ty.Kind() == token.Invalid {
 			ty = pkg
 		}
+
 		name = res.Get()
 
 		if res = p.consumePackageTempl(); !res.Ok() {
@@ -200,7 +255,7 @@ switchStart:
 		return decl, false
 	}
 
-	if res := p.consume(token.Semicolon); !res.Ok() {
+	if !p.match(token.Semicolon) {
 		errorExpectedSemicolon(p)
 	}
 
@@ -213,55 +268,43 @@ switchStart:
 }
 
 func (p *Parser) ParseImport() (ast.ImportDecl, bool) {
-	var ident token.Token
-	var ty token.Token
-	var path token.Token
+	var (
+		decl            ast.ImportDecl
+		ident, ty, path token.Token
+	)
 
-	var decl ast.ImportDecl
-	var res MatchToken
-
-	if res = p.consume(token.Ident); !res.Ok() {
+	prev := p.currentToken
+	if !p.match(token.Ident) {
 		return decl, false
 	}
-
 	if !p.match(token.Colon) {
 		return decl, false
 	}
 
-	ident = res.Get()
+	ident = prev
 	isImportDecl := false
 
 switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res = p.consume(token.Import)
-		if !res.Ok() {
+		res, kw := p.consumeKwExpr(token.Import, token.String)
+		if res.NoMatch() {
 			if isImportDecl {
 				errorInvalidDecl(p, token.Import, res)
 			}
 			return decl, false
 		}
-
+		if res.Invalid() {
+			errorInvalidDecl(p, token.Import, res)
+			return decl, false
+		}
 		if ty.Kind() == token.Invalid {
-			ty = res.Get()
-		}
-
-		if res = p.consume(token.ParenOpen); !res.Ok() {
-			errorInvalidDecl(p, token.Import, res)
-			return decl, false
-		}
-		if res = p.consume(token.String); !res.Ok() {
-			errorInvalidDecl(p, token.Import, res)
-			return decl, false
+			ty = kw
 		}
 
 		path = res.Get()
 
-		if res = p.consume(token.ParenClose); !res.Ok() {
-			errorInvalidDecl(p, token.Import, res)
-			return decl, false
-		}
 	case token.Import:
 		ty = p.currentToken
 		isImportDecl = true
@@ -271,7 +314,7 @@ switchStart:
 		return decl, false
 	}
 
-	if res = p.consume(token.Semicolon); !res.Ok() {
+	if !p.match(token.Semicolon) {
 		errorExpectedSemicolon(p)
 	}
 
@@ -283,27 +326,27 @@ switchStart:
 }
 
 func (p *Parser) ParseUsing() (ast.UsingDecl, bool) {
-	var ident token.Token
-	var idents []token.Token
-	var ty token.Token
-	var pkg token.Token
+	var (
+		ident, ty, pkg token.Token
+		idents         []token.Token
+		decl           ast.UsingDecl
+	)
 
-	var decl ast.UsingDecl
-	var res MatchToken
-
-	if res = p.consume(token.Ident); !res.Ok() {
+	prev := p.currentToken
+	if !p.match(token.Ident) {
 		return decl, false
 	}
-	ident = res.Get()
+	ident = prev
 	idents = append(idents, ident)
 
 	for {
+		var res MatchToken
 		if res = p.consume(token.Comma); !res.Ok() {
 			break
 		}
 		if res = p.consume(token.Ident); !res.Ok() {
-			p.errorf("invalid token: expected %s got %s", res.Exp(), res.Get())
-			break
+			errorInvalidToken(p, res)
+			return decl, false
 		}
 		idents = append(idents, res.Get())
 	}
@@ -318,32 +361,22 @@ switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res = p.consume(token.Using)
-		if !res.Ok() {
+		res, kw := p.consumeKwExpr(token.Using, token.Ident)
+		if res.NoMatch() {
 			if isUsingDecl {
 				errorInvalidDecl(p, token.Using, res)
 			}
 			return decl, false
 		}
-
+		if res.Invalid() {
+			errorInvalidDecl(p, token.Using, res)
+			return decl, false
+		}
 		if ty.Kind() == token.Invalid {
-			ty = res.Get()
+			ty = kw
 		}
-		if res = p.consume(token.ParenOpen); !res.Ok() {
-			errorInvalidDecl(p, token.Using, res)
-			return decl, false
-		}
-		if res = p.consume(token.Ident); !res.Ok() {
-			errorInvalidDecl(p, token.Using, res)
-			return decl, false
-		}
-
 		pkg = res.Get()
 
-		if res = p.consume(token.ParenClose); !res.Ok() {
-			errorInvalidDecl(p, token.Using, res)
-			return decl, false
-		}
 	case token.Using:
 		ty = p.currentToken
 		isUsingDecl = true
@@ -353,7 +386,7 @@ switchStart:
 		return decl, false
 	}
 
-	if res = p.consume(token.Semicolon); !res.Ok() {
+	if !p.match(token.Semicolon) {
 		errorExpectedSemicolon(p)
 	}
 
@@ -366,17 +399,18 @@ switchStart:
 }
 
 func (p *Parser) ParseAlias() (ast.AliasDecl, bool) {
-	var decl ast.AliasDecl
-	var ident, ty, target token.Token
-	var idents []token.Token
-	var resMany MatchManyToken
+	var (
+		decl              ast.AliasDecl
+		idents            []token.Token
+		resMany           MatchManyToken
+		ident, ty, target token.Token
+	)
 
 	if resMany, ident = p.consumeIdents(); !resMany.Ok() {
 		return decl, false
 	}
 
 	idents = resMany.Get()
-
 	if !p.match(token.Colon) {
 		return decl, false
 	}
@@ -387,30 +421,22 @@ switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		var res MatchToken
-		if res = p.consume(token.Type); !res.Ok() {
+		res, kw := p.consumeKwExpr(token.Type, token.Ident)
+		if res.NoMatch() {
 			if isAliasDecl {
 				errorInvalidDecl(p, token.Alias, res)
 			}
 			return decl, false
 		}
+		if res.Invalid() {
+			errorInvalidDecl(p, token.Alias, res)
+			return decl, false
+		}
 		if ty.Kind() == token.Invalid {
-			ty = res.Get()
+			ty = kw
 		}
-		if res = p.consume(token.ParenOpen); !res.Ok() {
-			errorInvalidDecl(p, token.Alias, res)
-			return decl, false
-		}
-		if res = p.consume(token.Ident); !res.Ok() {
-			errorInvalidDecl(p, token.Alias, res)
-			return decl, false
-		}
-
 		target = res.Get()
-		if res = p.consume(token.ParenClose); !res.Ok() {
-			errorInvalidDecl(p, token.Alias, res)
-			return decl, false
-		}
+
 	case token.Type:
 		ty = p.currentToken
 		isAliasDecl = true
@@ -430,30 +456,4 @@ switchStart:
 	decl.SetTarget(p.file, target)
 
 	return decl, true
-}
-
-func (p *Parser) consumeIdents() (MatchManyToken, token.Token) {
-	var idents []token.Token
-	var ident token.Token
-
-	prev := p.currentToken
-	if !p.match(token.Ident) {
-		return NoMatchMany(p.currentToken, token.Ident), ident
-	}
-
-	ident = prev
-	idents = append(idents, prev)
-
-	for {
-		var res MatchToken
-		if res = p.consume(token.Comma); !res.Ok() {
-			break
-		}
-		if res = p.consume(token.Ident); !res.Ok() {
-			return InvalidMany(p.currentToken, token.Ident), ident
-		}
-		idents = append(idents, res.Get())
-	}
-
-	return OkMany(idents), ident
 }
