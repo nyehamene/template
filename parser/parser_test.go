@@ -193,19 +193,19 @@ func TestImport(t *testing.T) {
 func TestUsing(t *testing.T) {
 	testcase := TestCase[usingName]{
 		"a, bb : using : using(ccc)": {"a", []string{"a", "bb"}, "using", "ccc"},
+		"a, bb :: using(ccc)":        {"a", []string{"a", "bb"}, "using", "ccc"},
 		"a : using : using(ccc)":     {"a", []string{"a"}, "using", "ccc"},
 		"a :: using(ccc)":            {"a", []string{"a"}, "using", "ccc"},
-		"a, bb :: using(ccc)":        {"a", []string{"a", "bb"}, "using", "ccc"},
 	}
 	HelperUsing(t, testcase)
 }
 
 func TestTypeAlias(t *testing.T) {
 	testcase := TestCase[typeAliasName]{
-		"a : type : type(t)":    {"a", []string{"a"}, "type", "t"},
-		"a :: type(t)":          {"a", []string{"a"}, "type", "t"},
-		"a, b : type : type(t)": {"a", []string{"a", "b"}, "type", "t"},
-		"a, b :: type(t)":       {"a", []string{"a", "b"}, "type", "t"},
+		"a : type : type(t)":    {"a", []string{"a"}, "alias", "t"},
+		"a :: type(t)":          {"a", []string{"a"}, "alias", "t"},
+		"a, b : type : type(t)": {"a", []string{"a", "b"}, "alias", "t"},
+		"a, b :: type(t)":       {"a", []string{"a", "b"}, "alias", "t"},
 	}
 	HelperTypeAlias(t, testcase)
 }

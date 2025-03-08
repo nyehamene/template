@@ -420,6 +420,8 @@ switchStart:
 }
 
 func (p *Parser) ParseAlias() (ast.AliasDecl, bool) {
+	const declKind = token.Alias
+
 	var (
 		decl              ast.AliasDecl
 		idents            []token.Token
@@ -442,24 +444,23 @@ switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res, kw := p.consumeKwExpr(token.Type, token.Ident)
+		res, _ := p.consumeKwExpr(token.Type, token.Ident)
 		if res.NoMatch() {
 			if isAliasDecl {
-				errorInvalidDecl(p, token.Alias, res)
+				errorInvalidDecl(p, declKind, res)
 			}
 			return decl, false
 		}
 		if res.Invalid() {
-			errorInvalidDecl(p, token.Alias, res)
+			errorInvalidDecl(p, declKind, res)
 			return decl, false
 		}
 		if ty.Kind() == token.Invalid {
-			ty = kw
+			ty = token.New(declKind, 0, 0)
 		}
 		target = res.Get()
 
 	case token.Type:
-		ty = p.currentToken
 		isAliasDecl = true
 		p.advance()
 		goto switchStart
@@ -480,6 +481,8 @@ switchStart:
 }
 
 func (p *Parser) ParseRecord() (ast.RecordDecl, bool) {
+	const declKind = token.Record
+
 	var (
 		decl      ast.RecordDecl
 		idents    []token.Token
@@ -504,22 +507,22 @@ switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res := p.consume(token.Record)
+		res := p.consume(declKind)
 		if res.NoMatch() {
 			if isRecordDecl {
-				errorInvalidDecl(p, token.Record, res)
+				errorInvalidDecl(p, declKind, res)
 			}
 			return decl, false
 		}
 		if res.Invalid() {
-			errorInvalidDecl(p, token.Record, res)
+			errorInvalidDecl(p, declKind, res)
 			return decl, false
 		}
 		if ty.Kind() == token.Invalid {
-			ty = res.Get()
+			ty = token.New(declKind, 0, 0)
 		}
 		if res = p.consume(token.BraceOpen); !res.Ok() {
-			errorInvalidDecl(p, token.Record, res)
+			errorInvalidDecl(p, declKind, res)
 			return decl, false
 		}
 
@@ -538,7 +541,7 @@ switchStart:
 		}
 
 		if res = p.consume(token.BraceClose); !res.Ok() {
-			errorInvalidDecl(p, token.Record, res)
+			errorInvalidDecl(p, declKind, res)
 			return decl, false
 		}
 
