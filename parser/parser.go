@@ -202,6 +202,27 @@ func (p *Parser) consumePackageTempl() (res MatchToken) {
 	return Ok(templ)
 }
 
+func (p *Parser) consumeVarDecl() (ident token.Token, ty token.Token, ok bool) {
+	prev := p.currentToken
+	if !p.match(token.Ident) {
+		return
+	}
+
+	if !p.match(token.Colon) {
+		return
+	}
+
+	ident = prev
+	prev = p.currentToken
+	if !p.match(token.Ident) {
+		return
+	}
+
+	ty = prev
+	ok = true
+	return
+}
+
 func (p *Parser) ParsePackage() (ast.PackageDecl, bool) {
 	var (
 		ident, ty, name, templ token.Token
@@ -454,6 +475,89 @@ switchStart:
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetTarget(p.file, target)
+
+	return decl, true
+}
+
+func (p *Parser) ParseRecord() (ast.RecordDecl, bool) {
+	var (
+		decl      ast.RecordDecl
+		idents    []token.Token
+		resMany   MatchManyToken
+		ident, ty token.Token
+	)
+
+	fields := []ast.Entry[token.Token, token.Token]{}
+
+	if resMany, ident = p.consumeIdents(); !resMany.Ok() {
+		return decl, false
+	}
+
+	idents = resMany.Get()
+	if !p.match(token.Colon) {
+		return decl, false
+	}
+
+	var isRecordDecl bool
+
+switchStart:
+	switch kind := p.currentToken.Kind(); kind {
+	case token.Colon:
+		p.advance()
+		res := p.consume(token.Record)
+		if res.NoMatch() {
+			if isRecordDecl {
+				errorInvalidDecl(p, token.Record, res)
+			}
+			return decl, false
+		}
+		if res.Invalid() {
+			errorInvalidDecl(p, token.Record, res)
+			return decl, false
+		}
+		if ty.Kind() == token.Invalid {
+			ty = res.Get()
+		}
+		if res = p.consume(token.BraceOpen); !res.Ok() {
+			errorInvalidDecl(p, token.Record, res)
+			return decl, false
+		}
+
+		for {
+			i, t, ok := p.consumeVarDecl()
+			if !ok {
+				break
+			}
+
+			fields = append(fields, ast.EntrySame(i, t))
+
+			if !p.match(token.Semicolon) {
+				errorExpectedSemicolon(p)
+				break
+			}
+		}
+
+		if res = p.consume(token.BraceClose); !res.Ok() {
+			errorInvalidDecl(p, token.Record, res)
+			return decl, false
+		}
+
+	case token.Type:
+		isRecordDecl = true
+		p.advance()
+		goto switchStart
+	default:
+		return decl, false
+	}
+
+	if !p.match(token.Semicolon) {
+		errorExpectedSemicolon(p)
+	}
+
+	decl.SetIdent(p.file, ident)
+	decl.SetIdents(p.file, idents)
+	decl.SetType(p.file, ty)
+	decl.SetFields(p.file, fields)
 
 	return decl, true
 }

@@ -2,6 +2,10 @@ package ast
 
 import "temlang/tem/token"
 
+func EntrySame[T any](k T, v T) Entry[T, T] {
+	return Entry[T, T]{key: k, val: v}
+}
+
 type NamespaceFile struct {
 	Name     string
 	Path     string
@@ -10,12 +14,12 @@ type NamespaceFile struct {
 	tokens   []token.Token
 	tokenLen int
 	texts    []string
+	vars     []VarDecl
 	// imports      []ImportDecl
 	// usings       []UsingDecl
 	// alias        []AliasDecl
 	// records      []RecordDecl
 	// templs       []TemplDecl
-	// vars         []VarDecl
 	// docs         []TokenSlice
 	// tags         []TokenSlice
 }
@@ -224,16 +228,60 @@ func (d AliasDecl) Target(f NamespaceFile) string {
 	return txt
 }
 
-// type RecordDecl struct {
-// 	Decl
-// 	Fields TokenSlice
-//	offset Index
-// }
+type RecordDecl struct {
+	manyIdentDecl
+	fields TokenIndex
+}
 
-// type VarDecl struct {
-// 	Decl
-//	offset Index
-// }
+type Entry[K any, V any] struct {
+	key K
+	val V
+}
+
+func (e Entry[K, _]) Key() K {
+	return e.key
+}
+
+func (e Entry[_, V]) Val() V {
+	return e.val
+}
+
+func (d *RecordDecl) SetFields(f *NamespaceFile, entries []Entry[token.Token, token.Token]) {
+	txtIndex := len(f.texts)
+	varIndex := len(f.vars)
+	for _, e := range entries {
+		ident := e.key
+		ty := e.val
+
+		v := VarDecl{}
+		f.addToken(&v.ident, ident)
+		f.addText(&v.ident, ident)
+
+		f.addToken(&v.type_, ty)
+		f.addText(&v.type_, ty)
+		f.vars = append(f.vars, v)
+	}
+	d.fields.token.index = varIndex
+	d.fields.text.index = txtIndex
+
+	d.fields.token.len = len(entries)
+	d.fields.text.len = len(entries)
+}
+
+func (d RecordDecl) Fields(f NamespaceFile) []VarDecl {
+	if d.fields.token.len != d.fields.text.len {
+		panic("unreachable")
+	}
+
+	index := d.fields.token.index
+	length := d.fields.token.len
+	vars := f.vars[index : index+length]
+	return vars
+}
+
+type VarDecl struct {
+	Decl
+}
 
 // type TemplDecl struct {
 // 	Decl

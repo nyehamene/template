@@ -135,6 +135,41 @@ func HelperTypeAlias(t *testing.T, testcase TestCase[typeAliasName]) {
 	HelperParser(t, testcase, parse, accept)
 }
 
+type recordName struct {
+	Ident  string
+	Idents []string
+	Type   string
+	Fields []varName
+}
+
+type varName struct {
+	Ident string
+	Type  string
+}
+
+func HelperRecord(t *testing.T, testcase TestCase[recordName]) {
+	parse := func(p *Parser) (ast.RecordDecl, bool) {
+		return p.ParseRecord()
+	}
+
+	accept := func(d ast.RecordDecl, f ast.NamespaceFile) recordName {
+		var got recordName
+		got.Ident = d.Ident(f)
+		got.Idents = d.Idents(f)
+		got.Type = d.Type(f)
+		for _, v := range d.Fields(f) {
+			var (
+				ident = v.Ident(f)
+				ty    = v.Type(f)
+			)
+			got.Fields = append(got.Fields, varName{Ident: ident, Type: ty})
+		}
+		return got
+	}
+
+	HelperParser(t, testcase, parse, accept)
+}
+
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
 		`p : package : package("home") templ(tag)`:  {"p", "package", `"home"`, "tag"},
@@ -173,4 +208,21 @@ func TestTypeAlias(t *testing.T) {
 		"a, b :: type(t)":       {"a", []string{"a", "b"}, "type", "t"},
 	}
 	HelperTypeAlias(t, testcase)
+}
+
+func TestRecord(t *testing.T) {
+	testcase := TestCase[recordName]{
+		"A : type : record { name: String; email: String; }": {"A", []string{"A"}, "record", []varName{{"name", "String"}, {"email", "String"}}},
+		"A : type : record { name: String; email: String  }": {"A", []string{"A"}, "record", []varName{{"name", "String"}, {"email", "String"}}},
+
+		"A, B : type : record { name: String; }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
+		"A, B : type : record { name: String  }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
+
+		"A :: record { name: String; email: String; }": {"A", []string{"A"}, "record", []varName{{"name", "String"}, {"email", "String"}}},
+		"A :: record { name: String; email: String  }": {"A", []string{"A"}, "record", []varName{{"name", "String"}, {"email", "String"}}},
+
+		"A, B :: record { name: String; }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
+		"A, B :: record { name: String  }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
+	}
+	HelperRecord(t, testcase)
 }
