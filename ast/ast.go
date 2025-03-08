@@ -1,6 +1,9 @@
 package ast
 
-import "temlang/tem/token"
+import (
+	"strings"
+	"temlang/tem/token"
+)
 
 func EntrySame[T any](k T, v T) Entry[T, T] {
 	return Entry[T, T]{key: k, val: v}
@@ -208,11 +211,6 @@ func (u UsingDecl) Pkg(f NamespaceFile) string {
 	return txt
 }
 
-// type TypeDecl struct {
-// 	Decl
-//	offset Index
-// }
-
 type AliasDecl struct {
 	manyIdentDecl
 	target TokenIndex
@@ -281,6 +279,71 @@ func (d RecordDecl) Fields(f NamespaceFile) []VarDecl {
 
 type VarDecl struct {
 	Decl
+}
+
+type DocDecl struct {
+	idents  TokenIndex
+	content TokenIndex
+}
+
+func (d *DocDecl) SetIdents(f *NamespaceFile, toks []token.Token) {
+	tokOffset := len(f.tokens)
+	txtOffset := len(f.texts)
+
+	for _, tok := range toks {
+		txt, ok := f.text(tok)
+		if !ok {
+			panic("unreachable")
+		}
+		f.tokens = append(f.tokens, tok)
+		f.texts = append(f.texts, txt)
+	}
+
+	d.idents.token.index = tokOffset
+	d.idents.token.len = len(toks)
+
+	d.idents.text.index = txtOffset
+	d.idents.text.len = len(toks)
+}
+
+func (d *DocDecl) SetContent(f *NamespaceFile, strs ...token.Token) {
+	tokIndex := len(f.tokens)
+	txtIndex := len(f.texts)
+	for _, tok := range strs {
+		if kind := tok.Kind(); kind != token.String && kind != token.TextBlock {
+			panic("unreachable")
+		}
+		f.addToken(&d.content, tok)
+		f.addText(&d.content, tok)
+	}
+	d.content.token.index = tokIndex
+	d.content.token.len = len(strs)
+
+	d.content.text.index = txtIndex
+	d.content.text.len = len(strs)
+}
+
+func (d DocDecl) Content(f NamespaceFile) string {
+	sb := strings.Builder{}
+	sb.Grow(d.content.text.len)
+	index := d.content.text.index
+	size := d.content.text.len
+	txts := f.texts[index : index+size]
+	l := 0
+	for _, txt := range txts {
+		if l > 0 {
+			sb.WriteString("\n")
+		}
+		l, _ = sb.WriteString(txt)
+	}
+	return sb.String()
+}
+
+func (u DocDecl) Idents(f NamespaceFile) []string {
+	offset := u.idents.text.index
+	end := u.idents.text.len
+	txts := f.texts[offset : offset+end]
+	return txts
 }
 
 // type TemplDecl struct {

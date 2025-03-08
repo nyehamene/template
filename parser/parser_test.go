@@ -170,6 +170,26 @@ func HelperRecord(t *testing.T, testcase TestCase[recordName]) {
 	HelperParser(t, testcase, parse, accept)
 }
 
+type docName struct {
+	Idents []string
+	Text   string
+}
+
+func HelperDoc(t *testing.T, testcase TestCase[docName]) {
+	parse := func(p *Parser) (ast.DocDecl, bool) {
+		return p.ParseDoc()
+	}
+
+	accept := func(d ast.DocDecl, f ast.NamespaceFile) docName {
+		var got docName
+		got.Idents = d.Idents(f)
+		got.Text = d.Content(f)
+		return got
+	}
+
+	HelperParser(t, testcase, parse, accept)
+}
+
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
 		`p : package : package("home") templ(tag)`:  {"p", "package", `"home"`, "tag"},
@@ -225,4 +245,15 @@ func TestRecord(t *testing.T) {
 		"A, B :: record { name: String  }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
 	}
 	HelperRecord(t, testcase)
+}
+
+func TestDoc(t *testing.T) {
+	testcase := TestCase[docName]{
+		`A : "line 1"`:   {[]string{"A"}, `"line 1"`},
+		`A : """ line 1`: {[]string{"A"}, `""" line 1`},
+		`A : """ line 1
+		     """ line 2`: {[]string{"A"}, "\"\"\" line 1\n\"\"\" line 2"},
+		`A, B : "line 1"`: {[]string{"A", "B"}, `"line 1"`},
+	}
+	HelperDoc(t, testcase)
 }

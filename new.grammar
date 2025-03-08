@@ -35,7 +35,7 @@ main_decl  := alias_decl
 
 tag_decl     := idents ":" "{" attrs "}" ";" =:
 doc_decl     := idents ":" string    ";"
-              | idents ":" textblock ";"
+              | idents ":" textblock { textblock } ";"
 			 =:
 
 package_decl := idents ":" [ "package" ] ":" package_expr ";" =:

@@ -9,7 +9,7 @@ func (t Token) String() string {
 func (k Kind) String() string {
 	switch k {
 	case Invalid:
-		return "?invalid"
+		return "<?invalid>"
 	case Comma:
 		return ","
 	case Colon:
@@ -22,6 +22,8 @@ func (k Kind) String() string {
 		return ";"
 	case EOL:
 		return "\\n"
+	case EOF:
+		return "<?eof>"
 	case BracketOpen:
 		return "["
 	case BracketClose:
