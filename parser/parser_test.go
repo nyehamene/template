@@ -190,6 +190,37 @@ func HelperDoc(t *testing.T, testcase TestCase[docName]) {
 	HelperParser(t, testcase, parse, accept)
 }
 
+type tagName struct {
+	Idents []string
+	Attrs  []attrName
+}
+
+type attrName struct {
+	Key   []string
+	Value string
+}
+
+func HelperTag(t *testing.T, testcase TestCase[tagName]) {
+	parse := func(p *Parser) (ast.TagDecl, bool) {
+		return p.ParseTag()
+	}
+
+	accept := func(d ast.TagDecl, f ast.NamespaceFile) tagName {
+		var got tagName
+		got.Idents = d.Idents(f)
+		for _, attr := range d.Attrs(f) {
+			var (
+				key   = attr.Idents(f)
+				value = attr.Value(f)
+			)
+			got.Attrs = append(got.Attrs, attrName{key, value})
+		}
+		return got
+	}
+
+	HelperParser(t, testcase, parse, accept)
+}
+
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
 		`p : package : package("home") templ(tag)`:  {"p", "package", `"home"`, "tag"},
@@ -256,4 +287,12 @@ func TestDoc(t *testing.T) {
 		`A, B : "line 1"`: {[]string{"A", "B"}, `"line 1"`},
 	}
 	HelperDoc(t, testcase)
+}
+
+func TestTag(t *testing.T) {
+	testcase := TestCase[tagName]{
+		`A : { name = "a"; email = "b" }`: {[]string{"A"}, []attrName{{[]string{"name"}, "\"a\""}, {[]string{"email"}, "\"b\""}}},
+		`A, B : { name = "a"; }`:          {[]string{"A", "B"}, []attrName{{[]string{"name"}, "\"a\""}}},
+	}
+	HelperTag(t, testcase)
 }

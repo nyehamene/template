@@ -223,6 +223,27 @@ func (p *Parser) consumeVarDecl() (ident token.Token, ty token.Token, ok bool) {
 	return
 }
 
+func (p *Parser) consumeAttrDecl() (keys []token.Token, val token.Token, ok bool) {
+	resMany, _ := p.consumeIdents()
+	if !resMany.Ok() {
+		return
+	}
+
+	keys = resMany.Get()
+	if !p.match(token.Eq) {
+		return
+	}
+
+	prev := p.currentToken
+	if !p.match(token.String) {
+		return
+	}
+
+	val = prev
+	ok = true
+	return
+}
+
 func (p *Parser) ParsePackage() (ast.PackageDecl, bool) {
 	const declKind = token.Package
 
@@ -604,13 +625,61 @@ func (p *Parser) ParseDoc() (ast.DocDecl, bool) {
 				break
 			}
 			if !p.match(token.EOL) {
-				p.errorf("expected %s", token.EOL)
+				p.errorf("expected %s at %s", token.EOL, p.currentToken)
+				break
 			}
 		}
 	}
 
 	decl.SetIdents(p.file, idents)
 	decl.SetContent(p.file, lines...)
+
+	return decl, true
+}
+
+func (p *Parser) ParseTag() (ast.TagDecl, bool) {
+	var (
+		decl    ast.TagDecl
+		idents  []token.Token
+		resMany MatchManyToken
+	)
+
+	attrs := []ast.Entry[[]token.Token, token.Token]{}
+
+	if resMany, _ = p.consumeIdents(); !resMany.Ok() {
+		return decl, false
+	}
+
+	idents = resMany.Get()
+	if !p.match(token.Colon) {
+		return decl, false
+	}
+	if !p.match(token.BraceOpen) {
+		return decl, false
+	}
+
+	for {
+		keys, value, ok := p.consumeAttrDecl()
+		if !ok {
+			break
+		}
+
+		attrs = append(attrs, ast.EntryMany(keys, value))
+		if !p.match(token.Semicolon) {
+			break
+		}
+	}
+
+	if !p.match(token.BraceClose) {
+		return decl, false
+	}
+	if !p.match(token.Semicolon) {
+		p.errorf("expected %s at %s", token.Semicolon, p.currentToken)
+		return decl, false
+	}
+
+	decl.SetIdents(p.file, idents)
+	decl.SetAttrs(p.file, attrs)
 
 	return decl, true
 }

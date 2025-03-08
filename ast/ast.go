@@ -5,10 +5,6 @@ import (
 	"temlang/tem/token"
 )
 
-func EntrySame[T any](k T, v T) Entry[T, T] {
-	return Entry[T, T]{key: k, val: v}
-}
-
 type NamespaceFile struct {
 	Name     string
 	Path     string
@@ -18,6 +14,7 @@ type NamespaceFile struct {
 	tokenLen int
 	texts    []string
 	vars     []VarDecl
+	attrs    []AttrDecl
 	// imports      []ImportDecl
 	// usings       []UsingDecl
 	// alias        []AliasDecl
@@ -72,6 +69,7 @@ func (f *NamespaceFile) addText(tok *TokenIndex, val token.Token) {
 	index := len(f.texts)
 	f.texts = append(f.texts, txt)
 	tok.text.index = index
+	tok.text.len = 1
 }
 
 func (f *NamespaceFile) addToken(tok *TokenIndex, val token.Token) {
@@ -79,6 +77,7 @@ func (f *NamespaceFile) addToken(tok *TokenIndex, val token.Token) {
 	f.tokens = append(f.tokens, val)
 	f.tokenLen += 1
 	tok.token.index = index
+	tok.token.len = 1
 }
 
 type TokenIndex struct {
@@ -160,9 +159,11 @@ func (d *manyIdentDecl) SetIdents(f *NamespaceFile, toks []token.Token) {
 }
 
 func (u manyIdentDecl) Idents(f NamespaceFile) []string {
-	offset := u.idents.text.index
-	end := u.idents.text.len
-	txts := f.texts[offset : offset+end]
+	var (
+		offset = u.idents.text.index
+		end    = offset + u.idents.text.len
+		txts   = f.texts[offset:end]
+	)
 	return txts
 }
 
@@ -231,27 +232,15 @@ type RecordDecl struct {
 	fields TokenIndex
 }
 
-type Entry[K any, V any] struct {
-	key K
-	val V
-}
-
-func (e Entry[K, _]) Key() K {
-	return e.key
-}
-
-func (e Entry[_, V]) Val() V {
-	return e.val
-}
-
 func (d *RecordDecl) SetFields(f *NamespaceFile, entries []Entry[token.Token, token.Token]) {
 	txtIndex := len(f.texts)
 	varIndex := len(f.vars)
 	for _, e := range entries {
-		ident := e.key
-		ty := e.val
-
-		v := VarDecl{}
+		var (
+			ident = e.key
+			ty    = e.val
+			v     = VarDecl{}
+		)
 		f.addToken(&v.ident, ident)
 		f.addText(&v.ident, ident)
 
@@ -270,10 +259,11 @@ func (d RecordDecl) Fields(f NamespaceFile) []VarDecl {
 	if d.fields.token.len != d.fields.text.len {
 		panic("unreachable")
 	}
-
-	index := d.fields.token.index
-	length := d.fields.token.len
-	vars := f.vars[index : index+length]
+	var (
+		index = d.fields.token.index
+		end   = index + d.fields.token.len
+		vars  = f.vars[index:end]
+	)
 	return vars
 }
 
@@ -281,12 +271,11 @@ type VarDecl struct {
 	Decl
 }
 
-type DocDecl struct {
-	idents  TokenIndex
-	content TokenIndex
+type hasIdents struct {
+	idents TokenIndex
 }
 
-func (d *DocDecl) SetIdents(f *NamespaceFile, toks []token.Token) {
+func (d *hasIdents) SetIdents(f *NamespaceFile, toks []token.Token) {
 	tokOffset := len(f.tokens)
 	txtOffset := len(f.texts)
 
@@ -304,6 +293,20 @@ func (d *DocDecl) SetIdents(f *NamespaceFile, toks []token.Token) {
 
 	d.idents.text.index = txtOffset
 	d.idents.text.len = len(toks)
+}
+
+func (d hasIdents) Idents(f NamespaceFile) []string {
+	var (
+		offset = d.idents.text.index
+		end    = offset + d.idents.text.len
+		txts   = f.texts[offset:end]
+	)
+	return txts
+}
+
+type DocDecl struct {
+	hasIdents
+	content TokenIndex
 }
 
 func (d *DocDecl) SetContent(f *NamespaceFile, strs ...token.Token) {
@@ -324,12 +327,16 @@ func (d *DocDecl) SetContent(f *NamespaceFile, strs ...token.Token) {
 }
 
 func (d DocDecl) Content(f NamespaceFile) string {
-	sb := strings.Builder{}
+	var (
+		sb    = strings.Builder{}
+		index = d.content.text.index
+		end   = index + d.content.text.len
+		txts  = f.texts[index:end]
+		l     = 0
+	)
+
 	sb.Grow(d.content.text.len)
-	index := d.content.text.index
-	size := d.content.text.len
-	txts := f.texts[index : index+size]
-	l := 0
+
 	for _, txt := range txts {
 		if l > 0 {
 			sb.WriteString("\n")
@@ -339,11 +346,73 @@ func (d DocDecl) Content(f NamespaceFile) string {
 	return sb.String()
 }
 
-func (u DocDecl) Idents(f NamespaceFile) []string {
-	offset := u.idents.text.index
-	end := u.idents.text.len
-	txts := f.texts[offset : offset+end]
-	return txts
+type TagDecl struct {
+	hasIdents
+	attrs TokenIndex
+}
+
+func (d *TagDecl) SetAttrs(f *NamespaceFile, attrs []Entry[[]token.Token, token.Token]) {
+	txtIndex := len(f.texts)
+	attrIndex := len(f.attrs)
+
+	for _, attr := range attrs {
+		var (
+			ad         = AttrDecl{}
+			ty         = attr.val
+			adIndexTxt = len(f.texts)
+			adIndexTok = len(f.tokens)
+		)
+		for _, k := range attr.key {
+			f.addToken(&ad.idents, k)
+			f.addText(&ad.idents, k)
+		}
+
+		f.addToken(&ad.value, ty)
+		f.addText(&ad.value, ty)
+
+		ad.idents.token.index = adIndexTok
+		ad.idents.text.index = adIndexTxt
+
+		ad.idents.token.len = len(attr.key)
+		ad.idents.text.len = len(attr.key)
+
+		f.attrs = append(f.attrs, ad)
+	}
+	d.attrs.token.index = attrIndex
+	d.attrs.text.index = txtIndex
+
+	d.attrs.token.len = len(attrs)
+	d.attrs.text.len = len(attrs)
+}
+
+func (d TagDecl) Attrs(f NamespaceFile) []AttrDecl {
+	if d.attrs.token.len != d.attrs.text.len {
+		panic("unreachable")
+	}
+	var (
+		index = d.attrs.token.index
+		end   = index + d.attrs.token.len
+		attrs = f.attrs[index:end]
+	)
+	return attrs
+}
+
+type AttrDecl struct {
+	hasIdents
+	value TokenIndex
+}
+
+func (d *AttrDecl) SetValue(f *NamespaceFile, tok token.Token) {
+	if kind := tok.Kind(); kind != token.String && kind != token.TextBlock {
+		panic("unreachable")
+	}
+	f.addToken(&d.value, tok)
+	f.addText(&d.value, tok)
+}
+
+func (d AttrDecl) Value(f NamespaceFile) string {
+	txt := f.texts[d.value.text.index]
+	return txt
 }
 
 // type TemplDecl struct {
