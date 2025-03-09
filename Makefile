@@ -8,9 +8,6 @@ test/parser:
 test/ast:
 	@go test -timeout ${timeout} -cover ./ast
 
-test/queue:
-	@go test -timeout ${timeout} -cover ./queue
-
 test:
 	@make -s test/ast
 	@make -s test/tokenizer
