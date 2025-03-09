@@ -2,13 +2,13 @@ source := package =:
 
 package := package_decl import
          | package_decl
-		=:
+        =:
 import  := imports using
          | using
-	    =:
+        =:
 using   := usings decl
          | decl
-	    =:
+        =:
 
 imports := import_decl { import_decl } =:
 usings  := using_decl  { using_decl }  =:
@@ -18,49 +18,51 @@ attrs   := attr        { attr } =:
 
 basic_decl := doc
             | tag
-		    | main_decl
-		   =:
+            | main_decl
+           =:
 doc        := doc_decl doc
             | tag
-	        | main_decl
+            | main_decl
 	       =:
 tag        := tag_decl tag
             | tag_decl doc
-	        | main_decl
-	       =:
+            | main_decl
+           =:
 main_decl  := alias_decl
             | record_decl
-		    | templ_decl
-		   =:
+            | templ_decl
+           =:
 
 tag_decl     := idents ":" "{" attrs "}" ";" =:
 doc_decl     := idents ":" string    ";"
               | idents ":" textblock { textblock } ";"
-			 =:
+             =:
 
 package_decl := idents ":" [ "package" ] ":" package_expr ";" =:
 import_decl  := idents ":" [ "import" ]  ":" import_expr  ";" =:
 using_decl   := idents ":" [ "import" ]  ":" using_expr   ";" =:
 alias_decl   := idents ":" [ "type" ]    ":" type_expr    ";" =:
 record_decl  := idents ":" [ "type" ]    ":" record_lit   ";" =:
-templ_decl   := idents ":" [ "templ"]    ":" templ_lit    ";" =:
+templ_decl   := idents ":" [ "templ" ]   ":" templ_lit    ";" =:
 var          := idents ":" ident ";" =:
 
 package_expr := package_name "tag"
               | package_name "list"
-			  | pakcage_name "html"
-			 =:
+              | pakcage_name "html"
+             =:
 
-package_name := "package"   "(" string  ")" =:
-import_expr  := "import"    "(" string  ")" =:
-using_expr   := "using"     "(" ident   ")" =:
-alias_expr   := "type"      "(" ident   ")" =:
-record_expr  := "record"    "{" vars    "}" =:
-templ_lit    := "(" var ")" "{" element "}" =:
+package_name := "package"   "(" string ")" =:
+import_expr  := "import"    "(" string ")" =:
+using_expr   := "using"     "(" ident ")"  =:
+alias_expr   := "type"      "(" ident ")"  =:
+record_expr  := "record"    "{" vars "}"   =:
+templ_lit    := [ "templ" ] "(" var ")"             "{" element "}"
+              | [ "templ" ] "(" ident ":" "type" )" "{" element "}"
+             =:
 
 attr         := ident  "=" string ","
               | ident  "=" textblock ","
-			 =:
+             =:
 
 idents := ident { "," ident } =:
 

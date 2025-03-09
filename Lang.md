@@ -72,7 +72,7 @@ RHS expression.
 The complete syntax for declaring a template is as follows:
 
 ```
-User : templ : templ(u) {
+User : templ : templ(u: User) {
   <p
     Hello, (u.name)!
     Your email is (u.email).
@@ -81,18 +81,45 @@ User : templ : templ(u) {
 ```
 
 Starting from the RHS, is a templ declaration literal declaring all the
-elements, components and texts in the template. The `templ` keyword is
-overload just as with `package`, `import`, and used to declare the type
-of the template. On the LHS `User` is an identifer to stores/points to
-the template resolved from the RHS expression.
+elements, components and texts in the template. The literal beging wit
+the keyword `templ`, then a parameter list of only one parameter declaring
+a variable whose type must match the type for which the template is defined
+for. Last, a block of template element/text/component.
 
-### Declaration and explicty type inference
+The `templ` keyword is overload just as with `package`, `import`, and used
+to declare the type of the template. On the LHS `User` is an identifer to
+stores/points to the template resolved from the RHS expression.
+
+### Templ declaration and explicit type inference
 
 A template declaration does not declare a type therefore the keyword `type`
 cannot be used for explicit type inference. In fact the templ declaration
 syntax does not include explicit type inference.
 
-However, implicity type inference is fully supported and is recommended.
+However, the type of the parameter list can be explicitly infered since it
+always matches the type on the LHS.
+
+```
+User :: templ(u: type) {
+  <p
+    Hello, (u.name)!
+    Your email is (u.email).
+    />
+  }
+```
+
+### Templ declaration and implicit type inference
+
+A template declaration type can be infered implicitly as follows:
+
+```
+User :: templ(u: User) {
+  <p
+    Hello, (u.name)!
+    Your email is (u.email).
+    />
+  }
+```
 
 #### Special syntax for declaring template
 
@@ -100,7 +127,7 @@ There is an additional syntax for declaring template. And this is the
 recommended syntax.
 
 ```
-User :: (u) {
+User :: (u: type) {
   <p
     Hello, (u.name)!
     Your email is (u.email).
