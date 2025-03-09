@@ -16,10 +16,8 @@ decl    := basic_decl  { basic_decl }  =:
 vars    := var         { var }  =:
 attrs   := attr        { attr } =:
 
-basic_decl := doc
-            | tag
-            | main_decl
-           =:
+basic_decl := doc =:
+
 doc        := doc_decl doc
             | tag
             | main_decl
