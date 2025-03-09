@@ -170,36 +170,17 @@ func (p *Parser) consumeKwExpr(kwk token.Kind, exprk token.Kind) (MatchToken, to
 	return Ok(prevExpr), prevKw
 }
 
-func (p *Parser) consumePackageTempl() (res MatchToken) {
-	var templ token.Token
-
-	reset := p.Mark()
-	defer func() {
-		if !res.Ok() {
-			reset()
-		}
-	}()
-
-	if ok := p.match(token.Templ); !ok {
-		return matchresult.NoMatch(templ, token.Templ)
-	}
-	if ok := p.match(token.ParenOpen); !ok {
-		return matchresult.NoMatch(p.currentToken, token.ParenOpen)
-	}
-
+func (p *Parser) consumePackageTempl() (tok token.Token, ok bool) {
 	switch p.currentToken.Kind() {
 	case token.Tag, token.Html, token.List:
-		templ = p.currentToken
+		tok = p.currentToken
+		ok = true
 		p.advance()
 	default:
 		return
 	}
 
-	if ok := p.match(token.ParenClose); !ok {
-		return matchresult.NoMatch(p.currentToken, token.ParenClose)
-	}
-
-	return Ok(templ)
+	return
 }
 
 func (p *Parser) consumeVarDecl() (ident token.Token, ty token.Token, ok bool) {
@@ -284,11 +265,18 @@ switchStart:
 
 		name = res.Get()
 
-		if res = p.consumePackageTempl(); !res.Ok() {
-			errorInvalidDecl(p, declKind, res)
+		tok, ok := p.consumePackageTempl()
+		if !ok {
+			p.errorf("invalid %s declaration expected on of %s, %s, %s at %s",
+				declKind,
+				token.Tag,
+				token.List,
+				token.Html,
+				p.currentToken,
+			)
 			return decl, false
 		}
-		templ = res.Get()
+		templ = tok
 
 	case declKind:
 		ty = p.currentToken

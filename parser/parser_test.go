@@ -223,12 +223,12 @@ func HelperTag(t *testing.T, testcase TestCase[tagName]) {
 
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
-		`p : package : package("home") templ(tag)`:  {"p", "package", `"home"`, "tag"},
-		`p : package : package("home") templ(list)`: {"p", "package", `"home"`, "list"},
-		`p : package : package("home") templ(html)`: {"p", "package", `"home"`, "html"},
-		`p :: package("home") templ(tag)`:           {"p", "package", `"home"`, "tag"},
-		`p :: package("home") templ(list)`:          {"p", "package", `"home"`, "list"},
-		`p :: package("home") templ(html)`:          {"p", "package", `"home"`, "html"},
+		`p : package : package("home") tag`:  {"p", "package", `"home"`, "tag"},
+		`p : package : package("home") list`: {"p", "package", `"home"`, "list"},
+		`p : package : package("home") html`: {"p", "package", `"home"`, "html"},
+		`p :: package("home") tag`:           {"p", "package", `"home"`, "tag"},
+		`p :: package("home") list`:          {"p", "package", `"home"`, "list"},
+		`p :: package("home") html`:          {"p", "package", `"home"`, "html"},
 	}
 	HelperPackage(t, testcase)
 }
