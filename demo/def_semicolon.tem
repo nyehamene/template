@@ -1,8 +1,13 @@
-p :: package("home") templ(list)
+// p :: #html package("home")
+p :: package("home") list
 
 b :: import("books")
 
-Book :: using b
+Book :: using(b)
+
+// type alias
+
+MyBook :: alias(Book)
 
 // Models
 
@@ -14,7 +19,7 @@ User : type : record {
     email: string
     }
 
-Product : "Model";
+Product : "Model"
 Product :: record {
     name: string
     price: string
@@ -27,6 +32,6 @@ Store : """
     """
     
 Store :: record {
-    name: string;
-    location: string;
+    name: string
+    location: string
     }

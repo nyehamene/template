@@ -1,8 +1,13 @@
-p :: package("home") templ(tag);
+// p :: #html package("home");
+p :: package("home") tag;
 
 b :: import("books");
 
-Book :: using b;
+Book :: using(b);
+
+// type alias
+
+MyBook :: alias(Book);
 
 // Models
 
