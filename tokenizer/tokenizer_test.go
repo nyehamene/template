@@ -53,8 +53,9 @@ func comment(offset, end int) token.Token {
 	return newToken(token.Comment, offset, end)
 }
 
-func semicolon(offset int) token.Token {
-	return symbol(token.Semicolon, offset)
+// eol automatically inserted semicolon
+func eol(offset int) token.Token {
+	return newToken(token.Semicolon, offset, offset)
 }
 
 func symbol(kind token.Kind, offset int) token.Token {
@@ -174,16 +175,16 @@ func TestNextComment(t *testing.T) {
 
 func TestNextInsertSemicolon(t *testing.T) {
 	testcases := TestCase{
-		")\n":     {newToken(token.ParenClose, 0, 1), semicolon(1)},
-		"]\n":     {newToken(token.BracketClose, 0, 1), semicolon(1)},
-		"}\n":     {newToken(token.BraceClose, 0, 1), semicolon(1)},
-		"ident\n": {ident(0, 5), semicolon(5)},
+		")\n":     {symbol(token.ParenClose, 0), eol(1)},
+		"]\n":     {symbol(token.BracketClose, 0), eol(1)},
+		"}\n":     {symbol(token.BraceClose, 0), eol(1)},
+		"ident\n": {ident(0, 5), eol(5)},
 		`""
-			`: {str(0, 3), semicolon(2)},
+			`: {str(0, 2), eol(2)},
 		`"abc"
-			`: {str(0, 5), semicolon(5)},
+			`: {str(0, 5), eol(5)},
 		`""" line 1
-		 `: {textBlock(0, 10), semicolon(10)},
+		 `: {textBlock(0, 10), eol(10)},
 	}
 	HelperRunTestCases(t, testcases)
 }
@@ -191,29 +192,29 @@ func TestNextInsertSemicolon(t *testing.T) {
 func TestNextInsertSemicolonEOF(t *testing.T) {
 	// insert semicolon at eof
 	testcases := TestCase{
-		")":     {symbol(token.ParenClose, 0), semicolon(1)},
-		"]":     {symbol(token.BracketClose, 0), semicolon(1)},
-		"}":     {symbol(token.BraceClose, 0), semicolon(1)},
-		"ident": {ident(0, 5), semicolon(5)},
-		`""`:    {str(0, 2), semicolon(2)},
-		`"abc"`: {str(0, 5), semicolon(5)},
+		")":     {symbol(token.ParenClose, 0), eol(1)},
+		"]":     {symbol(token.BracketClose, 0), eol(1)},
+		"}":     {symbol(token.BraceClose, 0), eol(1)},
+		"ident": {ident(0, 5), eol(5)},
+		`""`:    {str(0, 2), eol(2)},
+		`"abc"`: {str(0, 5), eol(5)},
 		`""" line 1
-		 `: {textBlock(0, 10), semicolon(10)},
+		 `: {textBlock(0, 10), eol(10)},
 	}
 	HelperRunTestCases(t, testcases)
 }
 
 func TestNextSemicolonBeforeTrailingComment(t *testing.T) {
 	testcases := TestCase{
-		"ident // a comment": {ident(0, 5), semicolon(6), comment(6, 18)},
-		") // a comment":     {symbol(token.ParenClose, 0), semicolon(2), comment(2, 14)},
+		"ident // a comment": {ident(0, 5), eol(6), comment(6, 18)},
+		") // a comment":     {symbol(token.ParenClose, 0), eol(2), comment(2, 14)},
 	}
 	HelperRunTestCases(t, testcases)
 }
 
 func TestNextInsertSemicolonAndNewline(t *testing.T) {
 	testcases := TestCase{
-		"ident\n": {ident(0, 5), semicolon(5), symbol(token.EOL, 5)},
+		"ident\n": {ident(0, 5), eol(5), symbol(token.EOL, 5)},
 	}
 	for src, expected := range testcases {
 		tok := tokenizer.New([]byte(src))
