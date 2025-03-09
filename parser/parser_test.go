@@ -221,6 +221,34 @@ func HelperTag(t *testing.T, testcase TestCase[tagName]) {
 	HelperParser(t, testcase, parse, accept)
 }
 
+type templName struct {
+	Idents []string
+	Params []varName
+	Type   string
+}
+
+func HelperTempl(t *testing.T, testcase TestCase[templName]) {
+	parse := func(p *Parser) (ast.TemplDecl, bool) {
+		return p.ParseTempl()
+	}
+
+	accept := func(d ast.TemplDecl, f ast.NamespaceFile) templName {
+		var got templName
+		got.Idents = d.Idents(f)
+		got.Type = d.Type(f)
+		for _, attr := range d.Params(f) {
+			var (
+				i = attr.Ident(f)
+				t = attr.Type(f)
+			)
+			got.Params = append(got.Params, varName{i, t})
+		}
+		return got
+	}
+
+	HelperParser(t, testcase, parse, accept)
+}
+
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
 		`p : package : package("home") tag`:  {"p", "package", `"home"`, "tag"},
@@ -295,4 +323,26 @@ func TestTag(t *testing.T) {
 		`A, B : { name = "a"; }`:          {[]string{"A", "B"}, []attrName{{[]string{"name"}, "\"a\""}}},
 	}
 	HelperTag(t, testcase)
+}
+
+func TestTempl(t *testing.T) {
+	testcase := TestCase[templName]{
+		`A :: templ(a: A){}`:              {[]string{"A"}, []varName{{"a", "A"}}, "templ"},
+		`A :: (a: A){}`:                   {[]string{"A"}, []varName{{"a", "A"}}, "templ"},
+		`A : templ : templ(a: A){}`:       {[]string{"A"}, []varName{{"a", "A"}}, "templ"},
+		`A : templ : (a: A){}`:            {[]string{"A"}, []varName{{"a", "A"}}, "templ"},
+		`A, B :: templ(a: A){}`:           {[]string{"A", "B"}, []varName{{"a", "A"}}, "templ"},
+		`A, B :: (a: A){}`:                {[]string{"A", "B"}, []varName{{"a", "A"}}, "templ"},
+		`A, B : templ : templ(a: A){}`:    {[]string{"A", "B"}, []varName{{"a", "A"}}, "templ"},
+		`A, B : templ : (a: A){}`:         {[]string{"A", "B"}, []varName{{"a", "A"}}, "templ"},
+		`A :: templ(a: type){}`:           {[]string{"A"}, []varName{{"a", "type"}}, "templ"},
+		`A :: (a: type){}`:                {[]string{"A"}, []varName{{"a", "type"}}, "templ"},
+		`A : templ : templ(a: type){}`:    {[]string{"A"}, []varName{{"a", "type"}}, "templ"},
+		`A : templ : (a: type){}`:         {[]string{"A"}, []varName{{"a", "type"}}, "templ"},
+		`A, B :: templ(a: type){}`:        {[]string{"A", "B"}, []varName{{"a", "type"}}, "templ"},
+		`A, B :: (a: type){}`:             {[]string{"A", "B"}, []varName{{"a", "type"}}, "templ"},
+		`A, B : templ : templ(a: type){}`: {[]string{"A", "B"}, []varName{{"a", "type"}}, "templ"},
+		`A, B : templ : (a: type){}`:      {[]string{"A", "B"}, []varName{{"a", "type"}}, "templ"},
+	}
+	HelperTempl(t, testcase)
 }

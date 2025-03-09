@@ -11,10 +11,11 @@ type NamespaceFile struct {
 	Src      string
 	Pkg      PackageDecl
 	tokens   []token.Token
-	tokenLen int
 	texts    []string
 	vars     []VarDecl
 	attrs    []AttrDecl
+	tokenLen int
+	textLen  int
 	// imports      []ImportDecl
 	// usings       []UsingDecl
 	// alias        []AliasDecl
@@ -68,6 +69,7 @@ func (f *NamespaceFile) addText(tok *TokenIndex, val token.Token) {
 
 	index := len(f.texts)
 	f.texts = append(f.texts, txt)
+	f.textLen += 1
 	tok.text.index = index
 	tok.text.len = 1
 }
@@ -90,22 +92,60 @@ type TokenSlice struct {
 	len   int
 }
 
-type Decl struct {
-	ident TokenIndex
+type hasType struct {
 	type_ TokenIndex
-	// LeadingDocs  Index
-	// TrailingDocs Index
-	// Tags         Index
 }
 
-func (d *Decl) SetType(f *NamespaceFile, tok token.Token) {
+func (d *hasType) SetType(f *NamespaceFile, tok token.Token) {
 	f.addToken(&d.type_, tok)
 	f.addText(&d.type_, tok)
 }
 
-func (p Decl) Type(f NamespaceFile) string {
+func (p hasType) Type(f NamespaceFile) string {
 	txt := f.texts[p.type_.text.index]
 	return txt
+}
+
+type hasIdents struct {
+	idents TokenIndex
+}
+
+func (d *hasIdents) SetIdents(f *NamespaceFile, toks []token.Token) {
+	tokOffset := len(f.tokens)
+	txtOffset := len(f.texts)
+
+	for _, tok := range toks {
+		txt, ok := f.text(tok)
+		if !ok {
+			panic("unreachable")
+		}
+		f.tokens = append(f.tokens, tok)
+		f.texts = append(f.texts, txt)
+	}
+
+	d.idents.token.index = tokOffset
+	d.idents.token.len = len(toks)
+
+	d.idents.text.index = txtOffset
+	d.idents.text.len = len(toks)
+}
+
+func (d hasIdents) Idents(f NamespaceFile) []string {
+	var (
+		offset = d.idents.text.index
+		end    = offset + d.idents.text.len
+		txts   = f.texts[offset:end]
+	)
+	return txts
+}
+
+type Decl struct {
+	hasType
+	// TODO: remove ident. The LHS may contain 1 or more idents so using hasIdents instead
+	ident TokenIndex
+	// LeadingDocs  Index
+	// TrailingDocs Index
+	// Tags         Index
 }
 
 func (d *Decl) SetIdent(f *NamespaceFile, tok token.Token) {
@@ -241,11 +281,8 @@ func (d *RecordDecl) SetFields(f *NamespaceFile, entries []Entry[token.Token, to
 			ty    = e.val
 			v     = VarDecl{}
 		)
-		f.addToken(&v.ident, ident)
-		f.addText(&v.ident, ident)
-
-		f.addToken(&v.type_, ty)
-		f.addText(&v.type_, ty)
+		v.SetIdent(f, ident)
+		v.SetType(f, ty)
 		f.vars = append(f.vars, v)
 	}
 	d.fields.token.index = varIndex
@@ -269,39 +306,6 @@ func (d RecordDecl) Fields(f NamespaceFile) []VarDecl {
 
 type VarDecl struct {
 	Decl
-}
-
-type hasIdents struct {
-	idents TokenIndex
-}
-
-func (d *hasIdents) SetIdents(f *NamespaceFile, toks []token.Token) {
-	tokOffset := len(f.tokens)
-	txtOffset := len(f.texts)
-
-	for _, tok := range toks {
-		txt, ok := f.text(tok)
-		if !ok {
-			panic("unreachable")
-		}
-		f.tokens = append(f.tokens, tok)
-		f.texts = append(f.texts, txt)
-	}
-
-	d.idents.token.index = tokOffset
-	d.idents.token.len = len(toks)
-
-	d.idents.text.index = txtOffset
-	d.idents.text.len = len(toks)
-}
-
-func (d hasIdents) Idents(f NamespaceFile) []string {
-	var (
-		offset = d.idents.text.index
-		end    = offset + d.idents.text.len
-		txts   = f.texts[offset:end]
-	)
-	return txts
 }
 
 type DocDecl struct {
@@ -415,10 +419,44 @@ func (d AttrDecl) Value(f NamespaceFile) string {
 	return txt
 }
 
-// type TemplDecl struct {
-// 	Decl
-// 	Params Index
-// 	Start  Index
-// 	End    Index
-//	offset Index
-// }
+type TemplDecl struct {
+	hasIdents
+	hasType
+	params TokenSlice
+}
+
+func (d *TemplDecl) SetParams(f *NamespaceFile, params []Entry[token.Token, token.Token]) {
+	if len(params) != 1 {
+		panic("templ literal parameter list must contain only one param")
+	}
+
+	varIndex := len(f.vars)
+	varlen := len(params)
+
+	for _, tok := range params {
+		var (
+			ident = tok.key
+			ty    = tok.val
+			v     = VarDecl{}
+		)
+		v.SetType(f, ty)
+		v.SetIdent(f, ident)
+
+		f.vars = append(f.vars, v)
+	}
+
+	d.params.index = varIndex
+	d.params.len = varlen
+}
+
+func (d TemplDecl) Params(f NamespaceFile) []VarDecl {
+	if d.idents.token.len != d.idents.text.len {
+		panic("illegal state")
+	}
+	var (
+		ident  = d.params.index
+		end    = ident + d.params.len
+		params = f.vars[ident:end]
+	)
+	return params
+}

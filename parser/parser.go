@@ -204,6 +204,27 @@ func (p *Parser) consumeVarDecl() (ident token.Token, ty token.Token, ok bool) {
 	return
 }
 
+func (p *Parser) consumeTemplParamDecl() (ident token.Token, ty token.Token, ok bool) {
+	prev := p.currentToken
+	if !p.match(token.Ident) {
+		return
+	}
+
+	if !p.match(token.Colon) {
+		return
+	}
+
+	ident = prev
+	prev = p.currentToken
+	if !p.match(token.Ident) && !p.match(token.Type) {
+		return
+	}
+
+	ty = prev
+	ok = true
+	return
+}
+
 func (p *Parser) consumeAttrDecl() (keys []token.Token, val token.Token, ok bool) {
 	resMany, _ := p.consumeIdents()
 	if !resMany.Ok() {
@@ -668,6 +689,79 @@ func (p *Parser) ParseTag() (ast.TagDecl, bool) {
 
 	decl.SetIdents(p.file, idents)
 	decl.SetAttrs(p.file, attrs)
+
+	return decl, true
+}
+
+func (p *Parser) ParseTempl() (ast.TemplDecl, bool) {
+	var (
+		decl    ast.TemplDecl
+		idents  []token.Token
+		ty      token.Token
+		resMany MatchManyToken
+	)
+
+	params := []ast.Entry[token.Token, token.Token]{}
+
+	if resMany, _ = p.consumeIdents(); !resMany.Ok() {
+		return decl, false
+	}
+
+	idents = resMany.Get()
+	if !p.match(token.Colon) {
+		return decl, false
+	}
+
+switchStart:
+	switch kind := p.currentToken.Kind(); kind {
+	case token.Colon:
+		p.advance()
+	exprStart:
+		switch kind := p.currentToken.Kind(); kind {
+		case token.Templ:
+			p.advance()
+			goto exprStart
+		case token.ParenOpen:
+			p.advance()
+
+			i, t, ok := p.consumeTemplParamDecl()
+			if !ok {
+				return decl, false
+			}
+
+			params = append(params, ast.EntrySame(i, t))
+			if !p.match(token.ParenClose) {
+				return decl, false
+			}
+		default:
+			return decl, false
+		}
+	case token.Templ:
+		ty = p.currentToken
+		p.advance()
+		goto switchStart
+	default:
+		return decl, false
+	}
+
+	if ty.Kind() == token.Invalid {
+		ty = token.New(token.Templ, 0, 0)
+	}
+	if !p.match(token.BraceOpen) {
+		return decl, false
+	}
+
+	if !p.match(token.BraceClose) {
+		return decl, false
+	}
+	if !p.match(token.Semicolon) {
+		p.errorf("expected %s at %s", token.Semicolon, p.currentToken)
+		return decl, false
+	}
+
+	decl.SetIdents(p.file, idents)
+	decl.SetType(p.file, ty)
+	decl.SetParams(p.file, params)
 
 	return decl, true
 }
