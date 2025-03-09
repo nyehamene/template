@@ -5,12 +5,16 @@ test/tokenizer:
 test/parser:
 	@go test -timeout ${timeout} -cover ./parser
 
+test/ast:
+	@go test -timeout ${timeout} -cover ./ast
+
 test/queue:
 	@go test -timeout ${timeout} -cover ./queue
 
 test:
-	@make test/tokenizer
-	@make test/parser
+	@make -s test/ast
+	@make -s test/tokenizer
+	@make -s test/parser
 
 run/demo/def:
 	@go run ./demo demo/def.tem

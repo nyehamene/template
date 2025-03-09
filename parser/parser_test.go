@@ -18,20 +18,18 @@ func HelperParser[T any, E any](
 
 	for src, expected := range testcase {
 		t.Run(src, func(t *testing.T) {
-			file := ast.NamespaceFile{
-				Name: "ns",
-				Path: "testing/ns.tem",
-				Src:  src,
-			}
+			file := ast.New(src)
+			file.Name = "ns"
+			file.Path = "testing/ns.tem"
 
-			p := New(&file)
+			p := New(file)
 			pkg, ok := parse(&p)
 
 			if !ok {
 				t.Error("parsing failed")
 			}
 
-			got := accept(pkg, file)
+			got := accept(pkg, *file)
 
 			if diff := cmp.Diff(expected, got); diff != "" {
 				t.Error(diff)
@@ -80,7 +78,7 @@ func HelperImport(t *testing.T, testcase TestCase[importName]) {
 		var got importName
 		got.Idents = i.Idents(f)
 		got.Type = i.Type(f)
-		got.Path = i.Path(f)
+		got.Path = i.Name(f)
 		return got
 	}
 

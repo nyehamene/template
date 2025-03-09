@@ -16,7 +16,7 @@ import (
 
 func New(file *ast.NamespaceFile) Parser {
 	file.Init()
-	bytes := []byte(file.Src)
+	bytes := []byte(file.Src())
 	t := tokenizer.New(bytes)
 	badTok := token.Token{}
 	p := Parser{t, file, badTok, defaultErrorHandler}
@@ -361,7 +361,7 @@ switchStart:
 
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
-	decl.SetPath(p.file, path)
+	decl.SetName(p.file, path)
 
 	return decl, true
 }
