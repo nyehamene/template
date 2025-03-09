@@ -36,12 +36,6 @@ func errorInvalidDecl[T any, E any](p *Parser, k token.Kind, res matchresult.Typ
 		res.Exp())
 }
 
-func errorInvalidToken[T any, E any](p *Parser, res matchresult.Type[T, E]) {
-	p.errorf("invalid token: expected %s at %s",
-		res.Get(),
-		res.Exp())
-}
-
 func errorExpectedSemicolon(p *Parser, k token.Kind) {
 	p.errorf("invalid %s declaration at %s expected %s",
 		k, p.currentToken, token.Semicolon)
@@ -119,31 +113,23 @@ func (p *Parser) consumePackageName() (res MatchToken, pkg token.Token) {
 	return Ok(name), pkg
 }
 
-func (p *Parser) consumeIdents() (res MatchManyToken, tok token.Token) {
+func (p *Parser) consumeIdents() (res MatchManyToken) {
 	var idents []token.Token
-	var ident token.Token
-
-	prev := p.currentToken
-	if res := p.consume(token.Ident); !res.Ok() {
-		return NoMatchMany(p.currentToken, res.Exp()), ident
-	}
-
-	ident = prev
-	idents = append(idents, prev)
 
 	for {
+		prev := p.currentToken
+		if res := p.consume(token.Ident); !res.Ok() {
+			return NoMatchMany(p.currentToken, token.Ident)
+		}
+
+		idents = append(idents, prev)
+
 		if res := p.consume(token.Comma); !res.Ok() {
 			break
 		}
-
-		prev := p.currentToken
-		if res := p.consume(token.Ident); !res.Ok() {
-			return InvalidMany(p.currentToken, token.Ident), ident
-		}
-		idents = append(idents, prev)
 	}
 
-	return OkMany(idents), ident
+	return OkMany(idents)
 }
 
 func (p *Parser) consumeKwExpr(kwk token.Kind, exprk token.Kind) (MatchToken, token.Token) {
@@ -183,18 +169,17 @@ func (p *Parser) consumePackageTempl() (tok token.Token, ok bool) {
 	return
 }
 
-func (p *Parser) consumeVarDecl() (ident token.Token, ty token.Token, ok bool) {
-	prev := p.currentToken
-	if !p.match(token.Ident) {
+func (p *Parser) consumeVarDecl() (idents []token.Token, ty token.Token, ok bool) {
+	resMany := p.consumeIdents()
+	if !resMany.Ok() {
 		return
 	}
-
 	if !p.match(token.Colon) {
 		return
 	}
 
-	ident = prev
-	prev = p.currentToken
+	idents = resMany.Get()
+	prev := p.currentToken
 	if !p.match(token.Ident) {
 		return
 	}
@@ -204,18 +189,17 @@ func (p *Parser) consumeVarDecl() (ident token.Token, ty token.Token, ok bool) {
 	return
 }
 
-func (p *Parser) consumeTemplParamDecl() (ident token.Token, ty token.Token, ok bool) {
-	prev := p.currentToken
-	if !p.match(token.Ident) {
+func (p *Parser) consumeTemplParamsDecl() (idents []token.Token, ty token.Token, ok bool) {
+	resMany := p.consumeIdents()
+	if !resMany.Ok() {
 		return
 	}
-
 	if !p.match(token.Colon) {
 		return
 	}
 
-	ident = prev
-	prev = p.currentToken
+	idents = resMany.Get()
+	prev := p.currentToken
 	if !p.match(token.Ident) && !p.match(token.Type) {
 		return
 	}
@@ -226,7 +210,7 @@ func (p *Parser) consumeTemplParamDecl() (ident token.Token, ty token.Token, ok 
 }
 
 func (p *Parser) consumeAttrDecl() (keys []token.Token, val token.Token, ok bool) {
-	resMany, _ := p.consumeIdents()
+	resMany := p.consumeIdents()
 	if !resMany.Ok() {
 		return
 	}
@@ -250,19 +234,20 @@ func (p *Parser) ParsePackage() (ast.PackageDecl, bool) {
 	const declKind = token.Package
 
 	var (
-		ident, ty, name, templ token.Token
-		decl                   ast.PackageDecl
+		ty, name, templ token.Token
+		idents          []token.Token
+		decl            ast.PackageDecl
 	)
 
-	prev := p.currentToken
-	if !p.match(token.Ident) {
+	resMany := p.consumeIdents()
+	if !resMany.Ok() {
 		return decl, false
 	}
 	if !p.match(token.Colon) {
 		return decl, false
 	}
 
-	ident = prev
+	idents = resMany.Get()
 	isPackageDecl := false
 
 switchStart:
@@ -312,7 +297,7 @@ switchStart:
 		errorExpectedSemicolon(p, declKind)
 	}
 
-	decl.SetIdent(p.file, ident)
+	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetName(p.file, name)
 	decl.SetTempl(p.file, templ)
@@ -324,19 +309,20 @@ func (p *Parser) ParseImport() (ast.ImportDecl, bool) {
 	const declKind = token.Import
 
 	var (
-		decl            ast.ImportDecl
-		ident, ty, path token.Token
+		decl     ast.ImportDecl
+		ty, path token.Token
+		idents   []token.Token
 	)
 
-	prev := p.currentToken
-	if !p.match(token.Ident) {
+	resMany := p.consumeIdents()
+	if !resMany.Ok() {
 		return decl, false
 	}
 	if !p.match(token.Colon) {
 		return decl, false
 	}
 
-	ident = prev
+	idents = resMany.Get()
 	isImportDecl := false
 
 switchStart:
@@ -373,7 +359,7 @@ switchStart:
 		errorExpectedSemicolon(p, declKind)
 	}
 
-	decl.SetIdent(p.file, ident)
+	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetPath(p.file, path)
 
@@ -384,34 +370,20 @@ func (p *Parser) ParseUsing() (ast.UsingDecl, bool) {
 	const declKind = token.Using
 
 	var (
-		ident, ty, pkg token.Token
-		idents         []token.Token
-		decl           ast.UsingDecl
+		ty, pkg token.Token
+		idents  []token.Token
+		decl    ast.UsingDecl
 	)
 
-	prev := p.currentToken
-	if !p.match(token.Ident) {
+	resMany := p.consumeIdents()
+	if !resMany.Ok() {
 		return decl, false
 	}
-	ident = prev
-	idents = append(idents, ident)
-
-	for {
-		var res MatchToken
-		if res = p.consume(token.Comma); !res.Ok() {
-			break
-		}
-		if res = p.consume(token.Ident); !res.Ok() {
-			errorInvalidToken(p, res)
-			return decl, false
-		}
-		idents = append(idents, res.Get())
-	}
-
 	if !p.match(token.Colon) {
 		return decl, false
 	}
 
+	idents = resMany.Get()
 	isUsingDecl := false
 
 switchStart:
@@ -447,7 +419,7 @@ switchStart:
 		errorExpectedSemicolon(p, declKind)
 	}
 
-	decl.SetIdent(p.file, ident)
+	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetPkg(p.file, pkg)
 	decl.SetIdents(p.file, idents)
@@ -459,21 +431,20 @@ func (p *Parser) ParseAlias() (ast.AliasDecl, bool) {
 	const declKind = token.Alias
 
 	var (
-		decl              ast.AliasDecl
-		idents            []token.Token
-		resMany           MatchManyToken
-		ident, ty, target token.Token
+		decl       ast.AliasDecl
+		idents     []token.Token
+		ty, target token.Token
+		resMany    MatchManyToken
 	)
 
-	if resMany, ident = p.consumeIdents(); !resMany.Ok() {
+	if resMany = p.consumeIdents(); !resMany.Ok() {
 		return decl, false
 	}
-
-	idents = resMany.Get()
 	if !p.match(token.Colon) {
 		return decl, false
 	}
 
+	idents = resMany.Get()
 	var isAliasDecl bool
 
 switchStart:
@@ -508,7 +479,7 @@ switchStart:
 		errorExpectedSemicolon(p, declKind)
 	}
 
-	decl.SetIdent(p.file, ident)
+	decl.SetIdents(p.file, idents)
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetTarget(p.file, target)
@@ -520,23 +491,21 @@ func (p *Parser) ParseRecord() (ast.RecordDecl, bool) {
 	const declKind = token.Record
 
 	var (
-		decl      ast.RecordDecl
-		idents    []token.Token
-		resMany   MatchManyToken
-		ident, ty token.Token
+		decl    ast.RecordDecl
+		idents  []token.Token
+		resMany MatchManyToken
+		ty      token.Token
+		fields  = []ast.Entry[[]token.Token, token.Token]{}
 	)
 
-	fields := []ast.Entry[token.Token, token.Token]{}
-
-	if resMany, ident = p.consumeIdents(); !resMany.Ok() {
+	if resMany = p.consumeIdents(); !resMany.Ok() {
 		return decl, false
 	}
-
-	idents = resMany.Get()
 	if !p.match(token.Colon) {
 		return decl, false
 	}
 
+	idents = resMany.Get()
 	var isRecordDecl bool
 
 switchStart:
@@ -568,7 +537,7 @@ switchStart:
 				break
 			}
 
-			fields = append(fields, ast.EntrySame(i, t))
+			fields = append(fields, ast.EntryMany(i, t))
 
 			if !p.match(token.Semicolon) {
 				errorExpectedSemicolon(p, declKind)
@@ -593,7 +562,7 @@ switchStart:
 		errorExpectedSemicolon(p, declKind)
 	}
 
-	decl.SetIdent(p.file, ident)
+	decl.SetIdents(p.file, idents)
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetFields(p.file, fields)
@@ -608,7 +577,7 @@ func (p *Parser) ParseDoc() (ast.DocDecl, bool) {
 		resMany       MatchManyToken
 	)
 
-	if resMany, _ = p.consumeIdents(); !resMany.Ok() {
+	if resMany = p.consumeIdents(); !resMany.Ok() {
 		return decl, false
 	}
 
@@ -655,7 +624,7 @@ func (p *Parser) ParseTag() (ast.TagDecl, bool) {
 
 	attrs := []ast.Entry[[]token.Token, token.Token]{}
 
-	if resMany, _ = p.consumeIdents(); !resMany.Ok() {
+	if resMany = p.consumeIdents(); !resMany.Ok() {
 		return decl, false
 	}
 
@@ -701,9 +670,9 @@ func (p *Parser) ParseTempl() (ast.TemplDecl, bool) {
 		resMany MatchManyToken
 	)
 
-	params := []ast.Entry[token.Token, token.Token]{}
+	params := []ast.Entry[[]token.Token, token.Token]{}
 
-	if resMany, _ = p.consumeIdents(); !resMany.Ok() {
+	if resMany = p.consumeIdents(); !resMany.Ok() {
 		return decl, false
 	}
 
@@ -724,12 +693,12 @@ switchStart:
 		case token.ParenOpen:
 			p.advance()
 
-			i, t, ok := p.consumeTemplParamDecl()
+			i, t, ok := p.consumeTemplParamsDecl()
 			if !ok {
 				return decl, false
 			}
 
-			params = append(params, ast.EntrySame(i, t))
+			params = append(params, ast.EntryMany(i, t))
 			if !p.match(token.ParenClose) {
 				return decl, false
 			}

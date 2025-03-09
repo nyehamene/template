@@ -42,10 +42,10 @@ func HelperParser[T any, E any](
 }
 
 type pkgName struct {
-	Ident string
-	Type  string
-	Name  string
-	Templ string
+	Idents []string
+	Type   string
+	Name   string
+	Templ  string
 }
 
 func HelperPackage(t *testing.T, testcase TestCase[pkgName]) {
@@ -55,7 +55,7 @@ func HelperPackage(t *testing.T, testcase TestCase[pkgName]) {
 
 	accept := func(p ast.PackageDecl, f ast.NamespaceFile) pkgName {
 		var got pkgName
-		got.Ident = p.Ident(f)
+		got.Idents = p.Idents(f)
 		got.Type = p.Type(f)
 		got.Name = p.Name(f)
 		got.Templ = p.Templ(f)
@@ -66,9 +66,9 @@ func HelperPackage(t *testing.T, testcase TestCase[pkgName]) {
 }
 
 type importName struct {
-	Ident string
-	Type  string
-	Path  string
+	Idents []string
+	Type   string
+	Path   string
 }
 
 func HelperImport(t *testing.T, testcase TestCase[importName]) {
@@ -78,7 +78,7 @@ func HelperImport(t *testing.T, testcase TestCase[importName]) {
 
 	accept := func(i ast.ImportDecl, f ast.NamespaceFile) importName {
 		var got importName
-		got.Ident = i.Ident(f)
+		got.Idents = i.Idents(f)
 		got.Type = i.Type(f)
 		got.Path = i.Path(f)
 		return got
@@ -88,7 +88,6 @@ func HelperImport(t *testing.T, testcase TestCase[importName]) {
 }
 
 type usingName struct {
-	Ident  string
 	Idents []string
 	Type   string
 	Pkg    string
@@ -101,7 +100,6 @@ func HelperUsing(t *testing.T, testcase TestCase[usingName]) {
 
 	accept := func(u ast.UsingDecl, f ast.NamespaceFile) usingName {
 		var got usingName
-		got.Ident = u.Ident(f)
 		got.Idents = u.Idents(f)
 		got.Type = u.Type(f)
 		got.Pkg = u.Pkg(f)
@@ -112,7 +110,6 @@ func HelperUsing(t *testing.T, testcase TestCase[usingName]) {
 }
 
 type typeAliasName struct {
-	Ident  string
 	Idents []string
 	Type   string
 	Target string
@@ -125,7 +122,6 @@ func HelperTypeAlias(t *testing.T, testcase TestCase[typeAliasName]) {
 
 	accept := func(d ast.AliasDecl, f ast.NamespaceFile) typeAliasName {
 		var got typeAliasName
-		got.Ident = d.Ident(f)
 		got.Idents = d.Idents(f)
 		got.Type = d.Type(f)
 		got.Target = d.Target(f)
@@ -136,15 +132,14 @@ func HelperTypeAlias(t *testing.T, testcase TestCase[typeAliasName]) {
 }
 
 type recordName struct {
-	Ident  string
 	Idents []string
 	Type   string
 	Fields []varName
 }
 
 type varName struct {
-	Ident string
-	Type  string
+	Idents []string
+	Type   string
 }
 
 func HelperRecord(t *testing.T, testcase TestCase[recordName]) {
@@ -154,15 +149,14 @@ func HelperRecord(t *testing.T, testcase TestCase[recordName]) {
 
 	accept := func(d ast.RecordDecl, f ast.NamespaceFile) recordName {
 		var got recordName
-		got.Ident = d.Ident(f)
 		got.Idents = d.Idents(f)
 		got.Type = d.Type(f)
 		for _, v := range d.Fields(f) {
 			var (
-				ident = v.Ident(f)
-				ty    = v.Type(f)
+				i = v.Idents(f)
+				t = v.Type(f)
 			)
-			got.Fields = append(got.Fields, varName{Ident: ident, Type: ty})
+			got.Fields = append(got.Fields, varName{Idents: i, Type: t})
 		}
 		return got
 	}
@@ -238,7 +232,7 @@ func HelperTempl(t *testing.T, testcase TestCase[templName]) {
 		got.Type = d.Type(f)
 		for _, attr := range d.Params(f) {
 			var (
-				i = attr.Ident(f)
+				i = attr.Idents(f)
 				t = attr.Type(f)
 			)
 			got.Params = append(got.Params, varName{i, t})
@@ -251,57 +245,54 @@ func HelperTempl(t *testing.T, testcase TestCase[templName]) {
 
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
-		`p : package : package("home") tag`:  {"p", "package", `"home"`, "tag"},
-		`p : package : package("home") list`: {"p", "package", `"home"`, "list"},
-		`p : package : package("home") html`: {"p", "package", `"home"`, "html"},
-		`p :: package("home") tag`:           {"p", "package", `"home"`, "tag"},
-		`p :: package("home") list`:          {"p", "package", `"home"`, "list"},
-		`p :: package("home") html`:          {"p", "package", `"home"`, "html"},
+		`p : package : package("home") tag`:  {[]string{"p"}, "package", `"home"`, "tag"},
+		`p : package : package("home") list`: {[]string{"p"}, "package", `"home"`, "list"},
+		`p : package : package("home") html`: {[]string{"p"}, "package", `"home"`, "html"},
+		`p :: package("home") tag`:           {[]string{"p"}, "package", `"home"`, "tag"},
+		`p :: package("home") list`:          {[]string{"p"}, "package", `"home"`, "list"},
+		`p :: package("home") html`:          {[]string{"p"}, "package", `"home"`, "html"},
 	}
 	HelperPackage(t, testcase)
 }
 
 func TestImport(t *testing.T) {
 	testcase := TestCase[importName]{
-		`i : import : import("lib/one")`: {"i", "import", `"lib/one"`},
-		`i :: import("lib/one")`:         {"i", "import", `"lib/one"`},
+		`i : import : import("lib/one")`: {[]string{"i"}, "import", `"lib/one"`},
+		`i :: import("lib/one")`:         {[]string{"i"}, "import", `"lib/one"`},
 	}
 	HelperImport(t, testcase)
 }
 
 func TestUsing(t *testing.T) {
 	testcase := TestCase[usingName]{
-		"a, bb : using : using(ccc)": {"a", []string{"a", "bb"}, "using", "ccc"},
-		"a, bb :: using(ccc)":        {"a", []string{"a", "bb"}, "using", "ccc"},
-		"a : using : using(ccc)":     {"a", []string{"a"}, "using", "ccc"},
-		"a :: using(ccc)":            {"a", []string{"a"}, "using", "ccc"},
+		"a, bb : using : using(ccc)": {[]string{"a", "bb"}, "using", "ccc"},
+		"a, bb :: using(ccc)":        {[]string{"a", "bb"}, "using", "ccc"},
+		"a : using : using(ccc)":     {[]string{"a"}, "using", "ccc"},
+		"a :: using(ccc)":            {[]string{"a"}, "using", "ccc"},
 	}
 	HelperUsing(t, testcase)
 }
 
 func TestTypeAlias(t *testing.T) {
 	testcase := TestCase[typeAliasName]{
-		"a : type : type(t)":    {"a", []string{"a"}, "alias", "t"},
-		"a :: type(t)":          {"a", []string{"a"}, "alias", "t"},
-		"a, b : type : type(t)": {"a", []string{"a", "b"}, "alias", "t"},
-		"a, b :: type(t)":       {"a", []string{"a", "b"}, "alias", "t"},
+		"a : type : type(t)":    {[]string{"a"}, "alias", "t"},
+		"a :: type(t)":          {[]string{"a"}, "alias", "t"},
+		"a, b : type : type(t)": {[]string{"a", "b"}, "alias", "t"},
+		"a, b :: type(t)":       {[]string{"a", "b"}, "alias", "t"},
 	}
 	HelperTypeAlias(t, testcase)
 }
 
 func TestRecord(t *testing.T) {
 	testcase := TestCase[recordName]{
-		"A : type : record { name: String; email: String; }": {"A", []string{"A"}, "record", []varName{{"name", "String"}, {"email", "String"}}},
-		"A : type : record { name: String; email: String  }": {"A", []string{"A"}, "record", []varName{{"name", "String"}, {"email", "String"}}},
-
-		"A, B : type : record { name: String; }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
-		"A, B : type : record { name: String  }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
-
-		"A :: record { name: String; email: String; }": {"A", []string{"A"}, "record", []varName{{"name", "String"}, {"email", "String"}}},
-		"A :: record { name: String; email: String  }": {"A", []string{"A"}, "record", []varName{{"name", "String"}, {"email", "String"}}},
-
-		"A, B :: record { name: String; }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
-		"A, B :: record { name: String  }": {"A", []string{"A", "B"}, "record", []varName{{"name", "String"}}},
+		"A : type : record { name: String; email: String; }": {[]string{"A"}, "record", []varName{{[]string{"name"}, "String"}, {[]string{"email"}, "String"}}},
+		"A : type : record { name: String; email: String  }": {[]string{"A"}, "record", []varName{{[]string{"name"}, "String"}, {[]string{"email"}, "String"}}},
+		"A :: record { name: String; email: String; }":       {[]string{"A"}, "record", []varName{{[]string{"name"}, "String"}, {[]string{"email"}, "String"}}},
+		"A :: record { name: String; email: String  }":       {[]string{"A"}, "record", []varName{{[]string{"name"}, "String"}, {[]string{"email"}, "String"}}},
+		"A, B : type : record { name: String; }":             {[]string{"A", "B"}, "record", []varName{{[]string{"name"}, "String"}}},
+		"A, B : type : record { name: String  }":             {[]string{"A", "B"}, "record", []varName{{[]string{"name"}, "String"}}},
+		"A, B :: record { name: String; }":                   {[]string{"A", "B"}, "record", []varName{{[]string{"name"}, "String"}}},
+		"A, B :: record { name: String  }":                   {[]string{"A", "B"}, "record", []varName{{[]string{"name"}, "String"}}},
 	}
 	HelperRecord(t, testcase)
 }
@@ -327,22 +318,22 @@ func TestTag(t *testing.T) {
 
 func TestTempl(t *testing.T) {
 	testcase := TestCase[templName]{
-		`A :: templ(a: A){}`:              {[]string{"A"}, []varName{{"a", "A"}}, "templ"},
-		`A :: (a: A){}`:                   {[]string{"A"}, []varName{{"a", "A"}}, "templ"},
-		`A : templ : templ(a: A){}`:       {[]string{"A"}, []varName{{"a", "A"}}, "templ"},
-		`A : templ : (a: A){}`:            {[]string{"A"}, []varName{{"a", "A"}}, "templ"},
-		`A, B :: templ(a: A){}`:           {[]string{"A", "B"}, []varName{{"a", "A"}}, "templ"},
-		`A, B :: (a: A){}`:                {[]string{"A", "B"}, []varName{{"a", "A"}}, "templ"},
-		`A, B : templ : templ(a: A){}`:    {[]string{"A", "B"}, []varName{{"a", "A"}}, "templ"},
-		`A, B : templ : (a: A){}`:         {[]string{"A", "B"}, []varName{{"a", "A"}}, "templ"},
-		`A :: templ(a: type){}`:           {[]string{"A"}, []varName{{"a", "type"}}, "templ"},
-		`A :: (a: type){}`:                {[]string{"A"}, []varName{{"a", "type"}}, "templ"},
-		`A : templ : templ(a: type){}`:    {[]string{"A"}, []varName{{"a", "type"}}, "templ"},
-		`A : templ : (a: type){}`:         {[]string{"A"}, []varName{{"a", "type"}}, "templ"},
-		`A, B :: templ(a: type){}`:        {[]string{"A", "B"}, []varName{{"a", "type"}}, "templ"},
-		`A, B :: (a: type){}`:             {[]string{"A", "B"}, []varName{{"a", "type"}}, "templ"},
-		`A, B : templ : templ(a: type){}`: {[]string{"A", "B"}, []varName{{"a", "type"}}, "templ"},
-		`A, B : templ : (a: type){}`:      {[]string{"A", "B"}, []varName{{"a", "type"}}, "templ"},
+		`A :: templ(a: A){}`:              {[]string{"A"}, []varName{{[]string{"a"}, "A"}}, "templ"},
+		`A :: (a: A){}`:                   {[]string{"A"}, []varName{{[]string{"a"}, "A"}}, "templ"},
+		`A : templ : templ(a: A){}`:       {[]string{"A"}, []varName{{[]string{"a"}, "A"}}, "templ"},
+		`A : templ : (a: A){}`:            {[]string{"A"}, []varName{{[]string{"a"}, "A"}}, "templ"},
+		`A, B :: templ(a: A){}`:           {[]string{"A", "B"}, []varName{{[]string{"a"}, "A"}}, "templ"},
+		`A, B :: (a: A){}`:                {[]string{"A", "B"}, []varName{{[]string{"a"}, "A"}}, "templ"},
+		`A, B : templ : templ(a: A){}`:    {[]string{"A", "B"}, []varName{{[]string{"a"}, "A"}}, "templ"},
+		`A, B : templ : (a: A){}`:         {[]string{"A", "B"}, []varName{{[]string{"a"}, "A"}}, "templ"},
+		`A :: templ(a: type){}`:           {[]string{"A"}, []varName{{[]string{"a"}, "type"}}, "templ"},
+		`A :: (a: type){}`:                {[]string{"A"}, []varName{{[]string{"a"}, "type"}}, "templ"},
+		`A : templ : templ(a: type){}`:    {[]string{"A"}, []varName{{[]string{"a"}, "type"}}, "templ"},
+		`A : templ : (a: type){}`:         {[]string{"A"}, []varName{{[]string{"a"}, "type"}}, "templ"},
+		`A, B :: templ(a: type){}`:        {[]string{"A", "B"}, []varName{{[]string{"a"}, "type"}}, "templ"},
+		`A, B :: (a: type){}`:             {[]string{"A", "B"}, []varName{{[]string{"a"}, "type"}}, "templ"},
+		`A, B : templ : templ(a: type){}`: {[]string{"A", "B"}, []varName{{[]string{"a"}, "type"}}, "templ"},
+		`A, B : templ : (a: type){}`:      {[]string{"A", "B"}, []varName{{[]string{"a"}, "type"}}, "templ"},
 	}
 	HelperTempl(t, testcase)
 }
