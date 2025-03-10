@@ -21,7 +21,7 @@ func TestText(t *testing.T) {
 
 	for _, tc := range testcase {
 		t.Run(tc.src, func(t *testing.T) {
-			file := New(tc.src)
+			file := New(tc.src, "test.tem")
 			file.Init()
 
 			txt, ok := file.text(tc.tok)
@@ -49,7 +49,7 @@ func TestAddText(t *testing.T) {
 
 	for _, tc := range testcase {
 		t.Run(tc.src, func(t *testing.T) {
-			file := New(tc.src)
+			file := New(tc.src, "test.tem")
 			file.Init()
 
 			for _, tok := range tc.toks {
@@ -92,14 +92,14 @@ func TestSingle(t *testing.T) {
 			&PackageDecl{},
 			&ImportDecl{},
 			&UsingDecl{},
-			&AliasDecl{},
+			&TypeDecl{},
 		}
 	)
 
 	for i, decl := range decls {
 		t.Run(fmt.Sprintf("%d_%s", i, text), func(t *testing.T) {
 
-			file := New(text)
+			file := New(text, "test.tem")
 			file.Init()
 			decl.Set(file, tok)
 
@@ -137,7 +137,7 @@ func TestMany(t *testing.T) {
 	for i, decl := range decls {
 		t.Run(fmt.Sprintf("%d_%s", i, text), func(t *testing.T) {
 
-			file := New(text)
+			file := New(text, "test.tem")
 			file.Init()
 			decl.Set(file, toks)
 
@@ -183,7 +183,7 @@ func TestVar(t *testing.T) {
 	for i, decl := range decls {
 		t.Run(fmt.Sprintf("%d_%s", i, text), func(t *testing.T) {
 
-			file := New(text)
+			file := New(text, "test.tem")
 			file.Init()
 			decl.Set(file, toks)
 
@@ -232,7 +232,7 @@ func TestAttr(t *testing.T) {
 	for i, decl := range decls {
 		t.Run(fmt.Sprintf("%d_%s", i, text), func(t *testing.T) {
 
-			file := New(text)
+			file := New(text, "test.tem")
 			file.Init()
 			decl.Set(file, toks)
 
@@ -272,7 +272,7 @@ func TestContent(t *testing.T) {
 		decl     = DocDecl{}
 	)
 
-	file := New(text)
+	file := New(text, "test.tem")
 	file.Init()
 	decl.SetContent(file, toks...)
 

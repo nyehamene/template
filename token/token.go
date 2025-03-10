@@ -49,7 +49,6 @@ const (
 	SymbolEnd
 
 	KeywordBegin
-	Alias
 	Import
 	Package
 	Record
@@ -73,7 +72,6 @@ var keywords = map[string]Kind{
 	"type":    Type,
 	"record":  Record,
 	"templ":   Templ,
-	"alias":   Alias,
 	"import":  Import,
 	"using":   Using,
 }

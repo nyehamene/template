@@ -6,10 +6,6 @@ func ident(offset, end int) token.Token {
 	return newToken(token.Ident, offset, end)
 }
 
-func alias(offset, end int) token.Token {
-	return newToken(token.Alias, offset, end)
-}
-
 func import0(offset, end int) token.Token {
 	return newToken(token.Import, offset, end)
 }

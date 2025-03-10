@@ -24,7 +24,7 @@ doc        := doc_decl doc
 tag        := tag_decl doc
             | main_decl
            =:
-main_decl  := alias_decl
+main_decl  := type_decl
             | record_decl
             | templ_decl
            =:
@@ -37,7 +37,7 @@ doc_decl     := idents ":" string    ";"
 package_decl := idents ":" [ "package" ] ":" package_name ";" =:
 import_decl  := idents ":" [ "import" ]  ":" import_expr  ";" =:
 using_decl   := idents ":" [ "import" ]  ":" using_expr   ";" =:
-alias_decl   := idents ":" [ "type" ]    ":" type_expr    ";" =:
+type_decl    := idents ":" [ "type" ]    ":" type_expr    ";" =:
 record_decl  := idents ":" [ "type" ]    ":" record_lit   ";" =:
 templ_decl   := idents ":" [ "templ" ]   ":" templ_lit    ";" =:
 var          := idents ":" ident ";" =:
@@ -45,7 +45,7 @@ var          := idents ":" ident ";" =:
 package_name := { directive } "package"   "(" string ")" =:
 import_expr  := "import"      "(" string ")" =:
 using_expr   := "using"       "(" ident ")"  =:
-alias_expr   := "type"        "(" ident ")"  =:
+type_expr    := "type"        "(" ident ")"  =:
 record_expr  := "record"      "{" vars "}"   =:
 templ_lit    := [ "templ" ]   "(" var ")"             "{" element "}"
               | [ "templ" ]   "(" ident ":" "type" )" "{" element "}"

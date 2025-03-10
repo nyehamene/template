@@ -13,12 +13,12 @@ func HelperParser[T any, E any](
 	t *testing.T,
 	testcase TestCase[T],
 	parse func(*Parser) (E, bool),
-	accept func(E, ast.NamespaceFile) T,
+	accept func(E, ast.Namespace) T,
 ) {
 
 	for src, expected := range testcase {
 		t.Run(src, func(t *testing.T) {
-			file := ast.New(src)
+			file := ast.New(src, "test.tem")
 			file.Name = "ns"
 			file.Path = "testing/ns.tem"
 
@@ -51,7 +51,7 @@ func HelperPackage(t *testing.T, testcase TestCase[pkgName]) {
 		return p.parsePackageDecl()
 	}
 
-	accept := func(p ast.PackageDecl, f ast.NamespaceFile) pkgName {
+	accept := func(p ast.PackageDecl, f ast.Namespace) pkgName {
 		var got pkgName
 		got.Idents = p.Idents(f)
 		got.Type = p.Type(f)
@@ -74,7 +74,7 @@ func HelperImport(t *testing.T, testcase TestCase[importName]) {
 		return p.parseImportDecl()
 	}
 
-	accept := func(i ast.ImportDecl, f ast.NamespaceFile) importName {
+	accept := func(i ast.ImportDecl, f ast.Namespace) importName {
 		var got importName
 		got.Idents = i.Idents(f)
 		got.Type = i.Type(f)
@@ -96,7 +96,7 @@ func HelperUsing(t *testing.T, testcase TestCase[usingName]) {
 		return p.parseUsingDecl()
 	}
 
-	accept := func(u ast.UsingDecl, f ast.NamespaceFile) usingName {
+	accept := func(u ast.UsingDecl, f ast.Namespace) usingName {
 		var got usingName
 		got.Idents = u.Idents(f)
 		got.Type = u.Type(f)
@@ -107,19 +107,19 @@ func HelperUsing(t *testing.T, testcase TestCase[usingName]) {
 	HelperParser(t, testcase, parse, accept)
 }
 
-type typeAliasName struct {
+type typeName struct {
 	Idents []string
 	Type   string
 	Target string
 }
 
-func HelperTypeAlias(t *testing.T, testcase TestCase[typeAliasName]) {
-	parse := func(p *Parser) (ast.AliasDecl, bool) {
-		return p.parseAliasDecl()
+func HelperType(t *testing.T, testcase TestCase[typeName]) {
+	parse := func(p *Parser) (ast.TypeDecl, bool) {
+		return p.parseTypeDecl()
 	}
 
-	accept := func(d ast.AliasDecl, f ast.NamespaceFile) typeAliasName {
-		var got typeAliasName
+	accept := func(d ast.TypeDecl, f ast.Namespace) typeName {
+		var got typeName
 		got.Idents = d.Idents(f)
 		got.Type = d.Type(f)
 		got.Target = d.Target(f)
@@ -145,7 +145,7 @@ func HelperRecord(t *testing.T, testcase TestCase[recordName]) {
 		return p.parseRecordDecl()
 	}
 
-	accept := func(d ast.RecordDecl, f ast.NamespaceFile) recordName {
+	accept := func(d ast.RecordDecl, f ast.Namespace) recordName {
 		var got recordName
 		got.Idents = d.Idents(f)
 		got.Type = d.Type(f)
@@ -172,7 +172,7 @@ func HelperDoc(t *testing.T, testcase TestCase[docName]) {
 		return p.parseDocDecl()
 	}
 
-	accept := func(d ast.DocDecl, f ast.NamespaceFile) docName {
+	accept := func(d ast.DocDecl, f ast.Namespace) docName {
 		var got docName
 		got.Idents = d.Idents(f)
 		got.Text = d.Content(f)
@@ -197,7 +197,7 @@ func HelperTag(t *testing.T, testcase TestCase[tagName]) {
 		return p.parseTagDecl()
 	}
 
-	accept := func(d ast.TagDecl, f ast.NamespaceFile) tagName {
+	accept := func(d ast.TagDecl, f ast.Namespace) tagName {
 		var got tagName
 		got.Idents = d.Idents(f)
 		for _, attr := range d.Attrs(f) {
@@ -224,7 +224,7 @@ func HelperTempl(t *testing.T, testcase TestCase[templName]) {
 		return p.parseTemplDecl()
 	}
 
-	accept := func(d ast.TemplDecl, f ast.NamespaceFile) templName {
+	accept := func(d ast.TemplDecl, f ast.Namespace) templName {
 		var got templName
 		got.Idents = d.Idents(f)
 		got.Type = d.Type(f)
@@ -271,14 +271,14 @@ func TestUsing(t *testing.T) {
 	HelperUsing(t, testcase)
 }
 
-func TestTypeAlias(t *testing.T) {
-	testcase := TestCase[typeAliasName]{
-		"a : type : type(t)":    {[]string{"a"}, "alias", "t"},
-		"a :: type(t)":          {[]string{"a"}, "alias", "t"},
-		"a, b : type : type(t)": {[]string{"a", "b"}, "alias", "t"},
-		"a, b :: type(t)":       {[]string{"a", "b"}, "alias", "t"},
+func TestType(t *testing.T) {
+	testcase := TestCase[typeName]{
+		"a : type : type(t)":    {[]string{"a"}, "type", "t"},
+		"a :: type(t)":          {[]string{"a"}, "type", "t"},
+		"a, b : type : type(t)": {[]string{"a", "b"}, "type", "t"},
+		"a, b :: type(t)":       {[]string{"a", "b"}, "type", "t"},
 	}
-	HelperTypeAlias(t, testcase)
+	HelperType(t, testcase)
 }
 
 func TestRecord(t *testing.T) {

@@ -54,8 +54,7 @@ func tokenize(s []byte) {
 }
 
 func parse(name string, s []byte) {
-	file := ast.New(string(s))
-	file.Name = name
+	file := ast.New(string(s), name)
 	par := parser.New(file)
 	par.ParseFile()
 }

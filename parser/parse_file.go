@@ -75,7 +75,7 @@ func (p *Parser) tag() bool {
 
 func (p *Parser) mainDecl() (ok bool) {
 	reset := p.Mark()
-	_, ok = p.parseAliasDecl()
+	_, ok = p.parseTypeDecl()
 	if ok {
 		return
 	}

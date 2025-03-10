@@ -7,14 +7,14 @@
 A use can request explicit type inference using `type` keyword in
 the type position in a declaration. For example,
 
-### Explicit type inference for type alias
+### Explicit type inference for custom types
 
 ```
 User : type : type(Person)
 ```
 In the above declaration the type of `User` is infered from the expression
 on the RHS of the declaration.
-In this case the type is infered to be `alias(Person)`.
+In this case the type is infered to be `type(Person)`.
 
 ### Explicit type inference for record type
 
@@ -33,17 +33,17 @@ coincidentally (almost) matching the record declaration literal on the RHS.
 Below describes the complete declaration without omitting any optional
 parts and not including explicit type inference.
 
-### Declaring a type alias
+### Declaring a custom type based on another type
 
-The complete declaration of type alias is as follows using the `User`
+The complete declaration of a custom type is as follows using the `User`
 type declared in #[Explicit type inference]:
 
 ```
-User : alias(Person) : type(Person);
+User : type(Person) : type(Person);
 ```
 
 Here, starting from the RHS, `type(Person)` as an expression that resolves
-to an alias for the existing type `Person`. The type the expression is `alias(Person)`,
+to a type for the existing type `Person`. The type the expression is `type(Person)`,
 then the resolved type is stored in the identifier `User`.
 
 ### Declaring a record type

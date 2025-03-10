@@ -73,7 +73,6 @@ func TestNextIdent(t *testing.T) {
 
 func TestNextKeyword(t *testing.T) {
 	testcases := TestCase{
-		"alias ":   {alias(0, 5)},
 		"import ":  {import0(0, 6)},
 		"package ": {package0(0, 7)},
 		"record ":  {record(0, 6)},

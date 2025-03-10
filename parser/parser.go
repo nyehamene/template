@@ -9,7 +9,7 @@ import (
 	"temlang/tem/tokenizer"
 )
 
-func New(file *ast.NamespaceFile) Parser {
+func New(file *ast.Namespace) Parser {
 	file.Init()
 	bytes := []byte(file.Src())
 	t := tokenizer.New(bytes)
@@ -50,7 +50,7 @@ func (p Pos) String() string {
 
 type Parser struct {
 	tokenizer    tokenizer.Tokenizer
-	file         *ast.NamespaceFile
+	file         *ast.Namespace
 	currentToken token.Token
 	errorf       func(msg string, args ...any)
 }
@@ -445,10 +445,10 @@ switchStart:
 	return decl, true
 }
 
-func (p *Parser) parseAliasDecl() (ast.AliasDecl, bool) {
+func (p *Parser) parseTypeDecl() (ast.TypeDecl, bool) {
 	var (
-		declKind   = token.Alias.String()
-		decl       ast.AliasDecl
+		declKind   = token.Type.String()
+		decl       ast.TypeDecl
 		idents     []token.Token
 		ty, target token.Token
 		resMany    MatchManyToken
@@ -476,7 +476,7 @@ switchStart:
 			return decl, false
 		}
 		if ty.Kind() == token.Invalid {
-			ty = token.New(token.Alias, 0, 0)
+			ty = token.New(token.Type, 0, 0)
 		}
 		target = res.Get()
 
@@ -495,6 +495,8 @@ switchStart:
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetTarget(p.file, target)
+
+	p.file.AddType(decl)
 
 	return decl, true
 }
@@ -573,6 +575,8 @@ switchStart:
 	decl.SetType(p.file, ty)
 	decl.SetFields(p.file, fields)
 
+	p.file.AddRecord(decl)
+
 	return decl, true
 }
 
@@ -623,6 +627,8 @@ func (p *Parser) parseDocDecl() (ast.DocDecl, bool) {
 	decl.SetIdents(p.file, idents)
 	decl.SetContent(p.file, lines...)
 
+	p.file.AddDoc(decl)
+
 	return decl, true
 }
 
@@ -669,6 +675,8 @@ func (p *Parser) parseTagDecl() (ast.TagDecl, bool) {
 
 	decl.SetIdents(p.file, idents)
 	decl.SetAttrs(p.file, attrs)
+
+	p.file.AddTag(decl)
 
 	return decl, true
 }
@@ -742,6 +750,8 @@ switchStart:
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetParams(p.file, params)
+
+	p.file.AddTempl(decl)
 
 	return decl, true
 }

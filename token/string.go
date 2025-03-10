@@ -48,8 +48,6 @@ func (k Kind) String() string {
 		return "templ"
 	case String:
 		return "str"
-	case Alias:
-		return "alias"
 	case Comment:
 		return "comment"
 	case Record:

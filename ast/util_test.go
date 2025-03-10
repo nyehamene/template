@@ -23,96 +23,96 @@ func tokenMany(p ...pos) []token.Token {
 }
 
 type singletoken interface {
-	Set(*NamespaceFile, token.Token)
-	Get(NamespaceFile) string
+	Set(*Namespace, token.Token)
+	Get(Namespace) string
 }
 
-func (h *hasType) Set(f *NamespaceFile, tok token.Token) {
+func (h *hasType) Set(f *Namespace, tok token.Token) {
 	h.SetType(f, tok)
 }
 
-func (h hasType) Get(f NamespaceFile) string {
+func (h hasType) Get(f Namespace) string {
 	return h.Type(f)
 }
 
-func (h *hasName) Set(f *NamespaceFile, tok token.Token) {
+func (h *hasName) Set(f *Namespace, tok token.Token) {
 	h.SetName(f, tok)
 }
 
-func (h hasName) Get(f NamespaceFile) string {
+func (h hasName) Get(f Namespace) string {
 	return h.Name(f)
 }
 
-func (d *PackageDecl) Set(f *NamespaceFile, tok token.Token) {
+func (d *PackageDecl) Set(f *Namespace, tok token.Token) {
 	d.SetTempl(f, tok)
 }
 
-func (d PackageDecl) Get(f NamespaceFile) string {
+func (d PackageDecl) Get(f Namespace) string {
 	return d.Templ(f)
 }
 
-func (d *UsingDecl) Set(f *NamespaceFile, tok token.Token) {
+func (d *UsingDecl) Set(f *Namespace, tok token.Token) {
 	d.SetPkg(f, tok)
 }
 
-func (d UsingDecl) Get(f NamespaceFile) string {
+func (d UsingDecl) Get(f Namespace) string {
 	return d.Pkg(f)
 }
 
-func (d *AliasDecl) Set(f *NamespaceFile, tok token.Token) {
+func (d *TypeDecl) Set(f *Namespace, tok token.Token) {
 	d.SetTarget(f, tok)
 }
 
-func (d AliasDecl) Get(f NamespaceFile) string {
+func (d TypeDecl) Get(f Namespace) string {
 	return d.Target(f)
 }
 
-func (d *AttrDecl) Set(f *NamespaceFile, tok token.Token) {
+func (d *AttrDecl) Set(f *Namespace, tok token.Token) {
 	d.SetValue(f, tok)
 }
 
-func (d AttrDecl) Get(f NamespaceFile) string {
+func (d AttrDecl) Get(f Namespace) string {
 	return d.Value(f)
 }
 
 type manytoken interface {
-	Set(*NamespaceFile, []token.Token)
-	Get(NamespaceFile) []string
+	Set(*Namespace, []token.Token)
+	Get(Namespace) []string
 }
 
-func (h *hasIdents) Set(f *NamespaceFile, toks []token.Token) {
+func (h *hasIdents) Set(f *Namespace, toks []token.Token) {
 	h.SetIdents(f, toks)
 }
 
-func (h hasIdents) Get(f NamespaceFile) []string {
+func (h hasIdents) Get(f Namespace) []string {
 	return h.Idents(f)
 }
 
 type manydecl[T any] interface {
-	Set(*NamespaceFile, []Entry[[]token.Token, token.Token])
-	Get(NamespaceFile) []T
+	Set(*Namespace, []Entry[[]token.Token, token.Token])
+	Get(Namespace) []T
 }
 
-func (d *TemplDecl) Set(f *NamespaceFile, toks []Entry[[]token.Token, token.Token]) {
+func (d *TemplDecl) Set(f *Namespace, toks []Entry[[]token.Token, token.Token]) {
 	d.SetParams(f, toks)
 }
 
-func (d TemplDecl) Get(f NamespaceFile) []VarDecl {
+func (d TemplDecl) Get(f Namespace) []VarDecl {
 	return d.Params(f)
 }
 
-func (d *RecordDecl) Set(f *NamespaceFile, toks []Entry[[]token.Token, token.Token]) {
+func (d *RecordDecl) Set(f *Namespace, toks []Entry[[]token.Token, token.Token]) {
 	d.SetFields(f, toks)
 }
 
-func (d RecordDecl) Get(f NamespaceFile) []VarDecl {
+func (d RecordDecl) Get(f Namespace) []VarDecl {
 	return d.Fields(f)
 }
 
-func (d *TagDecl) Set(f *NamespaceFile, toks []Entry[[]token.Token, token.Token]) {
+func (d *TagDecl) Set(f *Namespace, toks []Entry[[]token.Token, token.Token]) {
 	d.SetAttrs(f, toks)
 }
 
-func (d TagDecl) Get(f NamespaceFile) []AttrDecl {
+func (d TagDecl) Get(f Namespace) []AttrDecl {
 	return d.Attrs(f)
 }
