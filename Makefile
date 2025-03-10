@@ -8,19 +8,13 @@ test/parser:
 test/ast:
 	@go test -timeout ${timeout} -cover ./ast
 
+test/demo:
+	@go test -timeout ${timeout} ./demo
+
 test:
 	@make -s test/ast
 	@make -s test/tokenizer
 	@make -s test/parser
 
-run/demo/def:
-	@go run ./demo demo/def.tem
-
-run/demo/def/semicolon:
-	@go run ./demo demo/def_semicolon.tem
-
-run/demo/template:
-	@go run ./demo demo/template.tem
-
-run/demo/template/semicolon:
-	@go run ./demo demo/template_semicolon.tem
+run/demo:
+	@go run ./demo
