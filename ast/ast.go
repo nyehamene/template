@@ -11,23 +11,23 @@ func New(src string) *NamespaceFile {
 }
 
 type NamespaceFile struct {
-	Name     string
-	Path     string
-	src      string
-	Pkg      PackageDecl
-	tokens   []token.Token
-	texts    []string
-	vars     []VarDecl
-	attrs    []AttrDecl
-	tokenLen int
-	textLen  int
-	// imports      []ImportDecl
-	// usings       []UsingDecl
+	Pkg     PackageDecl
+	texts   []string
+	vars    []VarDecl
+	attrs   []AttrDecl
+	imports []ImportDecl
+	usings  []UsingDecl
 	// alias        []AliasDecl
 	// records      []RecordDecl
 	// templs       []TemplDecl
 	// docs         []TokenSlice
 	// tags         []TokenSlice
+	tokens   []token.Token
+	Name     string
+	Path     string
+	src      string
+	tokenLen int
+	textLen  int
 }
 
 func (n *NamespaceFile) Init() {

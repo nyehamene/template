@@ -48,7 +48,7 @@ type pkgName struct {
 
 func HelperPackage(t *testing.T, testcase TestCase[pkgName]) {
 	parse := func(p *Parser) (ast.PackageDecl, bool) {
-		return p.ParsePackage()
+		return p.parsePackageDecl()
 	}
 
 	accept := func(p ast.PackageDecl, f ast.NamespaceFile) pkgName {
@@ -71,7 +71,7 @@ type importName struct {
 
 func HelperImport(t *testing.T, testcase TestCase[importName]) {
 	parse := func(p *Parser) (ast.ImportDecl, bool) {
-		return p.ParseImport()
+		return p.parseImportDecl()
 	}
 
 	accept := func(i ast.ImportDecl, f ast.NamespaceFile) importName {
@@ -93,7 +93,7 @@ type usingName struct {
 
 func HelperUsing(t *testing.T, testcase TestCase[usingName]) {
 	parse := func(p *Parser) (ast.UsingDecl, bool) {
-		return p.ParseUsing()
+		return p.parseUsingDecl()
 	}
 
 	accept := func(u ast.UsingDecl, f ast.NamespaceFile) usingName {
@@ -115,7 +115,7 @@ type typeAliasName struct {
 
 func HelperTypeAlias(t *testing.T, testcase TestCase[typeAliasName]) {
 	parse := func(p *Parser) (ast.AliasDecl, bool) {
-		return p.ParseAlias()
+		return p.parseAliasDecl()
 	}
 
 	accept := func(d ast.AliasDecl, f ast.NamespaceFile) typeAliasName {
@@ -142,7 +142,7 @@ type varName struct {
 
 func HelperRecord(t *testing.T, testcase TestCase[recordName]) {
 	parse := func(p *Parser) (ast.RecordDecl, bool) {
-		return p.ParseRecord()
+		return p.parseRecordDecl()
 	}
 
 	accept := func(d ast.RecordDecl, f ast.NamespaceFile) recordName {
@@ -169,7 +169,7 @@ type docName struct {
 
 func HelperDoc(t *testing.T, testcase TestCase[docName]) {
 	parse := func(p *Parser) (ast.DocDecl, bool) {
-		return p.ParseDoc()
+		return p.parseDocDecl()
 	}
 
 	accept := func(d ast.DocDecl, f ast.NamespaceFile) docName {
@@ -194,7 +194,7 @@ type attrName struct {
 
 func HelperTag(t *testing.T, testcase TestCase[tagName]) {
 	parse := func(p *Parser) (ast.TagDecl, bool) {
-		return p.ParseTag()
+		return p.parseTagDecl()
 	}
 
 	accept := func(d ast.TagDecl, f ast.NamespaceFile) tagName {
@@ -221,7 +221,7 @@ type templName struct {
 
 func HelperTempl(t *testing.T, testcase TestCase[templName]) {
 	parse := func(p *Parser) (ast.TemplDecl, bool) {
-		return p.ParseTempl()
+		return p.parseTemplDecl()
 	}
 
 	accept := func(d ast.TemplDecl, f ast.NamespaceFile) templName {

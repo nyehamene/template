@@ -1,18 +1,13 @@
 package parser
 
 import (
+	"fmt"
 	"log"
 	"temlang/tem/ast"
 	"temlang/tem/matchresult"
 	"temlang/tem/token"
 	"temlang/tem/tokenizer"
 )
-
-// Adance on:
-//           SUCCESS | FAILURE
-// match   |  Yes    | No
-// consume |  Yes    | No
-// expect  |  Yes    | Yes
 
 func New(file *ast.NamespaceFile) Parser {
 	file.Init()
@@ -29,16 +24,28 @@ func defaultErrorHandler(msg string, args ...any) {
 	log.Println()
 }
 
-func errorInvalidDecl[T any, E any](p *Parser, k token.Kind, res matchresult.Type[T, E]) {
-	p.errorf("invalid %s declaration at %s expected %s",
-		k,
-		res.Get(),
-		res.Exp())
+func errorInvalidDecl[T any, E any](p *Parser, k string, res matchresult.Type[T, E]) {
+	pos := p.pos()
+	p.errorf("invalid %s declaration at %s expected %s %s",
+		k, res.Get(), res.Exp(),
+		pos.String())
 }
 
-func errorExpectedSemicolon(p *Parser, k token.Kind) {
-	p.errorf("invalid %s declaration at %s expected %s",
-		k, p.currentToken, token.Semicolon)
+func errorExpectedSemicolon(p *Parser, k string) {
+	pos := p.pos()
+	p.errorf("invalid %s declaration at %s expected %s %s",
+		k, p.currentToken,
+		token.Semicolon,
+		pos.String())
+}
+
+type Pos struct {
+	line, col int
+	file      string
+}
+
+func (p Pos) String() string {
+	return fmt.Sprintf("[%d:%d in %s]", p.line, p.col, p.file)
 }
 
 type Parser struct {
@@ -48,15 +55,55 @@ type Parser struct {
 	errorf       func(msg string, args ...any)
 }
 
+func (p *Parser) pos() Pos {
+	src := p.file.Src()
+	if src == "" {
+		return Pos{0, 0, p.file.Name}
+	}
+
+	var (
+		line, col = 1, 0
+		sc        = src[0:p.currentToken.End()]
+	)
+
+	for _, r := range sc {
+		if r == '\n' {
+			line += 1
+			col = 0
+			continue
+		}
+		col += 1
+	}
+
+	return Pos{line, col, p.file.Name}
+}
+
 func (p *Parser) Mark() func() {
-	return p.tokenizer.Mark()
+	prev := p.currentToken
+	reset := p.tokenizer.Mark()
+	return func() {
+		reset()
+		p.currentToken = prev
+	}
+}
+
+func (p *Parser) skipNewlineAndComment() token.Token {
+	var next token.Token
+	for {
+		next = p.tokenizer.Next()
+		kind := next.Kind()
+		if kind != token.EOL && kind != token.Comment {
+			break
+		}
+	}
+	return next
 }
 
 func (p *Parser) advance() bool {
 	if p.currentToken.Kind() == token.EOF {
 		return false
 	}
-	tok := p.tokenizer.Next()
+	tok := p.skipNewlineAndComment()
 	p.currentToken = tok
 	return true
 }
@@ -81,13 +128,6 @@ func (p *Parser) consume(tok token.Kind) MatchToken {
 
 func (p *Parser) consumePackageName() (res MatchToken, pkg token.Token) {
 	var name token.Token
-
-	reset := p.Mark()
-	defer func() {
-		if !res.Ok() {
-			reset()
-		}
-	}()
 
 	prev := p.currentToken
 	if ok := p.match(token.Package); !ok {
@@ -230,10 +270,11 @@ func (p *Parser) consumeAttrDecl() (keys []token.Token, val token.Token, ok bool
 	return
 }
 
-func (p *Parser) ParsePackage() (ast.PackageDecl, bool) {
-	const declKind = token.Package
-
+// parsePackageDecl method
+// TODO: return only bool from all parse method
+func (p *Parser) parsePackageDecl() (ast.PackageDecl, bool) {
 	var (
+		declKind        = token.Package.String()
 		ty, name, templ token.Token
 		idents          []token.Token
 		decl            ast.PackageDecl
@@ -273,18 +314,19 @@ switchStart:
 
 		tok, ok := p.consumePackageTempl()
 		if !ok {
-			p.errorf("invalid %s declaration expected on of %s, %s, %s at %s",
+			p.errorf("invalid %s declaration expected on of %s, %s, %s at %s %s",
 				declKind,
 				token.Tag,
 				token.List,
 				token.Html,
 				p.currentToken,
+				p.pos(),
 			)
 			return decl, false
 		}
 		templ = tok
 
-	case declKind:
+	case token.Package:
 		ty = p.currentToken
 		isPackageDecl = true
 		p.advance()
@@ -302,13 +344,14 @@ switchStart:
 	decl.SetName(p.file, name)
 	decl.SetTempl(p.file, templ)
 
+	p.file.Pkg = decl
+
 	return decl, true
 }
 
-func (p *Parser) ParseImport() (ast.ImportDecl, bool) {
-	const declKind = token.Import
-
+func (p *Parser) parseImportDecl() (ast.ImportDecl, bool) {
 	var (
+		declKind = token.Import.String()
 		decl     ast.ImportDecl
 		ty, path token.Token
 		idents   []token.Token
@@ -329,7 +372,7 @@ switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res, kw := p.consumeKwExpr(declKind, token.String)
+		res, kw := p.consumeKwExpr(token.Import, token.String)
 		if res.NoMatch() {
 			if isImportDecl {
 				errorInvalidDecl(p, declKind, res)
@@ -346,7 +389,7 @@ switchStart:
 
 		path = res.Get()
 
-	case declKind:
+	case token.Import:
 		ty = p.currentToken
 		isImportDecl = true
 		p.advance()
@@ -363,16 +406,17 @@ switchStart:
 	decl.SetType(p.file, ty)
 	decl.SetName(p.file, path)
 
+	p.file.AddImport(decl)
+
 	return decl, true
 }
 
-func (p *Parser) ParseUsing() (ast.UsingDecl, bool) {
-	const declKind = token.Using
-
+func (p *Parser) parseUsingDecl() (ast.UsingDecl, bool) {
 	var (
-		ty, pkg token.Token
-		idents  []token.Token
-		decl    ast.UsingDecl
+		declKind = token.Using.String()
+		ty, pkg  token.Token
+		idents   []token.Token
+		decl     ast.UsingDecl
 	)
 
 	resMany := p.consumeIdents()
@@ -390,7 +434,7 @@ switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res, kw := p.consumeKwExpr(declKind, token.Ident)
+		res, kw := p.consumeKwExpr(token.Using, token.Ident)
 		if res.NoMatch() {
 			if isUsingDecl {
 				errorInvalidDecl(p, declKind, res)
@@ -406,7 +450,7 @@ switchStart:
 		}
 		pkg = res.Get()
 
-	case declKind:
+	case token.Using:
 		ty = p.currentToken
 		isUsingDecl = true
 		p.advance()
@@ -424,13 +468,14 @@ switchStart:
 	decl.SetPkg(p.file, pkg)
 	decl.SetIdents(p.file, idents)
 
+	p.file.AddUsing(decl)
+
 	return decl, true
 }
 
-func (p *Parser) ParseAlias() (ast.AliasDecl, bool) {
-	const declKind = token.Alias
-
+func (p *Parser) parseAliasDecl() (ast.AliasDecl, bool) {
 	var (
+		declKind   = token.Alias.String()
 		decl       ast.AliasDecl
 		idents     []token.Token
 		ty, target token.Token
@@ -445,7 +490,6 @@ func (p *Parser) ParseAlias() (ast.AliasDecl, bool) {
 	}
 
 	idents = resMany.Get()
-	var isAliasDecl bool
 
 switchStart:
 	switch kind := p.currentToken.Kind(); kind {
@@ -453,9 +497,6 @@ switchStart:
 		p.advance()
 		res, _ := p.consumeKwExpr(token.Type, token.Ident)
 		if res.NoMatch() {
-			if isAliasDecl {
-				errorInvalidDecl(p, declKind, res)
-			}
 			return decl, false
 		}
 		if res.Invalid() {
@@ -463,12 +504,11 @@ switchStart:
 			return decl, false
 		}
 		if ty.Kind() == token.Invalid {
-			ty = token.New(declKind, 0, 0)
+			ty = token.New(token.Alias, 0, 0)
 		}
 		target = res.Get()
 
 	case token.Type:
-		isAliasDecl = true
 		p.advance()
 		goto switchStart
 	default:
@@ -487,15 +527,14 @@ switchStart:
 	return decl, true
 }
 
-func (p *Parser) ParseRecord() (ast.RecordDecl, bool) {
-	const declKind = token.Record
-
+func (p *Parser) parseRecordDecl() (ast.RecordDecl, bool) {
 	var (
-		decl    ast.RecordDecl
-		idents  []token.Token
-		resMany MatchManyToken
-		ty      token.Token
-		fields  = []ast.Entry[[]token.Token, token.Token]{}
+		declKind = token.Record.String()
+		decl     ast.RecordDecl
+		idents   []token.Token
+		resMany  MatchManyToken
+		ty       token.Token
+		fields   = []ast.Entry[[]token.Token, token.Token]{}
 	)
 
 	if resMany = p.consumeIdents(); !resMany.Ok() {
@@ -506,17 +545,13 @@ func (p *Parser) ParseRecord() (ast.RecordDecl, bool) {
 	}
 
 	idents = resMany.Get()
-	var isRecordDecl bool
 
 switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res := p.consume(declKind)
+		res := p.consume(token.Record)
 		if res.NoMatch() {
-			if isRecordDecl {
-				errorInvalidDecl(p, declKind, res)
-			}
 			return decl, false
 		}
 		if res.Invalid() {
@@ -524,7 +559,7 @@ switchStart:
 			return decl, false
 		}
 		if ty.Kind() == token.Invalid {
-			ty = token.New(declKind, 0, 0)
+			ty = token.New(token.Record, 0, 0)
 		}
 		if res = p.consume(token.BraceOpen); !res.Ok() {
 			errorInvalidDecl(p, declKind, res)
@@ -551,7 +586,6 @@ switchStart:
 		}
 
 	case token.Type:
-		isRecordDecl = true
 		p.advance()
 		goto switchStart
 	default:
@@ -570,7 +604,7 @@ switchStart:
 	return decl, true
 }
 
-func (p *Parser) ParseDoc() (ast.DocDecl, bool) {
+func (p *Parser) parseDocDecl() (ast.DocDecl, bool) {
 	var (
 		decl          ast.DocDecl
 		idents, lines []token.Token
@@ -588,6 +622,9 @@ func (p *Parser) ParseDoc() (ast.DocDecl, bool) {
 
 	if str := p.currentToken; p.match(token.String) {
 		lines = append(lines, str)
+		if !p.match(token.Semicolon) {
+			errorExpectedSemicolon(p, "doc")
+		}
 	} else {
 		if p.currentToken.Kind() != token.TextBlock {
 			return decl, false
@@ -600,12 +637,14 @@ func (p *Parser) ParseDoc() (ast.DocDecl, bool) {
 
 			lines = append(lines, res.Get())
 			if !p.match(token.Semicolon) {
+				errorExpectedSemicolon(p, "doc")
 				break
 			}
-			if !p.match(token.EOL) {
-				p.errorf("expected %s at %s", token.EOL, p.currentToken)
-				break
-			}
+			// NOTE: eol is already skipped by the last call to advance
+			// if !p.match(token.EOL) {
+			// 	errorExpected(p, "doc", token.EOL)
+			// 	break
+			// }
 		}
 	}
 
@@ -615,7 +654,7 @@ func (p *Parser) ParseDoc() (ast.DocDecl, bool) {
 	return decl, true
 }
 
-func (p *Parser) ParseTag() (ast.TagDecl, bool) {
+func (p *Parser) parseTagDecl() (ast.TagDecl, bool) {
 	var (
 		decl    ast.TagDecl
 		idents  []token.Token
@@ -652,7 +691,7 @@ func (p *Parser) ParseTag() (ast.TagDecl, bool) {
 		return decl, false
 	}
 	if !p.match(token.Semicolon) {
-		p.errorf("expected %s at %s", token.Semicolon, p.currentToken)
+		errorExpectedSemicolon(p, "tag")
 		return decl, false
 	}
 
@@ -662,7 +701,7 @@ func (p *Parser) ParseTag() (ast.TagDecl, bool) {
 	return decl, true
 }
 
-func (p *Parser) ParseTempl() (ast.TemplDecl, bool) {
+func (p *Parser) parseTemplDecl() (ast.TemplDecl, bool) {
 	var (
 		decl    ast.TemplDecl
 		idents  []token.Token
@@ -724,7 +763,7 @@ switchStart:
 		return decl, false
 	}
 	if !p.match(token.Semicolon) {
-		p.errorf("expected %s at %s", token.Semicolon, p.currentToken)
+		errorExpectedSemicolon(p, "templ")
 		return decl, false
 	}
 
