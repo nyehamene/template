@@ -1,11 +1,11 @@
+p : package : package("home") tag
+p : package : package("home") list
+p : package : package("home") html
+p :: package("home") html
 p : "define a package"
-p : package : package_tag("home")
-p : package : package_list("home")
-p : package : package_html("home")
-p :: package_html("home")
 
 // use a type defined in another namespace in the same package
-Button : type : p.namespace.Type
+Button : type : using(p.namespace)
 
 User : "define a model"
 User : type : record {

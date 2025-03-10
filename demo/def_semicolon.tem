@@ -5,9 +5,9 @@ b :: import("books")
 
 Book :: using(b)
 
-// type alias
+// Declare a custom type based on another type
 
-MyBook :: alias(Book)
+MyBook :: type(Book)
 
 // Models
 
@@ -24,7 +24,7 @@ Product :: record {
     name: string
     price: string
     }
-Product : { id = "my-product", }
+Product : { id = "my-product"; }
 
 Store : """
     """ line 1

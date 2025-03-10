@@ -20,10 +20,8 @@ basic_decl := doc =:
 
 doc        := doc_decl doc
             | tag
-            | main_decl
 	       =:
-tag        := tag_decl tag
-            | tag_decl doc
+tag        := tag_decl doc
             | main_decl
            =:
 main_decl  := alias_decl
