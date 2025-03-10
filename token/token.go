@@ -56,15 +56,13 @@ const (
 	Templ
 	Type
 	Using
-	Tag
-	List
-	Html
 	KeywordEnd
 
 	LiteralBegin
 	Ident
 	String
 	TextBlock
+	Directive
 	LiteralEnd
 
 	Comment
@@ -78,9 +76,6 @@ var keywords = map[string]Kind{
 	"alias":   Alias,
 	"import":  Import,
 	"using":   Using,
-	"tag":     Tag,
-	"list":    List,
-	"html":    Html,
 }
 
 var whitespaces = map[rune]bool{

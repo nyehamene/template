@@ -198,6 +198,10 @@ semiColonInsertion:
 	case '\n':
 		kind = token.EOL
 		t.advance()
+	case '#':
+		kind = token.Directive
+		t.advance()
+		t.ident()
 	case '"':
 		t.advance()
 		if t.ch == '"' {

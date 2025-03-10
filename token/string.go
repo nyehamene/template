@@ -60,12 +60,8 @@ func (k Kind) String() string {
 		return "import"
 	case Using:
 		return "using"
-	case Tag:
-		return "tag"
-	case List:
-		return "list"
-	case Html:
-		return "html"
+	case Directive:
+		return "directive"
 	default:
 		panic(fmt.Sprintf("unreachable: %#v", k))
 	}

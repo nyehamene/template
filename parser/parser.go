@@ -126,31 +126,22 @@ func (p *Parser) consume(tok token.Kind) MatchToken {
 	return Ok(matchedToken)
 }
 
-func (p *Parser) consumePackageName() (res MatchToken, pkg token.Token) {
+func (p *Parser) consumePackageName() MatchToken {
 	var name token.Token
 
-	prev := p.currentToken
-	if ok := p.match(token.Package); !ok {
-		return matchresult.NoMatch(name, token.Package), pkg
-	}
-
-	pkg = prev
-
 	if ok := p.match(token.ParenOpen); !ok {
-		return matchresult.Invalid(p.currentToken, token.ParenOpen), pkg
+		return matchresult.Invalid(p.currentToken, token.ParenOpen)
 	}
 
-	prev = p.currentToken
+	name = p.currentToken
 	if ok := p.match(token.String); !ok {
-		return matchresult.Invalid(p.currentToken, token.String), pkg
+		return matchresult.Invalid(p.currentToken, token.String)
 	}
-
-	name = prev
-
 	if ok := p.match(token.ParenClose); !ok {
-		return matchresult.Invalid(p.currentToken, token.ParenClose), pkg
+		return matchresult.Invalid(p.currentToken, token.ParenClose)
 	}
-	return Ok(name), pkg
+
+	return Ok(name)
 }
 
 func (p *Parser) consumeIdents() (res MatchManyToken) {
@@ -194,19 +185,6 @@ func (p *Parser) consumeKwExpr(kwk token.Kind, exprk token.Kind) (MatchToken, to
 	}
 
 	return Ok(prevExpr), prevKw
-}
-
-func (p *Parser) consumePackageTempl() (tok token.Token, ok bool) {
-	switch p.currentToken.Kind() {
-	case token.Tag, token.Html, token.List:
-		tok = p.currentToken
-		ok = true
-		p.advance()
-	default:
-		return
-	}
-
-	return
 }
 
 func (p *Parser) consumeVarDecl() (idents []token.Token, ty token.Token, ok bool) {
@@ -270,8 +248,6 @@ func (p *Parser) consumeAttrDecl() (keys []token.Token, val token.Token, ok bool
 	return
 }
 
-// parsePackageDecl method
-// TODO: return only bool from all parse method
 func (p *Parser) parsePackageDecl() (ast.PackageDecl, bool) {
 	var (
 		declKind        = token.Package.String()
@@ -295,37 +271,33 @@ switchStart:
 	switch kind := p.currentToken.Kind(); kind {
 	case token.Colon:
 		p.advance()
-		res, pkg := p.consumePackageName()
-		if res.NoMatch() {
-			if isPackageDecl {
-				errorInvalidDecl(p, declKind, res)
+
+	rhsSwitch:
+		switch kind := p.currentToken.Kind(); kind {
+		case token.Directive:
+			// TODO: accept more than one directive
+			templ = p.currentToken
+			p.advance()
+			goto rhsSwitch
+
+		case token.Package:
+			p.advance()
+			res := p.consumePackageName()
+			if res.NoMatch() {
+				if isPackageDecl {
+					errorInvalidDecl(p, declKind, res)
+				}
+				return decl, false
 			}
-			return decl, false
+			if res.Invalid() {
+				errorInvalidDecl(p, declKind, res)
+				return decl, false
+			}
+			if ty.Kind() == token.Invalid {
+				ty = token.New(token.Package, 0, 0)
+			}
+			name = res.Get()
 		}
-		if res.Invalid() {
-			errorInvalidDecl(p, declKind, res)
-			return decl, false
-		}
-		if ty.Kind() == token.Invalid {
-			ty = pkg
-		}
-
-		name = res.Get()
-
-		tok, ok := p.consumePackageTempl()
-		if !ok {
-			p.errorf("invalid %s declaration expected on of %s, %s, %s at %s %s",
-				declKind,
-				token.Tag,
-				token.List,
-				token.Html,
-				p.currentToken,
-				p.pos(),
-			)
-			return decl, false
-		}
-		templ = tok
-
 	case token.Package:
 		ty = p.currentToken
 		isPackageDecl = true

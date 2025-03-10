@@ -1,5 +1,4 @@
-// p :: #html package("home")
-p :: package("home") list
+p :: #html package("home")
 
 b :: import("books")
 

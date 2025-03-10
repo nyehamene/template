@@ -243,12 +243,12 @@ func HelperTempl(t *testing.T, testcase TestCase[templName]) {
 
 func TestPackage(t *testing.T) {
 	testcase := TestCase[pkgName]{
-		`p : package : package("home") tag`:  {[]string{"p"}, "package", `"home"`, "tag"},
-		`p : package : package("home") list`: {[]string{"p"}, "package", `"home"`, "list"},
-		`p : package : package("home") html`: {[]string{"p"}, "package", `"home"`, "html"},
-		`p :: package("home") tag`:           {[]string{"p"}, "package", `"home"`, "tag"},
-		`p :: package("home") list`:          {[]string{"p"}, "package", `"home"`, "list"},
-		`p :: package("home") html`:          {[]string{"p"}, "package", `"home"`, "html"},
+		`p : package : #tag package("home")`:  {[]string{"p"}, "package", `"home"`, "#tag"},
+		`p : package : #list package("home")`: {[]string{"p"}, "package", `"home"`, "#list"},
+		`p : package : #html package("home")`: {[]string{"p"}, "package", `"home"`, "#html"},
+		`p :: #tag package("home")`:           {[]string{"p"}, "package", `"home"`, "#tag"},
+		`p :: #list package("home")`:          {[]string{"p"}, "package", `"home"`, "#list"},
+		`p :: #html package("home")`:          {[]string{"p"}, "package", `"home"`, "#html"},
 	}
 	HelperPackage(t, testcase)
 }

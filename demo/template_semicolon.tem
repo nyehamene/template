@@ -1,7 +1,4 @@
-p : package : package("home") tag
-p : package : package("home") list
-p : package : package("home") html
-p :: package("home") html
+p :: #html package("home")
 p : "define a package"
 
 // use a type defined in another namespace in the same package

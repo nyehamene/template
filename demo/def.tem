@@ -1,5 +1,4 @@
-p :: package("home") tag;
-// p :: #html package("home");
+p :: #html package("home");
 
 b :: import("books");
 
