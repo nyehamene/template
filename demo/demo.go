@@ -2,12 +2,9 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
 	"log"
 	"temlang/tem/ast"
 	"temlang/tem/parser"
-	"temlang/tem/token"
-	"temlang/tem/tokenizer"
 )
 
 //go:embed def.tem
@@ -35,22 +32,8 @@ func main() {
 }
 
 func run(name string, source []byte) {
-	log.Println("\nTokenizing")
-	tokenize(source)
-
 	log.Println("\nParsing")
 	parse(name, source)
-}
-
-func tokenize(s []byte) {
-	tok := tokenizer.New(s)
-	for {
-		t := tok.Next()
-		if t.Kind() == token.EOF {
-			break
-		}
-		fmt.Println(t)
-	}
 }
 
 func parse(name string, s []byte) {
