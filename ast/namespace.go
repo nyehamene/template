@@ -37,7 +37,7 @@ func (n *Namespace) Init() {
 	n.texts = make([]string, 0, int(c))
 }
 
-func (n Namespace) Src() string {
+func (n *Namespace) Src() string {
 	return n.src
 }
 

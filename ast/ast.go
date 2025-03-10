@@ -80,16 +80,16 @@ type Decl struct {
 type PackageDecl struct {
 	Decl
 	hasName
-	templ TokenIndex
+	directive TokenIndex
 }
 
-func (d *PackageDecl) SetTempl(f *Namespace, tok token.Token) {
-	f.addToken(&d.templ, tok)
-	f.addText(&d.templ, tok)
+func (d *PackageDecl) SetDirective(f *Namespace, tok token.Token) {
+	f.addToken(&d.directive, tok)
+	f.addText(&d.directive, tok)
 }
 
 func (d PackageDecl) Templ(f Namespace) string {
-	txt := f.getTextOne(d.templ)
+	txt := f.getTextOne(d.directive)
 	return txt
 }
 

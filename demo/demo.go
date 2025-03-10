@@ -32,12 +32,15 @@ func main() {
 }
 
 func run(name string, source []byte) {
-	log.Println("\nParsing")
+	log.Printf("Parsing %s", name)
 	parse(name, source)
+	println()
 }
 
 func parse(name string, s []byte) {
 	file := ast.New(string(s), name)
 	par := parser.New(file)
 	par.ParseFile()
+	prt := ast.NewPrinter(file)
+	prt.Print()
 }

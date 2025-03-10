@@ -313,8 +313,8 @@ switchStart:
 
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
+	decl.SetDirective(p.file, templ)
 	decl.SetName(p.file, name)
-	decl.SetTempl(p.file, templ)
 
 	p.file.Pkg = decl
 
@@ -438,7 +438,6 @@ switchStart:
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetPkg(p.file, pkg)
-	decl.SetIdents(p.file, idents)
 
 	p.file.AddUsing(decl)
 
@@ -491,7 +490,6 @@ switchStart:
 		errorExpectedSemicolon(p, declKind)
 	}
 
-	decl.SetIdents(p.file, idents)
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetTarget(p.file, target)
@@ -570,7 +568,6 @@ switchStart:
 		errorExpectedSemicolon(p, declKind)
 	}
 
-	decl.SetIdents(p.file, idents)
 	decl.SetIdents(p.file, idents)
 	decl.SetType(p.file, ty)
 	decl.SetFields(p.file, fields)

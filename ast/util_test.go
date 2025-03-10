@@ -44,7 +44,7 @@ func (h hasName) Get(f Namespace) string {
 }
 
 func (d *PackageDecl) Set(f *Namespace, tok token.Token) {
-	d.SetTempl(f, tok)
+	d.SetDirective(f, tok)
 }
 
 func (d PackageDecl) Get(f Namespace) string {
