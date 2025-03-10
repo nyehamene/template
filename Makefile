@@ -1,4 +1,5 @@
 timeout=5s
+
 test/tokenizer:
 	@go test -timeout ${timeout} -cover ./tokenizer
 
