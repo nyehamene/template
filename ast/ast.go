@@ -24,7 +24,7 @@ func (d *hasType) SetType(f *Namespace, tok token.Token) {
 	f.addText(&d.type_, tok)
 }
 
-func (p hasType) Type(f Namespace) string {
+func (p hasType) Type(f *Namespace) string {
 	txt := f.getTextOne(p.type_)
 	return txt
 }
@@ -33,12 +33,12 @@ type hasIdents struct {
 	idents TokenIndex
 }
 
-func (d *hasIdents) SetIdents(f *Namespace, toks []token.Token) {
+func (d *hasIdents) SetIdents(f *Namespace, toks *token.TokenStack) {
 	tokOffset := len(f.tokens)
 	txtOffset := len(f.texts)
-	size := len(toks)
+	size := toks.Len()
 
-	for _, tok := range toks {
+	for tok, ok := toks.Pop(); ok; {
 		f.addToken(&TokenIndex{}, tok)
 		f.addText(&TokenIndex{}, tok)
 	}
@@ -50,7 +50,7 @@ func (d *hasIdents) SetIdents(f *Namespace, toks []token.Token) {
 	d.idents.text.len = size
 }
 
-func (d hasIdents) Idents(f Namespace) []string {
+func (d hasIdents) Idents(f *Namespace) []string {
 	txts := f.getText(d.idents)
 	return txts
 }
@@ -64,7 +64,7 @@ func (d *hasName) SetName(f *Namespace, tok token.Token) {
 	f.addText(&d.name, tok)
 }
 
-func (d hasName) Name(f Namespace) string {
+func (d hasName) Name(f *Namespace) string {
 	txt := f.getTextOne(d.name)
 	return txt
 }
@@ -88,7 +88,7 @@ func (d *PackageDecl) SetDirective(f *Namespace, tok token.Token) {
 	f.addText(&d.directive, tok)
 }
 
-func (d PackageDecl) Templ(f Namespace) string {
+func (d PackageDecl) Templ(f *Namespace) string {
 	txt := f.getTextOne(d.directive)
 	return txt
 }
@@ -108,7 +108,7 @@ func (d *UsingDecl) SetPkg(f *Namespace, tok token.Token) {
 	f.addText(&d.pkg, tok)
 }
 
-func (u UsingDecl) Pkg(f Namespace) string {
+func (u UsingDecl) Pkg(f *Namespace) string {
 	txt := f.getTextOne(u.pkg)
 	return txt
 }
@@ -123,7 +123,7 @@ func (d *TypeDecl) SetTarget(f *Namespace, tok token.Token) {
 	f.addText(&d.target, tok)
 }
 
-func (d TypeDecl) Target(f Namespace) string {
+func (d TypeDecl) Target(f *Namespace) string {
 	txt := f.getTextOne(d.target)
 	return txt
 }
@@ -133,23 +133,11 @@ type RecordDecl struct {
 	fields TokenSlice
 }
 
-func (d *RecordDecl) SetFields(f *Namespace, entries []Entry[[]token.Token, token.Token]) {
-	varIndex := len(f.vars)
-	for _, e := range entries {
-		var (
-			ident = e.key
-			ty    = e.val
-			v     = VarDecl{}
-		)
-		v.SetIdents(f, ident)
-		v.SetType(f, ty)
-		f.vars = append(f.vars, v)
-	}
-	d.fields.index = varIndex
-	d.fields.len = len(entries)
+func (d *RecordDecl) SetFields(f *Namespace, fields TokenSlice) {
+	d.fields = fields
 }
 
-func (d RecordDecl) Fields(f Namespace) []VarDecl {
+func (d RecordDecl) Fields(f *Namespace) []VarDecl {
 	var (
 		index = d.fields.index
 		end   = index + d.fields.len
@@ -185,7 +173,7 @@ func (d *DocDecl) SetContent(f *Namespace, strs ...token.Token) {
 	d.content.text.len = size
 }
 
-func (d DocDecl) Content(f Namespace) string {
+func (d DocDecl) Content(f *Namespace) string {
 	var (
 		index = d.content.text.index
 		end   = index + d.content.text.len
@@ -199,19 +187,11 @@ type TagDecl struct {
 	attrs TokenSlice
 }
 
-func (d *TagDecl) SetAttrs(f *Namespace, attrs []Entry[[]token.Token, token.Token]) {
-	attrIndex := len(f.attrs)
-	for _, attr := range attrs {
-		ad := AttrDecl{}
-		ad.SetIdents(f, attr.key)
-		ad.SetValue(f, attr.val)
-		f.attrs = append(f.attrs, ad)
-	}
-	d.attrs.index = attrIndex
-	d.attrs.len = len(attrs)
+func (d *TagDecl) SetAttrs(f *Namespace, attrs TokenSlice) {
+	d.attrs = attrs
 }
 
-func (d TagDecl) Attrs(f Namespace) []AttrDecl {
+func (d TagDecl) Attrs(f *Namespace) []AttrDecl {
 	var (
 		index = d.attrs.index
 		end   = index + d.attrs.len
@@ -233,7 +213,7 @@ func (d *AttrDecl) SetValue(f *Namespace, tok token.Token) {
 	f.addText(&d.value, tok)
 }
 
-func (d AttrDecl) Value(f Namespace) string {
+func (d AttrDecl) Value(f *Namespace) string {
 	txt := f.getTextOne(d.value)
 	return txt
 }
@@ -243,26 +223,11 @@ type TemplDecl struct {
 	params TokenSlice
 }
 
-func (d *TemplDecl) SetParams(f *Namespace, params []Entry[[]token.Token, token.Token]) {
-	if len(params) != 1 {
-		panic("templ literal parameter list must contain only one param")
-	}
-
-	varIndex := len(f.vars)
-	varlen := len(params)
-
-	for _, tok := range params {
-		v := VarDecl{}
-		v.SetIdents(f, tok.key)
-		v.SetType(f, tok.val)
-		f.vars = append(f.vars, v)
-	}
-
-	d.params.index = varIndex
-	d.params.len = varlen
+func (d *TemplDecl) SetParams(f *Namespace, params TokenSlice) {
+	d.params = params
 }
 
-func (d TemplDecl) Params(f Namespace) []VarDecl {
+func (d TemplDecl) Params(f *Namespace) []VarDecl {
 	var (
 		ident  = d.params.index
 		end    = ident + d.params.len

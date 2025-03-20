@@ -1,0 +1,27 @@
+p: package: package("pkg");
+// p: "package documentation here";
+// p: { name = "value" };
+
+i: import: import("other");
+// i: "import documentation here";
+// i: { name = "value" };
+
+u: using: using(i);
+// u: "using documentation here";
+// u: { name = "value" };
+
+T: type: type(String);
+// T: "type documentation here";
+// T: { name = "value" };
+
+R: type: record{}
+// R: "record documentation here";
+// R: { name = "value" };
+
+E: templ: templ(r: E){}
+// E: "template documentation here";
+// E: { name = "value" };
+
+E: templ: templ(r: type){}
+// E: "template documentation here";
+// E: { name = "value" };

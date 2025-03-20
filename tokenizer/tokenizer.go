@@ -9,10 +9,11 @@ const (
 	eof = rune(-1)
 )
 
-func New(s []byte, opts ...Option) Tokenizer {
+func New(filename string, src []byte, opts ...Option) Tokenizer {
 	// TODO: add namespace file path field to tokenizer struct
 	tok := Tokenizer{
-		src:             s,
+		filename:        filename,
+		src:             src,
 		ch:              0,
 		offset:          0,
 		rdOffset:        0,
@@ -23,6 +24,9 @@ func New(s []byte, opts ...Option) Tokenizer {
 	}
 	for _, opt := range opts {
 		opt(&tok)
+	}
+	if len(src) > 0 {
+		tok.addLine(0)
 	}
 	tok.advance()
 	return tok
@@ -68,6 +72,7 @@ type ErrorHandler func(offset int, ch string, msg string)
 type SemicolonHandler func(*Tokenizer, token.Kind)
 
 type Tokenizer struct {
+	filename        string
 	src             []byte
 	ch              rune
 	offset          int
@@ -76,9 +81,14 @@ type Tokenizer struct {
 	errFunc         ErrorHandler
 	errCount        int
 	semicolonFunc   SemicolonHandler
+	lines           []int
 }
 
-func (t Tokenizer) ErrorCount() int {
+func (t *Tokenizer) addLine(offset int) {
+	t.lines = append(t.lines, offset)
+}
+
+func (t *Tokenizer) ErrorCount() int {
 	return t.errCount
 }
 
@@ -197,6 +207,7 @@ semiColonInsertion:
 		t.advance()
 	case '\n':
 		kind = token.EOL
+		t.addLine(offset)
 		t.advance()
 	case '#':
 		kind = token.Directive
@@ -298,4 +309,47 @@ func (t *Tokenizer) consumeUntil(r rune) {
 		}
 		t.advance()
 	}
+}
+
+func (t *Tokenizer) Location(tok token.Token) token.Location {
+	// if l := len(t.src); tok.Start() >= l || tok.End() >= l {
+	// 	panic(fmt.Sprintf("error: invalid token location %d-%d %s (%d %s)",
+	// 		tok.Start(), tok.End(),
+	// 		t.filename, len(t.src), tok,
+	// 	))
+	// }
+
+	startLine, startLineOffset := t.lineOffset(tok)
+	srcLine := t.src[startLineOffset:tok.Start()]
+	startCol := len(srcLine)
+
+	srcLine = t.src[tok.Start():tok.End()]
+	endLine := startLine
+	endCol := startCol
+
+	for _, c := range srcLine {
+		if c == '\n' {
+			endLine += 1
+			endCol = 0
+			continue
+		}
+		endCol += 1
+	}
+
+	start := token.Pos{Line: startLine, Col: startCol}
+	end := token.Pos{Line: endLine, Col: endCol}
+
+	return token.Location{Start: start, End: end, File: t.filename}
+}
+
+// lineOffset returns the line number num and line offset offset for tok
+func (t *Tokenizer) lineOffset(tok token.Token) (num int, offset int) {
+	for _, lineOffset := range t.lines {
+		if lineOffset > tok.Start() {
+			break
+		}
+		num += 1
+		offset = lineOffset
+	}
+	return num, offset
 }

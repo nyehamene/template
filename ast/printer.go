@@ -45,7 +45,7 @@ func (p *Printer) init(pm *printed) {
 
 func (p *Printer) addLines(pm *printed) {
 	src := pm.src
-	if src == "" {
+	if len(src) == 0 {
 		return
 	}
 
@@ -101,7 +101,7 @@ type writeFunc func() func(int)
 type printed struct {
 	pkg        PackageDecl
 	file       string
-	src        string
+	src        []byte // TODO remove
 	rdOffset   int
 	rdLines    int
 	rdCols     int

@@ -1,8 +1,14 @@
 package token
 
+import (
+	"temlang/tem/dsa/stack"
+)
+
 func New(kind Kind, offset, end int) Token {
 	return Token{kind: kind, start: offset, end: end}
 }
+
+type TokenStack = stack.Stack[Token]
 
 type Token struct {
 	kind  Kind

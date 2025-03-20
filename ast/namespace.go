@@ -2,7 +2,7 @@ package ast
 
 import "temlang/tem/token"
 
-func New(src string, name string) *Namespace {
+func New(name string, src []byte) *Namespace {
 	n := Namespace{src: src}
 	return &n
 }
@@ -22,7 +22,7 @@ type Namespace struct {
 	tokens   []token.Token
 	Name     string
 	Path     string
-	src      string
+	src      []byte // TODO remove src
 	tokenLen int
 	textLen  int
 }
@@ -35,10 +35,6 @@ func (n *Namespace) Init() {
 	// initialize the namespace file
 	n.tokens = make([]token.Token, 0, int(c))
 	n.texts = make([]string, 0, int(c))
-}
-
-func (n *Namespace) Src() string {
-	return n.src
 }
 
 func (n *Namespace) text(tok token.Token) (string, bool) {

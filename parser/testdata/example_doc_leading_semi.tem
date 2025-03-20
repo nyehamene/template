@@ -1,0 +1,34 @@
+p: "package documentation"
+p: { name = "value" }
+p: "more single line documentation text"
+p: package: package("pkg")
+
+i: "import documentation here"
+i: { name = "value" }
+i: "more single line documentation text"
+i: import: import("other")
+
+u: "using documentation here"
+u: { name = "value" }
+u: "more single line documentation text"
+u: using: using(i)
+
+T: "type documentation here"
+T: { name = "value" }
+T: "more single line documentation text"
+T: type: type(String)
+
+R: "record documentation here"
+R: { name = "value" }
+R: "more single line documentation text"
+R: type: record{}
+
+E: "template documentation here"
+E: { name = "value" }
+E: "more single line documentation text"
+E: templ: templ(r: E){}
+
+E: "template documentation here"
+E: { name = "value" }
+E: "more single line documentation text"
+E: templ: templ(r: type){}

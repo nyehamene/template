@@ -3,87 +3,62 @@ package parser
 import (
 	"fmt"
 	"log"
-	"temlang/tem/ast"
-	"temlang/tem/matchresult"
+	"temlang/tem/dsa/stack"
 	"temlang/tem/token"
 	"temlang/tem/tokenizer"
 )
 
-func New(file *ast.Namespace) Parser {
-	file.Init()
-	bytes := []byte(file.Src())
-	t := tokenizer.New(bytes)
-	badTok := token.Token{}
-	p := Parser{t, file, badTok, defaultErrorHandler}
+func New(filename string, src []byte) Parser {
+	tok := tokenizer.New(filename, src)
+	p := Parser{
+		filename:  filename,
+		src:       src,
+		tokenizer: tok,
+		cur:       token.Token{},
+		errors:    &token.ErrorQueue{},
+	}
+	p.errorf = func(pos token.Location, msg string, argv ...any) {
+		defaultErrorHandler(p.errors, pos, msg, argv...)
+	}
 	p.advance()
 	return p
 }
 
-func defaultErrorHandler(msg string, args ...any) {
-	log.Printf(msg, args...)
-	log.Println()
-}
-
-func errorInvalidDecl[T any, E any](p *Parser, k string, res matchresult.Type[T, E]) {
-	pos := p.pos()
-	p.errorf("invalid %s declaration at %s expected %s %s",
-		k, res.Get(), res.Exp(),
-		pos.String())
-}
-
-func errorExpectedSemicolon(p *Parser, k string) {
-	pos := p.pos()
-	p.errorf("invalid %s declaration at %s expected %s %s",
-		k, p.currentToken,
-		token.Semicolon,
-		pos.String())
-}
-
-type Pos struct {
-	line, col int
-	file      string
-}
-
-func (p Pos) String() string {
-	return fmt.Sprintf("[%d:%d in %s]", p.line, p.col, p.file)
+func defaultErrorHandler(errors *token.ErrorQueue, pos token.Location, msg string, args ...any) {
+	err := token.Error{
+		Msg:      fmt.Sprintf(msg, args...),
+		Location: pos,
+	}
+	log.Printf("%s", err)
+	errors.Push(err)
 }
 
 type Parser struct {
-	tokenizer    tokenizer.Tokenizer
-	file         *ast.Namespace
-	currentToken token.Token
-	errorf       func(msg string, args ...any)
+	tokenizer tokenizer.Tokenizer
+	filename  string
+	src       []byte // TODO remove src
+	cur       token.Token
+	prev      token.Token
+	errors    *token.ErrorQueue
+	errorf    func(p token.Location, msg string, args ...any)
 }
 
-func (p *Parser) pos() Pos {
-	src := p.file.Src()
-	if src == "" {
-		return Pos{0, 0, p.file.Name}
+func (p *Parser) errorExpected(pos token.Location, msg string) {
+	p.errorf(pos, fmt.Sprintf("expected '%s' got %s", msg, p.cur.Kind()))
+}
+
+func (p *Parser) expectSemicolon() {
+	if k := p.cur.Kind(); k != token.BraceClose {
+		p.expect(token.Semicolon)
 	}
-
-	var (
-		line, col = 1, 0
-		sc        = src[0:p.currentToken.End()]
-	)
-
-	for _, r := range sc {
-		if r == '\n' {
-			line += 1
-			col = 0
-			continue
-		}
-		col += 1
-	}
-
-	return Pos{line, col, p.file.Name}
 }
 
 func (p *Parser) Mark() func() {
-	prev := p.currentToken
+	prev := p.cur
 	reset := p.tokenizer.Mark()
 	return func() {
 		reset()
-		p.currentToken = prev
+		p.cur = prev
 	}
 }
 
@@ -100,16 +75,17 @@ func (p *Parser) skipNewlineAndComment() token.Token {
 }
 
 func (p *Parser) advance() bool {
-	if p.currentToken.Kind() == token.EOF {
+	if p.cur.Kind() == token.EOF {
 		return false
 	}
 	tok := p.skipNewlineAndComment()
-	p.currentToken = tok
+	p.prev = p.cur
+	p.cur = tok
 	return true
 }
 
 func (p *Parser) match(tok token.Kind) bool {
-	if p.currentToken.Kind() != tok {
+	if p.cur.Kind() != tok {
 		return false
 	}
 
@@ -117,638 +93,253 @@ func (p *Parser) match(tok token.Kind) bool {
 	return true
 }
 
-func (p *Parser) consume(tok token.Kind) MatchToken {
-	matchedToken := p.currentToken
+func (p *Parser) expect(tok token.Kind) bool {
 	if !p.match(tok) {
-		var empty token.Token
-		return matchresult.NoMatch(empty, tok)
+		p.errorExpected(p.loc(), tok.String())
+		return false
 	}
-	return Ok(matchedToken)
+	return true
 }
 
-func (p *Parser) consumePackageName() MatchToken {
-	var name token.Token
+func (p *Parser) matchIdents() (token.TokenStack, bool) {
+	var idents token.TokenStack
 
-	if ok := p.match(token.ParenOpen); !ok {
-		return matchresult.Invalid(p.currentToken, token.ParenOpen)
-	}
-
-	name = p.currentToken
-	if ok := p.match(token.String); !ok {
-		return matchresult.Invalid(p.currentToken, token.String)
-	}
-	if ok := p.match(token.ParenClose); !ok {
-		return matchresult.Invalid(p.currentToken, token.ParenClose)
-	}
-
-	return Ok(name)
-}
-
-func (p *Parser) consumeIdents() (res MatchManyToken) {
-	var idents []token.Token
-
-	for {
-		prev := p.currentToken
-		if res := p.consume(token.Ident); !res.Ok() {
-			return NoMatchMany(p.currentToken, token.Ident)
-		}
-
-		idents = append(idents, prev)
-
-		if res := p.consume(token.Comma); !res.Ok() {
-			break
-		}
-	}
-
-	return OkMany(idents)
-}
-
-func (p *Parser) consumeKwExpr(kwk token.Kind, exprk token.Kind) (MatchToken, token.Token) {
-	var empty token.Token
-
-	prevKw := p.currentToken
-	if kind := kwk; !p.match(kind) {
-		return NoMatch(p.currentToken, kind), empty
-	}
-
-	if kind := token.ParenOpen; !p.match(kind) {
-		return Invalid(p.currentToken, kind), empty
-	}
-
-	prevExpr := p.currentToken
-	if kind := exprk; !p.match(kind) {
-		return Invalid(p.currentToken, kind), empty
-	}
-
-	if kind := token.ParenClose; !p.match(kind) {
-		return Invalid(p.currentToken, kind), empty
-	}
-
-	return Ok(prevExpr), prevKw
-}
-
-func (p *Parser) consumeVarDecl() (idents []token.Token, ty token.Token, ok bool) {
-	resMany := p.consumeIdents()
-	if !resMany.Ok() {
-		return
-	}
-	if !p.match(token.Colon) {
-		return
-	}
-
-	idents = resMany.Get()
-	prev := p.currentToken
-	if !p.match(token.Ident) {
-		return
-	}
-
-	ty = prev
-	ok = true
-	return
-}
-
-func (p *Parser) consumeTemplParamsDecl() (idents []token.Token, ty token.Token, ok bool) {
-	resMany := p.consumeIdents()
-	if !resMany.Ok() {
-		return
-	}
-	if !p.match(token.Colon) {
-		return
-	}
-
-	idents = resMany.Get()
-	prev := p.currentToken
-	if !p.match(token.Ident) && !p.match(token.Type) {
-		return
-	}
-
-	ty = prev
-	ok = true
-	return
-}
-
-func (p *Parser) consumeAttrDecl() (keys []token.Token, val token.Token, ok bool) {
-	resMany := p.consumeIdents()
-	if !resMany.Ok() {
-		return
-	}
-
-	keys = resMany.Get()
-	if !p.match(token.Eq) {
-		return
-	}
-
-	prev := p.currentToken
-	if !p.match(token.String) {
-		return
-	}
-
-	val = prev
-	ok = true
-	return
-}
-
-func (p *Parser) parsePackageDecl() (ast.PackageDecl, bool) {
-	var (
-		declKind        = token.Package.String()
-		ty, name, templ token.Token
-		idents          []token.Token
-		decl            ast.PackageDecl
-	)
-
-	resMany := p.consumeIdents()
-	if !resMany.Ok() {
-		return decl, false
-	}
-	if !p.match(token.Colon) {
-		return decl, false
-	}
-
-	idents = resMany.Get()
-	isPackageDecl := false
-
-switchStart:
-	switch kind := p.currentToken.Kind(); kind {
-	case token.Colon:
+identStart:
+	switch k := p.cur.Kind(); k {
+	case token.Ident:
 		p.advance()
-
-	rhsSwitch:
-		switch kind := p.currentToken.Kind(); kind {
-		case token.Directive:
-			// TODO: accept more than one directive
-			templ = p.currentToken
+		idents.Push(p.prev)
+		switch k = p.cur.Kind(); k {
+		case token.Comma:
 			p.advance()
-			goto rhsSwitch
-
-		case token.Package:
+			goto identStart
+		case token.Colon:
 			p.advance()
-			res := p.consumePackageName()
-			if res.NoMatch() {
-				if isPackageDecl {
-					errorInvalidDecl(p, declKind, res)
-				}
-				return decl, false
-			}
-			if res.Invalid() {
-				errorInvalidDecl(p, declKind, res)
-				return decl, false
-			}
-			if ty.Kind() == token.Invalid {
-				ty = token.New(token.Package, 0, 0)
-			}
-			name = res.Get()
 		}
-	case token.Package:
-		ty = p.currentToken
-		isPackageDecl = true
-		p.advance()
-		goto switchStart
 	default:
-		return decl, false
+		return idents, false
 	}
-
-	if !p.match(token.Semicolon) {
-		errorExpectedSemicolon(p, declKind)
-	}
-
-	decl.SetIdents(p.file, idents)
-	decl.SetType(p.file, ty)
-	decl.SetDirective(p.file, templ)
-	decl.SetName(p.file, name)
-
-	p.file.Pkg = decl
-
-	return decl, true
+	return idents, true
 }
 
-func (p *Parser) parseImportDecl() (ast.ImportDecl, bool) {
-	var (
-		declKind = token.Import.String()
-		decl     ast.ImportDecl
-		ty, path token.Token
-		idents   []token.Token
-	)
+type parseTokenSpec func() bool
 
-	resMany := p.consumeIdents()
-	if !resMany.Ok() {
-		return decl, false
+func (p *Parser) expectSurround(open token.Kind, close token.Kind, f parseTokenSpec) bool {
+	if !p.expect(open) {
+		return false
 	}
-	if !p.match(token.Colon) {
-		return decl, false
+	if !f() {
+		return false
 	}
-
-	idents = resMany.Get()
-	isImportDecl := false
-
-switchStart:
-	switch kind := p.currentToken.Kind(); kind {
-	case token.Colon:
-		p.advance()
-		res, kw := p.consumeKwExpr(token.Import, token.String)
-		if res.NoMatch() {
-			if isImportDecl {
-				errorInvalidDecl(p, declKind, res)
-			}
-			return decl, false
-		}
-		if res.Invalid() {
-			errorInvalidDecl(p, declKind, res)
-			return decl, false
-		}
-		if ty.Kind() == token.Invalid {
-			ty = kw
-		}
-
-		path = res.Get()
-
-	case token.Import:
-		ty = p.currentToken
-		isImportDecl = true
-		p.advance()
-		goto switchStart
-	default:
-		return decl, false
+	surrounded := p.prev
+	if !p.expect(close) {
+		return false
 	}
-
-	if !p.match(token.Semicolon) {
-		errorExpectedSemicolon(p, declKind)
-	}
-
-	decl.SetIdents(p.file, idents)
-	decl.SetType(p.file, ty)
-	decl.SetName(p.file, path)
-
-	p.file.AddImport(decl)
-
-	return decl, true
+	p.prev = surrounded
+	return true
 }
 
-func (p *Parser) parseUsingDecl() (ast.UsingDecl, bool) {
-	var (
-		declKind = token.Using.String()
-		ty, pkg  token.Token
-		idents   []token.Token
-		decl     ast.UsingDecl
-	)
-
-	resMany := p.consumeIdents()
-	if !resMany.Ok() {
-		return decl, false
-	}
-	if !p.match(token.Colon) {
-		return decl, false
-	}
-
-	idents = resMany.Get()
-	isUsingDecl := false
-
-switchStart:
-	switch kind := p.currentToken.Kind(); kind {
-	case token.Colon:
-		p.advance()
-		res, kw := p.consumeKwExpr(token.Using, token.Ident)
-		if res.NoMatch() {
-			if isUsingDecl {
-				errorInvalidDecl(p, declKind, res)
-			}
-			return decl, false
-		}
-		if res.Invalid() {
-			errorInvalidDecl(p, declKind, res)
-			return decl, false
-		}
-		if ty.Kind() == token.Invalid {
-			ty = kw
-		}
-		pkg = res.Get()
-
-	case token.Using:
-		ty = p.currentToken
-		isUsingDecl = true
-		p.advance()
-		goto switchStart
-	default:
-		return decl, false
-	}
-
-	if !p.match(token.Semicolon) {
-		errorExpectedSemicolon(p, declKind)
-	}
-
-	decl.SetIdents(p.file, idents)
-	decl.SetType(p.file, ty)
-	decl.SetPkg(p.file, pkg)
-
-	p.file.AddUsing(decl)
-
-	return decl, true
+func (p *Parser) expectSurroundParen(tok token.Kind) bool {
+	return p.expectSurround(token.ParenOpen, token.ParenClose, p.matchspec(tok))
 }
 
-func (p *Parser) parseTypeDecl() (ast.TypeDecl, bool) {
-	var (
-		declKind   = token.Type.String()
-		decl       ast.TypeDecl
-		idents     []token.Token
-		ty, target token.Token
-		resMany    MatchManyToken
-	)
-
-	if resMany = p.consumeIdents(); !resMany.Ok() {
-		return decl, false
+func (p *Parser) matchspec(tok token.Kind) parseTokenSpec {
+	return func() bool {
+		return p.match(tok)
 	}
-	if !p.match(token.Colon) {
-		return decl, false
-	}
-
-	idents = resMany.Get()
-
-switchStart:
-	switch kind := p.currentToken.Kind(); kind {
-	case token.Colon:
-		p.advance()
-		res, _ := p.consumeKwExpr(token.Type, token.Ident)
-		if res.NoMatch() {
-			return decl, false
-		}
-		if res.Invalid() {
-			errorInvalidDecl(p, declKind, res)
-			return decl, false
-		}
-		if ty.Kind() == token.Invalid {
-			ty = token.New(token.Type, 0, 0)
-		}
-		target = res.Get()
-
-	case token.Type:
-		p.advance()
-		goto switchStart
-	default:
-		return decl, false
-	}
-
-	if !p.match(token.Semicolon) {
-		errorExpectedSemicolon(p, declKind)
-	}
-
-	decl.SetIdents(p.file, idents)
-	decl.SetType(p.file, ty)
-	decl.SetTarget(p.file, target)
-
-	p.file.AddType(decl)
-
-	return decl, true
 }
 
-func (p *Parser) parseRecordDecl() (ast.RecordDecl, bool) {
-	var (
-		declKind = token.Record.String()
-		decl     ast.RecordDecl
-		idents   []token.Token
-		resMany  MatchManyToken
-		ty       token.Token
-		fields   = []ast.Entry[[]token.Token, token.Token]{}
-	)
+type parseTreeSpec func() TreeStack
 
-	if resMany = p.consumeIdents(); !resMany.Ok() {
-		return decl, false
+func (p *Parser) expectSurroundTree(open token.Kind, close token.Kind, f parseTreeSpec) TreeStack {
+	if !p.expect(open) {
+		p.errorExpected(p.loc(), open.String())
+		return p.badtreeStack()
 	}
-	if !p.match(token.Colon) {
-		return decl, false
+	tree := f()
+	if !p.expect(close) {
+		p.errorExpected(p.loc(), close.String())
+		return p.badtreeStack()
 	}
-
-	idents = resMany.Get()
-
-switchStart:
-	switch kind := p.currentToken.Kind(); kind {
-	case token.Colon:
-		p.advance()
-		res := p.consume(token.Record)
-		if res.NoMatch() {
-			return decl, false
-		}
-		if res.Invalid() {
-			errorInvalidDecl(p, declKind, res)
-			return decl, false
-		}
-		if ty.Kind() == token.Invalid {
-			ty = token.New(token.Record, 0, 0)
-		}
-		if res = p.consume(token.BraceOpen); !res.Ok() {
-			errorInvalidDecl(p, declKind, res)
-			return decl, false
-		}
-
-		for {
-			i, t, ok := p.consumeVarDecl()
-			if !ok {
-				break
-			}
-
-			fields = append(fields, ast.EntryMany(i, t))
-
-			if !p.match(token.Semicolon) {
-				errorExpectedSemicolon(p, declKind)
-				break
-			}
-		}
-
-		if res = p.consume(token.BraceClose); !res.Ok() {
-			errorInvalidDecl(p, declKind, res)
-			return decl, false
-		}
-
-	case token.Type:
-		p.advance()
-		goto switchStart
-	default:
-		return decl, false
-	}
-
-	if !p.match(token.Semicolon) {
-		errorExpectedSemicolon(p, declKind)
-	}
-
-	decl.SetIdents(p.file, idents)
-	decl.SetType(p.file, ty)
-	decl.SetFields(p.file, fields)
-
-	p.file.AddRecord(decl)
-
-	return decl, true
+	return tree
 }
 
-func (p *Parser) parseDocDecl() (ast.DocDecl, bool) {
-	var (
-		decl          ast.DocDecl
-		idents, lines []token.Token
-		resMany       MatchManyToken
-	)
+func (p *Parser) expectSurroundTreeBrace(f parseTreeSpec) TreeStack {
+	return p.expectSurroundTree(token.BraceOpen, token.BraceClose, f)
+}
 
-	if resMany = p.consumeIdents(); !resMany.Ok() {
-		return decl, false
-	}
+func (p *Parser) empty(tok token.Kind) token.Token {
+	// pos := p.pos()
+	// FIX: dtype should have zero length because it not declared in the source code
+	// return token.New(tok, pos.Line, pos.Col)
+	return token.New(tok, 0, 0)
+}
 
-	idents = resMany.Get()
-	if !p.match(token.Colon) {
-		return decl, false
-	}
+func (p *Parser) badtree() Tree {
+	loc := p.loc()
+	from := loc.Start
+	to := loc.End
+	return badtree{from, to}
+}
 
-	if str := p.currentToken; p.match(token.String) {
-		lines = append(lines, str)
-		if !p.match(token.Semicolon) {
-			errorExpectedSemicolon(p, "doc")
-		}
+func (p *Parser) badexpr() Expr {
+	return badexpr{}
+}
+
+func (p *Parser) badtreeStack() TreeStack {
+	err := stack.New[Tree](1)
+	err.Push(p.badtree())
+	return err
+}
+
+type parseDeclSpec func(token.TokenStack) Tree
+
+func (p *Parser) parseDocDecl(idents token.TokenStack) Tree {
+	var lines token.TokenStack
+
+	if str := p.cur; p.match(token.String) {
+		lines.Push(str)
+		p.expectSemicolon()
 	} else {
-		if p.currentToken.Kind() != token.TextBlock {
-			return decl, false
+		if p.cur.Kind() != token.TextBlock {
+			p.errorExpected(p.loc(), "documentation text")
+			return p.badtree()
 		}
-		for {
-			res := p.consume(token.TextBlock)
-			if !res.Ok() {
+		for p.cur.Kind() == token.TextBlock {
+			if !p.expect(token.TextBlock) {
 				break
 			}
-
-			lines = append(lines, res.Get())
-			if !p.match(token.Semicolon) {
-				errorExpectedSemicolon(p, "doc")
-				break
-			}
-			// NOTE: eol is already skipped by the last call to advance
-			// if !p.match(token.EOL) {
-			// 	errorExpected(p, "doc", token.EOL)
-			// 	break
-			// }
+			lines.Push(p.prev)
+			p.expectSemicolon()
 		}
 	}
 
-	decl.SetIdents(p.file, idents)
-	decl.SetContent(p.file, lines...)
-
-	p.file.AddDoc(decl)
-
-	return decl, true
+	// fix: match optional explicit semicolon
+	p.match(token.Semicolon)
+	return doctree{idents, lines}
 }
 
-func (p *Parser) parseTagDecl() (ast.TagDecl, bool) {
-	var (
-		decl    ast.TagDecl
-		idents  []token.Token
-		resMany MatchManyToken
+func (p *Parser) parsePackageDecl(idents token.TokenStack) Tree {
+	return p.parseGenDecl(
+		idents,
+		token.Package,
+		p.parsePackageExpr,
+		func(d decltree, e Expr) Tree {
+			return pkgtree{d, e}
+		},
+		p.parseImportDecl,
 	)
+}
 
-	attrs := []ast.Entry[[]token.Token, token.Token]{}
+func (p *Parser) parseImportDecl(idents token.TokenStack) Tree {
+	return p.parseGenDecl(
+		idents,
+		token.Import,
+		p.parseImportExpr,
+		func(d decltree, e Expr) Tree {
+			return importtree{d, e}
+		},
+		p.parseUsingDecl,
+	)
+}
 
-	if resMany = p.consumeIdents(); !resMany.Ok() {
-		return decl, false
+func (p *Parser) parseUsingDecl(idents token.TokenStack) Tree {
+	return p.parseGenDecl(
+		idents,
+		token.Using,
+		p.parseUsingExpr,
+		func(d decltree, e Expr) Tree {
+			return usingtree{d, e}
+		},
+		p.parseDecl,
+	)
+}
+
+func (p *Parser) parseVarDecl(idents token.TokenStack) Tree {
+	if !p.match(token.Ident) && !p.match(token.Type) {
+		p.errorExpected(p.loc(), "var type")
+		return p.badtree()
+	}
+	dtype := p.prev
+	return vartree{idents, dtype}
+}
+
+func (p *Parser) parseIdents(f parseDeclSpec) Tree {
+	idents, ok := p.matchIdents()
+	if !ok {
+		p.errorExpected(p.loc(), "ident")
+		return p.badtree()
+	}
+	return f(idents)
+}
+
+func (p *Parser) parseParamDecl() TreeStack {
+	if !p.expect(token.ParenOpen) {
+		p.errorExpected(p.loc(), "(")
+		return p.badtreeStack()
 	}
 
-	idents = resMany.Get()
-	if !p.match(token.Colon) {
-		return decl, false
-	}
-	if !p.match(token.BraceOpen) {
-		return decl, false
-	}
-
+	params := TreeStack{}
 	for {
-		keys, value, ok := p.consumeAttrDecl()
-		if !ok {
-			break
-		}
-
-		attrs = append(attrs, ast.EntryMany(keys, value))
-		if !p.match(token.Semicolon) {
+		param := p.parseIdents(p.parseVarDecl)
+		params.Push(param)
+		if !p.match(token.Comma) {
 			break
 		}
 	}
 
-	if !p.match(token.BraceClose) {
-		return decl, false
-	}
-	if !p.match(token.Semicolon) {
-		errorExpectedSemicolon(p, "tag")
-		return decl, false
-	}
-
-	decl.SetIdents(p.file, idents)
-	decl.SetAttrs(p.file, attrs)
-
-	p.file.AddTag(decl)
-
-	return decl, true
+	p.expect(token.ParenClose)
+	return params
 }
 
-func (p *Parser) parseTemplDecl() (ast.TemplDecl, bool) {
-	var (
-		decl    ast.TemplDecl
-		idents  []token.Token
-		ty      token.Token
-		resMany MatchManyToken
-	)
-
-	params := []ast.Entry[[]token.Token, token.Token]{}
-
-	if resMany = p.consumeIdents(); !resMany.Ok() {
-		return decl, false
+// parseAttrDecl should return ast.TokenIndex for the first var added to namespace
+func (p *Parser) parseAttrDecl(idents token.TokenStack) Tree {
+	p.expect(token.Eq)
+	if !p.expect(token.String) {
+		p.errorExpected(p.loc(), "attribute value")
+		return p.badtree()
 	}
 
-	idents = resMany.Get()
-	if !p.match(token.Colon) {
-		return decl, false
+	val := litexpr(p.prev)
+	return attrtree{idents, val}
+}
+
+func (p *Parser) parseTagDecl(idents token.TokenStack) Tree {
+	if !p.expect(token.BraceOpen) {
+		p.errorExpected(p.loc(), "{")
+		return p.badtree()
 	}
 
-switchStart:
-	switch kind := p.currentToken.Kind(); kind {
-	case token.Colon:
-		p.advance()
-	exprStart:
-		switch kind := p.currentToken.Kind(); kind {
-		case token.Templ:
-			p.advance()
-			goto exprStart
-		case token.ParenOpen:
-			p.advance()
-
-			i, t, ok := p.consumeTemplParamsDecl()
-			if !ok {
-				return decl, false
-			}
-
-			params = append(params, ast.EntryMany(i, t))
-			if !p.match(token.ParenClose) {
-				return decl, false
-			}
-		default:
-			return decl, false
+	var attrs TreeStack
+	for {
+		attr := p.parseIdents(p.parseAttrDecl)
+		attrs.Push(attr)
+		p.expectSemicolon()
+		if p.cur.Kind() == token.BraceClose {
+			break
 		}
-	case token.Templ:
-		ty = p.currentToken
-		p.advance()
-		goto switchStart
-	default:
-		return decl, false
 	}
 
-	if ty.Kind() == token.Invalid {
-		ty = token.New(token.Templ, 0, 0)
-	}
-	if !p.match(token.BraceOpen) {
-		return decl, false
+	if !p.expect(token.BraceClose) {
+		p.errorExpected(p.loc(), "{")
+		return p.badtree()
 	}
 
-	if !p.match(token.BraceClose) {
-		return decl, false
+	p.expectSemicolon()
+
+	tree := tagtree{
+		idents: idents,
+		attrs:  attrs,
 	}
-	if !p.match(token.Semicolon) {
-		errorExpectedSemicolon(p, "templ")
-		return decl, false
-	}
+	return tree
+}
 
-	decl.SetIdents(p.file, idents)
-	decl.SetType(p.file, ty)
-	decl.SetParams(p.file, params)
+func (p *Parser) parseElements() TreeStack {
+	// TODO: parse template elements,text, and expression
+	var ts TreeStack
+	return ts
+}
 
-	p.file.AddTempl(decl)
-
-	return decl, true
+func (p *Parser) loc() token.Location {
+	return p.tokenizer.Location(p.cur)
 }

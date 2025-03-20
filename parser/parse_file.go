@@ -1,97 +1,148 @@
 package parser
 
-func (p *Parser) ParseFile() {
-	p.pkg()
+import (
+	"os"
+	"temlang/tem/ast"
+	"temlang/tem/token"
+)
+
+func ParseFile(filename string, src []byte) (*ast.Namespace, *token.ErrorQueue) {
+	if src == nil {
+		var err error
+		src, err = os.ReadFile(filename)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	file := ast.New(filename, src)
+	p := New(filename, src)
+	p.pkg(file)
+	return file, p.errors
 }
 
-func (p *Parser) pkg() {
-	reset := p.Mark()
-	_, ok := p.parsePackageDecl()
+func (p *Parser) pkg(f *ast.Namespace) {
+	tree := p.parseDoc(p.parsePackageDecl)
+	if _, ok := tree.(pkgtree); !ok {
+		var loc token.Location
+		p.errorf(loc, "no package declaration")
+	}
+
+	tree.TreeAst(f)
+	p.parseImport(f)
+}
+
+func (p *Parser) parseImport(f *ast.Namespace) {
+	for p.cur.Kind() != token.EOF {
+		tree := p.parseDoc(p.parseImportDecl)
+		tree.TreeAst(f)
+	}
+}
+
+func (p *Parser) parseDoc(f parseDeclSpec) Tree {
+declStart:
+	idents, ok := p.matchIdents()
+	if p.cur.Kind() == token.EOF {
+		p.errorf(p.loc(), "unexpected end of file")
+		return p.badtree()
+	}
 	if !ok {
-		reset()
-		p.errorf("namespace must have a package declaration as the first none comment decl")
+		p.errorExpected(p.loc(), "ident")
+		return p.badtree()
 	}
-	p.import_()
+
+	switch k := p.cur.Kind(); k {
+	case token.String, token.TextBlock:
+		p.parseDocDecl(idents)
+		goto declStart
+	case token.BraceOpen:
+		p.parseTagDecl(idents)
+		goto declStart
+	default:
+		tree := f(idents)
+		// parseTrailingDoc(f, tree, idents)
+		return tree
+	}
 }
 
-func (p *Parser) import_() {
-	for {
-		reset := p.Mark()
-		_, ok := p.parseImportDecl()
-		if !ok {
-			reset()
-			break
+func (p *Parser) parseDecl(idents token.TokenStack) Tree {
+	return p.parseBasicDecl(idents)
+}
+
+func (p *Parser) parseBasicDecl(idents token.TokenStack) Tree {
+	var kind token.Kind
+	var treeFunc func(decltree, Expr) Tree
+
+	exprFunc := p.parseBasicExpr
+
+	badTreeFunc := func(_ token.TokenStack) Tree {
+		p.errorExpected(p.loc(), "a declaration")
+		return p.badtree()
+	}
+
+	switch k := p.cur.Kind(); k {
+	case token.Type:
+		kind = k
+		treeFunc = func(d decltree, e Expr) Tree {
+			return typetree{d, e}
 		}
-	}
-	p.using()
-}
 
-func (p *Parser) using() {
-	for {
-		reset := p.Mark()
-		_, ok := p.parseUsingDecl()
-		if !ok {
-			reset()
-			break
+	case token.Record:
+		kind = k
+		treeFunc = func(d decltree, e Expr) Tree {
+			return recordtree{d, e}
 		}
-	}
-	p.decl()
-}
 
-func (p *Parser) decl() {
-	for {
-		reset := p.Mark()
-		ok := p.basicDecl()
-		if !ok {
-			reset()
-			break
+	case token.Templ:
+		kind = k
+		treeFunc = func(d decltree, e Expr) Tree {
+			return templtree{d, e}
 		}
+
+	default:
+		return badTreeFunc(idents)
 	}
+
+	return p.parseGenDecl(idents, kind, exprFunc, treeFunc, badTreeFunc)
 }
 
-func (p *Parser) basicDecl() bool {
-	return p.doc()
-}
+func (p *Parser) parseGenDecl(
+	idents token.TokenStack,
+	kind token.Kind,
+	exprFunc parseExprSpec,
+	treeFunc func(decltree, Expr) Tree,
+	fallback parseDeclSpec,
+) Tree {
+	var dtype token.Token
+	var expr Expr
 
-func (p *Parser) doc() bool {
-	reset := p.Mark()
-	_, ok := p.parseDocDecl()
-	if ok {
-		return p.doc()
-	}
-	reset()
-	return p.tag()
-}
+	kindCount := 0
+declStart:
+	switch k := p.cur.Kind(); k {
+	case token.Colon:
+		p.advance()
+		expr = exprFunc()
 
-func (p *Parser) tag() bool {
-	reset := p.Mark()
-	_, ok := p.parseTagDecl()
-	if ok {
-		return p.doc()
-	}
-	reset()
-	return p.mainDecl()
-}
+	case kind:
+		if kindCount > 0 {
+			p.errorf(p.loc(), "unexpected %s")
+			return p.badtree()
+		}
+		p.advance()
+		dtype = p.prev
+		goto declStart
 
-func (p *Parser) mainDecl() (ok bool) {
-	reset := p.Mark()
-	_, ok = p.parseTypeDecl()
-	if ok {
-		return
+	default:
+		// p.errorExpected(p.loc(), fmt.Sprintf(": or %s", kind))
+		// return p.badtree()
+		return fallback(idents)
 	}
-	reset()
 
-	reset = p.Mark()
-	_, ok = p.parseRecordDecl()
-	if ok {
-		return
+	if dtype.Kind() == token.Invalid {
+		dtype = p.empty(kind)
 	}
-	reset()
 
-	reset = p.Mark()
-	_, ok = p.parseTemplDecl()
-	if !ok {
-		reset()
-	}
-	return
+	p.expectSemicolon()
+	d := decltree{idents, dtype}
+	return treeFunc(d, expr)
 }

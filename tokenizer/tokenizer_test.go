@@ -19,7 +19,7 @@ func HelperRunTestCases(
 	for src, expected := range testcases {
 		t.Run(fmt.Sprintf("_%s", src), func(t *testing.T) {
 			gots := []token.Token{}
-			tok := tokenizer.New([]byte(src), opts...)
+			tok := tokenizer.New("", []byte(src), opts...)
 
 			for {
 				got := tok.Next()
@@ -157,7 +157,7 @@ func TestNextInsertSemicolonAndNewline(t *testing.T) {
 		"ident\n": {ident(0, 5), eol(5), symbol(token.EOL, 5)},
 	}
 	for src, expected := range testcases {
-		tok := tokenizer.New([]byte(src))
+		tok := tokenizer.New("", []byte(src))
 		gots := []token.Token{}
 		for {
 			got := tok.Next()
@@ -178,7 +178,7 @@ func TestNextNewline(t *testing.T) {
 		"\n \n": {symbol(token.EOL, 0), symbol(token.EOL, 2)},
 	}
 	for src, expected := range testcases {
-		tok := tokenizer.New([]byte(src))
+		tok := tokenizer.New("", []byte(src))
 		gots := []token.Token{}
 		for {
 			got := tok.Next()

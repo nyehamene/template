@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 	"log"
 	"temlang/tem/ast"
 	"temlang/tem/parser"
@@ -37,10 +38,18 @@ func run(name string, source []byte) {
 	println()
 }
 
-func parse(name string, s []byte) {
-	file := ast.New(string(s), name)
-	par := parser.New(file)
-	par.ParseFile()
+func parse(filename string, src []byte) {
+	file, errs := parser.ParseFile(filename, src)
+	if !errs.Empty() {
+		for !errs.Empty() {
+			err, ok := errs.Pop()
+			if !ok {
+				break
+			}
+			fmt.Printf("%s %s\n", err.Msg, err.Location)
+		}
+		return
+	}
 	prt := ast.NewPrinter(file)
 	prt.Print()
 }

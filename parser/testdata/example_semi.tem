@@ -1,0 +1,16 @@
+p: package: package("main")
+
+a: import: import("github.com/name")
+
+A, B: using: using(a)
+
+My_A: type: type(A)
+
+Foo: type: record{
+	bar: String;
+	baz: Int;
+	}
+
+Foo: templ: templ(f: Foo){}
+
+My_A: templ: templ(a: type){}

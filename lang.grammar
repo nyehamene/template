@@ -3,21 +3,11 @@ source := package =:
 package := package_decl import
          | package_decl
         =:
-import  := imports using
-         | using
-        =:
-using   := usings decl
-         | decl
-        =:
+import  := { import_decl } using =:
+using   := { using_decl }  decl =:
 
-imports := import_decl { import_decl } =:
-usings  := using_decl  { using_decl }  =:
-decl    := basic_decl  { basic_decl }  =:
-vars    := var         { var }  =:
-attrs   := attr        { attr } =:
-
+decl       := basic_decl  { basic_decl }  =:
 basic_decl := doc =:
-
 doc        := doc_decl doc
             | tag
 	       =:
@@ -40,7 +30,6 @@ using_decl   := idents ":" [ "import" ]  ":" using_expr   ";" =:
 type_decl    := idents ":" [ "type" ]    ":" type_expr    ";" =:
 record_decl  := idents ":" [ "type" ]    ":" record_lit   ";" =:
 templ_decl   := idents ":" [ "templ" ]   ":" templ_lit    ";" =:
-var          := idents ":" ident ";" =:
 
 package_name := { directive } "package"   "(" string ")" =:
 import_expr  := "import"      "(" string ")" =:
@@ -51,9 +40,12 @@ templ_lit    := [ "templ" ]   "(" var ")"             "{" element "}"
               | [ "templ" ]   "(" ident ":" "type" )" "{" element "}"
              =:
 
+var          := idents ":" ident ";" =:
 attr         := ident  "=" string ","
               | ident  "=" textblock ","
              =:
+vars         := var  { var }  =:
+attrs        := attr { attr } =:
 
 idents := ident { "," ident } =:
 

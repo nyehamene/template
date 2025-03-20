@@ -1,0 +1,27 @@
+p: package: package("pkg")
+// p: "package documentation here"
+// p: "more lines here"
+
+i: import: import("other")
+// i: "import documentation here"
+// i: "more lines here"
+
+u: using: using(i)
+// u: "using documentation here"
+// u: "more lines here"
+
+T: type: type(String)
+// T: "type documentation here"
+// T: "more lines here"
+
+R: type: record{}
+// R: "record documentation here"
+// R: "more lines here"
+
+E: templ: templ(r: E){}
+// E: "template documentation here"
+// E: "more lines here"
+
+E: templ: templ(r: type){}
+// E: "template documentation here"
+// E: "more lines here"
