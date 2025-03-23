@@ -95,10 +95,10 @@ func TestNextString(t *testing.T) {
 
 func TestNextTextBlock(t *testing.T) {
 	testcases := TestCase{
-		`"""`:        {textBlock(0, 3)},
-		`""" line 1`: {textBlock(0, 10)},
-		`""" line 1
-		 """ line 2`: {textBlock(0, 10), textBlock(14, 24)},
+		`--`:        {textBlock(0, 2)},
+		`-- line 1`: {textBlock(0, 9)},
+		`-- line 1
+		 -- line 2`: {textBlock(0, 9), textBlock(13, 22)},
 	}
 	HelperRunTestCases(t, testcases, tokenizer.NoSemicolonInsertion())
 }
@@ -123,8 +123,8 @@ func TestNextInsertSemicolon(t *testing.T) {
 			`: {str(0, 2), eol(2)},
 		`"abc"
 			`: {str(0, 5), eol(5)},
-		`""" line 1
-		 `: {textBlock(0, 10), eol(10)},
+		`-- line 1
+		 `: {textBlock(0, 9), eol(9)},
 	}
 	HelperRunTestCases(t, testcases)
 }
@@ -138,8 +138,8 @@ func TestNextInsertSemicolonEOF(t *testing.T) {
 		"ident": {ident(0, 5), eol(5)},
 		`""`:    {str(0, 2), eol(2)},
 		`"abc"`: {str(0, 5), eol(5)},
-		`""" line 1
-		 `: {textBlock(0, 10), eol(10)},
+		`-- line 1
+		 `: {textBlock(0, 9), eol(9)},
 	}
 	HelperRunTestCases(t, testcases)
 }

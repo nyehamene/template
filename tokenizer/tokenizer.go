@@ -213,20 +213,18 @@ semiColonInsertion:
 		kind = token.Directive
 		t.advance()
 		t.ident()
-	case '"':
+	case '-':
 		t.advance()
-		if t.ch == '"' {
-			t.advance()
-			if t.ch == '"' {
-				t.advance()
-				t.textBlock()
-				kind = token.TextBlock
-				break
-			}
-			// empty string literal
-			kind = token.String
+		if t.ch != '-' {
+			lexeme := string(ch) + string(t.ch)
+			t.error(t.offset, lexeme, "Invalid token")
 			break
 		}
+		t.advance()
+		t.textBlock()
+		kind = token.TextBlock
+	case '"':
+		t.advance()
 		t.string()
 		kind = token.String
 	case '/':

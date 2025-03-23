@@ -1,34 +1,34 @@
-p: """ package documentation
-   """ line 2
-   """ more lines
+p: -- package documentation
+   -- line 2
+   -- more lines
 p: package: package("pkg")
 
-i: """ import documentation
-   """ line 2
-   """ more lines
+i: -- import documentation
+   -- line 2
+   -- more lines
 i: import: import("other")
 
-u: """ using documentation
-   """ line 2
-   """ more lines
+u: -- using documentation
+   -- line 2
+   -- more lines
 u: using: using(other)
 
-T: """ type documentation
-   """ line 2
-   """ more lines
+T: -- type documentation
+   -- line 2
+   -- more lines
 T: type: type(other)
 
-R: """ record documentation
-   """ line 2
-   """ more lines
+R: -- record documentation
+   -- line 2
+   -- more lines
 R: type: record{}
 
-E: """ templ documentation
-   """ line 2
-   """ more lines
+E: -- templ documentation
+   -- line 2
+   -- more lines
 E: templ: templ(e: E){}
 
-E: """ templ documentation
-   """ line 2
-   """ more lines
+E: -- templ documentation
+   -- line 2
+   -- more lines
 E: templ: templ(e: type){}
