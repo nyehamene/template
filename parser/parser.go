@@ -12,7 +12,6 @@ func New(filename string, src []byte) Parser {
 	tok := tokenizer.New(filename, src)
 	p := Parser{
 		filename:  filename,
-		src:       src,
 		tokenizer: tok,
 		cur:       token.Token{},
 		errors:    &token.ErrorQueue{},
@@ -36,7 +35,6 @@ func defaultErrorHandler(errors *token.ErrorQueue, pos token.Location, msg strin
 type Parser struct {
 	tokenizer tokenizer.Tokenizer
 	filename  string
-	src       []byte // TODO remove src
 	cur       token.Token
 	prev      token.Token
 	errors    *token.ErrorQueue
@@ -149,28 +147,9 @@ func (p *Parser) matchspec(tok token.Kind) parseTokenSpec {
 	}
 }
 
-type parseTreeSpec func() TreeStack
-
-func (p *Parser) expectSurroundTree(open token.Kind, close token.Kind, f parseTreeSpec) TreeStack {
-	if !p.expect(open) {
-		p.errorExpected(p.loc(), open.String())
-		return p.badtreeStack()
-	}
-	tree := f()
-	if !p.expect(close) {
-		p.errorExpected(p.loc(), close.String())
-		return p.badtreeStack()
-	}
-	return tree
-}
-
-func (p *Parser) expectSurroundTreeBrace(f parseTreeSpec) TreeStack {
-	return p.expectSurroundTree(token.BraceOpen, token.BraceClose, f)
-}
-
 func (p *Parser) empty(tok token.Kind) token.Token {
 	// pos := p.pos()
-	// FIX: dtype should have zero length because it not declared in the source code
+	// FIX: dtype should have zero length because it is not declared in the source code
 	// return token.New(tok, pos.Line, pos.Col)
 	return token.New(tok, 0, 0)
 }
