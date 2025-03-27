@@ -26,7 +26,7 @@ exprStart:
 		return p.parseImportExpr()
 	}
 
-	return pkgexpr{directives, name}
+	return pkgexpr{name}
 }
 
 func (p *Parser) parseImportExpr() Expr {

@@ -1,6 +1,8 @@
 package ast
 
-import "temlang/tem/token"
+import (
+	"temlang/tem/token"
+)
 
 func New(name string, src []byte) *Namespace {
 	n := Namespace{src: src}
@@ -8,7 +10,7 @@ func New(name string, src []byte) *Namespace {
 }
 
 type Namespace struct {
-	Pkg      PackageDecl
+	pkg      PackageDecl
 	texts    []string
 	vars     []VarDecl
 	attrs    []AttrDecl
@@ -59,28 +61,28 @@ func (n *Namespace) text(tok token.Token) (string, bool) {
 func (f *Namespace) addText(tok *TokenIndex, val token.Token) {
 	txt, ok := f.text(val)
 	if !ok {
-		// TBD: maybe raise some kind of error
+		// TBD: maybe return some kind of error
 		panic("unreachable")
 	}
 
 	index := len(f.texts)
 	f.texts = append(f.texts, txt)
 	f.textLen += 1
-	tok.text.index = index
-	tok.text.len = 1
+	tok.text.Index = index
+	tok.text.Len = 1
 }
 
 func (f *Namespace) addToken(tok *TokenIndex, val token.Token) {
 	index := len(f.tokens)
 	f.tokens = append(f.tokens, val)
 	f.tokenLen += 1
-	tok.token.index = index
-	tok.token.len = 1
+	tok.token.Index = index
+	tok.token.Len = 1
 }
 
 func (f Namespace) getText(tok TokenIndex) []string {
-	index := tok.text.index
-	end := index + tok.text.len
+	index := tok.text.Index
+	end := index + tok.text.Len
 	txts := f.texts[index:end]
 	return txts
 }
@@ -91,6 +93,14 @@ func (f Namespace) getTextOne(tok TokenIndex) string {
 		panic("expected only one text")
 	}
 	return txts[0]
+}
+
+func (n *Namespace) Pkg() PackageDecl {
+	return n.pkg
+}
+
+func (n *Namespace) SetPkg(p PackageDecl) {
+	n.pkg = p
 }
 
 func (n *Namespace) AddImport(d ImportDecl) {
@@ -113,10 +123,26 @@ func (n *Namespace) AddTempl(d TemplDecl) {
 	n.templs = append(n.templs, d)
 }
 
+func (n *Namespace) AddVar(d VarDecl) {
+	n.vars = append(n.vars, d)
+}
+
 func (n *Namespace) AddDoc(d DocDecl) {
 	n.docs = append(n.docs, d)
 }
 
 func (n *Namespace) AddTag(d TagDecl) {
 	n.tags = append(n.tags, d)
+}
+
+func (n *Namespace) AddAttr(d AttrDecl) {
+	n.attrs = append(n.attrs, d)
+}
+
+func (n *Namespace) VarLen() int {
+	return len(n.vars)
+}
+
+func (n *Namespace) AttrLen() int {
+	return len(n.attrs)
 }

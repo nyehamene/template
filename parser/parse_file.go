@@ -71,7 +71,7 @@ func (p *Parser) parseDecl(idents token.TokenStack) Tree {
 
 func (p *Parser) parseBasicDecl(idents token.TokenStack) Tree {
 	var kind token.Kind
-	var treeFunc func(decltree, Expr) Tree
+	var treeFunc func(decltree, token.TokenStack, Expr) Tree
 
 	exprFunc := p.parseBasicExpr
 
@@ -83,19 +83,24 @@ func (p *Parser) parseBasicDecl(idents token.TokenStack) Tree {
 	switch k := p.cur.Kind(); k {
 	case token.Type:
 		kind = k
-		treeFunc = func(d decltree, e Expr) Tree {
+		treeFunc = func(d decltree, _ token.TokenStack, e Expr) Tree {
+			if _, ok := e.(recordexpr); ok {
+				return recordtree{d, e}
+			}
 			return typetree{d, e}
 		}
 
 	case token.Record:
 		kind = k
-		treeFunc = func(d decltree, e Expr) Tree {
+		exprFunc = p.parseRecordExpr
+		treeFunc = func(d decltree, _ token.TokenStack, e Expr) Tree {
 			return recordtree{d, e}
 		}
 
 	case token.Templ:
 		kind = k
-		treeFunc = func(d decltree, e Expr) Tree {
+		exprFunc = p.parseTemplExpr
+		treeFunc = func(d decltree, _ token.TokenStack, e Expr) Tree {
 			return templtree{d, e}
 		}
 
@@ -110,15 +115,21 @@ func (p *Parser) parseGenDecl(
 	idents token.TokenStack,
 	kind token.Kind,
 	exprFunc parseExprSpec,
-	treeFunc func(decltree, Expr) Tree,
+	treeFunc func(decltree, token.TokenStack, Expr) Tree,
 	fallback parseDeclSpec,
 ) Tree {
 	var dtype token.Token
 	var expr Expr
+	var directives token.TokenStack
 
 	kindCount := 0
 declStart:
 	switch k := p.cur.Kind(); k {
+	case token.Directive:
+		p.advance()
+		directives.Push(p.prev)
+		goto declStart
+
 	case token.Colon:
 		p.advance()
 		expr = exprFunc()
@@ -144,5 +155,5 @@ declStart:
 
 	p.expectSemicolon()
 	d := decltree{idents, dtype}
-	return treeFunc(d, expr)
+	return treeFunc(d, directives, expr)
 }

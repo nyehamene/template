@@ -86,7 +86,7 @@ func newPrinted(f *Namespace) *printed {
 		imps:   imps,
 		usings: usings,
 		file:   f.Name,
-		pkg:    f.Pkg,
+		pkg:    f.Pkg(),
 		sb:     sb,
 		src:    f.src,
 		loc:    tokenLocation{},
@@ -163,8 +163,8 @@ func (pm *printed) writePackage(d PackageDecl) func(int) {
 	fst := d.idents
 	lst := d.name
 	drt := d.directive
-	ft := pm.toks[fst.token.index]
-	lt := pm.toks[lst.token.index]
+	ft := pm.toks[fst.token.Index]
+	lt := pm.toks[lst.token.Index]
 	return pm.writeContainer("package_declaration", ft, lt, func() func(int) {
 		pm.writeIdents(fst)(pm.width)
 		pm.writeDirective(drt)(pm.width)
@@ -177,8 +177,8 @@ func (pm *printed) writeImport(ds []ImportDecl) func(int) {
 	for i, d := range ds {
 		fst := d.idents
 		lst := d.name
-		ft := pm.toks[fst.token.index]
-		lt := pm.toks[lst.token.index]
+		ft := pm.toks[fst.token.Index]
+		lt := pm.toks[lst.token.Index]
 		loc := pm.write("import_declaration", ft, lt)
 		if i == len(ds)-1 {
 			return loc
@@ -192,8 +192,8 @@ func (pm *printed) writeUsing(ds []UsingDecl) func(int) {
 	for i, d := range ds {
 		fst := d.idents
 		lst := d.pkg
-		ft := pm.toks[fst.token.index]
-		lt := pm.toks[lst.token.index]
+		ft := pm.toks[fst.token.Index]
+		lt := pm.toks[lst.token.Index]
 		loc := pm.write("using_declaration", ft, lt)
 		if i == len(ds)-1 {
 			return loc
@@ -239,8 +239,8 @@ func (pm *printed) writeContainer(tag string, fst, lst token.Token, fn writeFunc
 }
 
 func (pm *printed) writeToken(tag string, t TokenIndex) func(int) {
-	offset := t.token.index
-	end := offset + t.token.len
+	offset := t.token.Index
+	end := offset + t.token.Len
 	toks := pm.toks[offset:end]
 	width := pm.width
 	for i, tok := range toks {

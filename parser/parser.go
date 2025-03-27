@@ -203,8 +203,8 @@ func (p *Parser) parsePackageDecl(idents token.TokenStack) Tree {
 		idents,
 		token.Package,
 		p.parsePackageExpr,
-		func(d decltree, e Expr) Tree {
-			return pkgtree{d, e}
+		func(d decltree, t token.TokenStack, e Expr) Tree {
+			return pkgtree{decltree: d, directives: t, expr: e}
 		},
 		p.parseImportDecl,
 	)
@@ -215,7 +215,7 @@ func (p *Parser) parseImportDecl(idents token.TokenStack) Tree {
 		idents,
 		token.Import,
 		p.parseImportExpr,
-		func(d decltree, e Expr) Tree {
+		func(d decltree, _ token.TokenStack, e Expr) Tree {
 			return importtree{d, e}
 		},
 		p.parseUsingDecl,
@@ -227,7 +227,7 @@ func (p *Parser) parseUsingDecl(idents token.TokenStack) Tree {
 		idents,
 		token.Using,
 		p.parseUsingExpr,
-		func(d decltree, e Expr) Tree {
+		func(d decltree, _ token.TokenStack, e Expr) Tree {
 			return usingtree{d, e}
 		},
 		p.parseDecl,
