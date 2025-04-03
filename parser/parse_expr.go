@@ -30,7 +30,7 @@ exprStart:
 }
 
 func (p *Parser) parseImportExpr() Expr {
-	if !p.expect(token.Import) {
+	if !p.match(token.Import) {
 		return p.parseUsingExpr()
 	}
 	if !p.expectSurroundParen(token.String) {
@@ -41,7 +41,7 @@ func (p *Parser) parseImportExpr() Expr {
 }
 
 func (p *Parser) parseUsingExpr() Expr {
-	if !p.expect(token.Using) {
+	if !p.match(token.Using) {
 		return p.parseBasicExpr()
 	}
 	if !p.expectSurroundParen(token.Ident) {
@@ -102,7 +102,7 @@ func (p *Parser) parseRecordExpr() Expr {
 		return p.badexpr()
 	}
 
-	return recordexpr{fields}
+	return recordexpr{fields: fields} // TODO get record location
 }
 
 func (p *Parser) parseTemplExpr() Expr {
@@ -116,5 +116,5 @@ func (p *Parser) parseTemplExpr() Expr {
 	elements := p.parseElements()
 	p.expect(token.BraceClose)
 
-	return templexpr{params, elements}
+	return templexpr{params: params, elements: elements} // TODO get templ location
 }

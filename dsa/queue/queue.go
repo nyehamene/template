@@ -26,7 +26,7 @@ func (q Queue[T]) Empty() bool {
 
 func (q *Queue[T]) Push(t T) {
 	q.compact()
-	if q.w == cap(q.t) {
+	if q.w == len(q.t) {
 		q.t = append(q.t, t)
 	} else {
 		index := q.w

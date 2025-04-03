@@ -125,13 +125,14 @@ func (p *Parser) parseGenDecl(
 	kindCount := 0
 declStart:
 	switch k := p.cur.Kind(); k {
-	case token.Directive:
-		p.advance()
-		directives.Push(p.prev)
-		goto declStart
-
 	case token.Colon:
 		p.advance()
+
+		for p.cur.Kind() == token.Directive {
+			directives.Push(p.cur)
+			p.advance()
+		}
+
 		expr = exprFunc()
 
 	case kind:
