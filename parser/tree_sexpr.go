@@ -1,12 +1,13 @@
 package parser
 
 import (
+	"strings"
 	"temlang/tem/ast"
 	"temlang/tem/token"
 )
 
 func writeLocation(w ast.SExprPrinterContext, loc token.Location) {
-	w.WriteString("[%-2d, %-2d] - [%-2d, %-2d]\n",
+	w.WriteString("[%-2d, %2d] - [%-2d, %2d]\n",
 		loc.Start.Line, loc.Start.Col,
 		loc.End.Line, loc.End.Col,
 	)
@@ -58,7 +59,7 @@ func writeLiteral(w ast.SExprPrinterContext, lit token.Token, close ...string) {
 	case token.Using:
 		w.WriteString("%s(using)", w.Indentation())
 	case token.Type:
-		w.WriteString("")
+		w.WriteString("%s(type)", w.Indentation())
 	case token.Templ:
 		w.WriteString("%s(templ)", w.Indentation())
 	default:
@@ -85,7 +86,8 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.WriteString("%s(name ; ", w.Indentation())
 		writeLocationToken(w, t.name)
 		w.Indent()
-		writeLiteral(w, t.name, ")", ")", ")")
+		close = append(close, ")))")
+		writeLiteral(w, t.name, close...)
 		w.Dedent()
 		w.Dedent()
 	case importexpr:
@@ -95,7 +97,8 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.WriteString("%s(path ; ", w.Indentation())
 		writeLocationToken(w, t.path)
 		w.Indent()
-		writeLiteral(w, t.path, ")", ")", ")")
+		close = append(close, ")))")
+		writeLiteral(w, t.path, close...)
 		w.Dedent()
 		w.Dedent()
 	case usingexpr:
@@ -105,7 +108,8 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.WriteString("%s(target ; ", w.Indentation())
 		writeLocationToken(w, t.target)
 		w.Indent()
-		writeLiteral(w, t.target, ")", ")", ")")
+		close = append(close, ")))")
+		writeLiteral(w, t.target, close...)
 		w.Dedent()
 		w.Dedent()
 	case typeexpr:
@@ -115,7 +119,8 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.WriteString("%s(target ; ", w.Indentation())
 		writeLocationToken(w, t.target)
 		w.Indent()
-		writeLiteral(w, t.target, ")", ")", ")")
+		close = append(close, ")))")
+		writeLiteral(w, t.target, close...)
 		w.Dedent()
 		w.Dedent()
 	case recordexpr:
@@ -125,12 +130,18 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.WriteString("%s(fields", w.Indentation())
 		w.WriteString("\n")
 		w.Indent()
+		i := 0
 		for {
 			field, ok := t.fields.Pop()
 			if !ok {
 				break
 			}
-			treeSExpr(w, field, ")", ")", ")")
+			if i == t.fields.Len() {
+				close = append(close, ")))")
+				treeSExpr(w, field, close...)
+			} else {
+				treeSExpr(w, field)
+			}
 		}
 		w.Dedent()
 		w.Dedent()
@@ -140,20 +151,32 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.Indent()
 		w.WriteString("%s(params ; ", w.Indentation())
 		w.Indent()
+		i := 0
 		for {
 			param, ok := t.params.Pop()
 			if !ok {
 				break
 			}
-			treeSExpr(w, param, ")")
+			if i == t.params.Len() {
+				close = append(close, ")))")
+				treeSExpr(w, param, close...)
+			} else {
+				treeSExpr(w, param)
+			}
 		}
 		w.WriteString("%s(elements ; ", w.Indentation())
+		i = 0
 		for {
 			param, ok := t.elements.Pop()
 			if !ok {
 				break
 			}
-			treeSExpr(w, param, ")", ")", ")")
+			if i == t.params.Len() {
+				close = append(close, ")))")
+				treeSExpr(w, param, close...)
+			} else {
+				treeSExpr(w, param)
+			}
 		}
 		w.Dedent()
 		w.Dedent()
@@ -161,9 +184,11 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		close = append(close, ")")
 		writeLiteral(w, token.Token(t), close...)
 	case badexpr:
-		w.WriteString("%s(ERROR) ; ", w.Indentation())
+		w.WriteString("%s(ERROR)", w.Indentation())
+		w.WriteString(strings.Join(close, ""))
 		writeLocation(w, t.loc)
 	default:
+		w.WriteString(strings.Join(close, ""))
 		w.WriteString("%s(ERROR) ; ", w.Indentation())
 	}
 }
@@ -219,7 +244,8 @@ func treeSExpr(w ast.SExprPrinterContext, tree Tree, close ...string) {
 		w.WriteString("%s(var_declaration ; ", w.Indentation())
 		writeLocation(w, t.loc)
 		w.Indent()
-		decltree(t).writeIdents(w)
+		close = append(close, ")")
+		decltree(t).writeIdents(w, close...)
 	case doctree:
 		w.WriteString("%s(doc_declaration) ; ", w.Indentation())
 		writeLocation(w, t.loc)
