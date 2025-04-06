@@ -33,12 +33,13 @@ func defaultErrorHandler(errors *token.ErrorQueue, pos token.Location, msg strin
 }
 
 type Parser struct {
-	tokenizer tokenizer.Tokenizer
-	filename  string
-	cur       token.Token
-	prev      token.Token
-	errors    *token.ErrorQueue
-	errorf    func(p token.Location, msg string, args ...any)
+	tokenizer    tokenizer.Tokenizer
+	filename     string
+	cur          token.Token
+	prev         token.Token
+	lastTreeKind token.Kind
+	errors       *token.ErrorQueue
+	errorf       func(p token.Location, msg string, args ...any)
 }
 
 func (p *Parser) errorExpected(pos token.Location, msg string) {

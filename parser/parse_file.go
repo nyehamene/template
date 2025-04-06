@@ -23,9 +23,31 @@ func ParseFile(filename string, src []byte) (*ast.Namespace, *token.ErrorQueue) 
 }
 
 func parse(f *ast.Namespace, p *Parser) {
+	var last token.Kind
 	for p.cur.Kind() != token.EOF {
 		tree := p.parseDoc(p.parseGenDecl)
 		tree.TreeAst(f)
+
+		switch p.lastTreeKind {
+		case token.Package:
+			if last != token.Invalid {
+				p.errorf(p.loc(), "expected package declaration")
+			}
+		case token.Import:
+			switch last {
+			case token.Package, token.Import:
+			default:
+				p.errorf(p.loc(), "import must appear before other declarations")
+			}
+		case token.Using:
+			switch last {
+			case token.Package, token.Import, token.Using:
+			default:
+				p.errorf(p.loc(), "using must appear immediately after imports before other declarations")
+			}
+		}
+
+		last = p.lastTreeKind
 	}
 }
 
@@ -50,6 +72,7 @@ declStart:
 		goto declStart
 	default:
 		tree := f(idents)
+		// FEAT: support trailing documentation and attributes
 		// parseTrailingDoc(f, tree, idents)
 		return tree
 	}
@@ -83,6 +106,7 @@ declStart:
 		}
 		p.advance()
 		dtype = p.prev
+		p.lastTreeKind = k
 		goto declStart
 	}
 
@@ -120,16 +144,22 @@ func (p *Parser) createTree(kind token.Token, directives token.TokenStack, d dec
 func (p *Parser) inferTreeFromExpr(expr Expr, directives token.TokenStack, d decltree) Tree {
 	switch expr.(type) {
 	case pkgexpr:
+		p.lastTreeKind = token.Package
 		return pkgtree{d, directives, expr}
 	case importexpr:
+		p.lastTreeKind = token.Import
 		return importtree{d, expr}
 	case usingexpr:
+		p.lastTreeKind = token.Using
 		return usingtree{d, expr}
 	case typeexpr:
+		p.lastTreeKind = token.Type
 		return typetree{d, expr}
 	case recordexpr:
+		p.lastTreeKind = token.Record
 		return recordtree{d, expr}
 	case templexpr:
+		p.lastTreeKind = token.Templ
 		return templtree{d, expr}
 	case badexpr:
 		return badtree{loc: p.loc(), expr: expr}
