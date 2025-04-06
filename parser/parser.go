@@ -196,42 +196,6 @@ func (p *Parser) parseDocDecl(idents token.TokenStack) Tree {
 	return doctree{idents: idents, text: lines}
 }
 
-func (p *Parser) parsePackageDecl(idents token.TokenStack) Tree {
-	return p.parseGenDecl(
-		idents,
-		token.Package,
-		p.parsePackageExpr,
-		func(d decltree, t token.TokenStack, e Expr) Tree {
-			return pkgtree{decltree: d, directives: t, expr: e}
-		},
-		p.parseImportDecl,
-	)
-}
-
-func (p *Parser) parseImportDecl(idents token.TokenStack) Tree {
-	return p.parseGenDecl(
-		idents,
-		token.Import,
-		p.parseImportExpr,
-		func(d decltree, _ token.TokenStack, e Expr) Tree {
-			return importtree{d, e}
-		},
-		p.parseUsingDecl,
-	)
-}
-
-func (p *Parser) parseUsingDecl(idents token.TokenStack) Tree {
-	return p.parseGenDecl(
-		idents,
-		token.Using,
-		p.parseUsingExpr,
-		func(d decltree, _ token.TokenStack, e Expr) Tree {
-			return usingtree{d, e}
-		},
-		p.parseDecl,
-	)
-}
-
 func (p *Parser) parseVarDecl(idents token.TokenStack) Tree {
 	if !p.match(token.Ident) && !p.match(token.Type) {
 		p.errorExpected(p.loc(), "var type")

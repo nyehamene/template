@@ -4,17 +4,25 @@ import "temlang/tem/token"
 
 type parseExprSpec func() Expr
 
+func (p *Parser) parseGenExpr() Expr {
+	var f parseExprSpec
+	switch k := p.cur.Kind(); k {
+	case token.Package:
+		f = p.parsePackageExpr
+	case token.Import:
+		f = p.parseImportExpr
+	case token.Using:
+		f = p.parseUsingExpr
+	default:
+		return p.parseBasicExpr()
+	}
+	return f()
+}
+
 func (p *Parser) parsePackageExpr() Expr {
-	var directives token.TokenStack
 	var name token.Token
 
-exprStart:
 	switch kind := p.cur.Kind(); kind {
-	case token.Directive:
-		directives.Push(p.cur)
-		p.advance()
-		goto exprStart
-
 	case token.Package:
 		p.advance()
 		if !p.expectSurroundParen(token.String) {
