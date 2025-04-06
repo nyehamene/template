@@ -54,10 +54,6 @@ func parse(f *ast.Namespace, p *Parser) {
 func (p *Parser) parseDoc(f parseDeclSpec) Tree {
 declStart:
 	idents, ok := p.matchIdents()
-	if p.cur.Kind() == token.EOF {
-		p.errorf(p.loc(), "unexpected end of file")
-		return p.badtree()
-	}
 	if !ok {
 		p.errorExpected(p.loc(), "ident")
 		return p.badtree()

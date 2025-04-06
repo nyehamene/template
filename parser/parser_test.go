@@ -34,20 +34,6 @@ func TestParseFile(t *testing.T) {
 	}
 }
 
-func TestDirectivePlacementErrorOne(t *testing.T) {
-	t.Skip()
-	filename := "directive_error.tem"
-	src := `
-		p := package("test")
-
-		User: type #type: type(Person)
-	`
-	_, errs := ParseFile(filename, []byte(src))
-	if errs.Len() == 0 {
-		t.Error("parser succeeded unexpectedly")
-	}
-}
-
 func TestDirectivePlacementErrorZero(t *testing.T) {
 	t.Skip()
 	filename := "directive_error.tem"
