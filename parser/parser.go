@@ -156,9 +156,7 @@ func (p *Parser) empty(tok token.Kind) token.Token {
 
 func (p *Parser) badtree() Tree {
 	loc := p.loc()
-	from := loc.Start
-	to := loc.End
-	return badtree{from, to}
+	return badtree{loc}
 }
 
 func (p *Parser) badexpr() Expr {
@@ -195,7 +193,7 @@ func (p *Parser) parseDocDecl(idents token.TokenStack) Tree {
 
 	// fix: match optional explicit semicolon
 	p.match(token.Semicolon)
-	return doctree{idents, lines}
+	return doctree{idents: idents, text: lines}
 }
 
 func (p *Parser) parsePackageDecl(idents token.TokenStack) Tree {
@@ -240,7 +238,7 @@ func (p *Parser) parseVarDecl(idents token.TokenStack) Tree {
 		return p.badtree()
 	}
 	dtype := p.prev
-	return vartree{idents, dtype}
+	return vartree{idents: idents, dtype: dtype} // TODO: add location
 }
 
 func (p *Parser) parseIdents(f parseDeclSpec) Tree {
@@ -280,7 +278,7 @@ func (p *Parser) parseAttrDecl(idents token.TokenStack) Tree {
 	}
 
 	val := litexpr(p.prev)
-	return attrtree{idents, val}
+	return attrtree{idents: idents, value: val} // TODO get attr location
 }
 
 func (p *Parser) parseTagDecl(idents token.TokenStack) Tree {

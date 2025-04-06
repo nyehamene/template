@@ -25,10 +25,10 @@ Product :: record {
     }
 Product : { id = "my-product"; }
 
-Store : """
-    """ line 1
-    """ line 2
-    """
+Store : ---
+--- line 1
+--- line 2
+---
     
 Store :: record {
     name: string

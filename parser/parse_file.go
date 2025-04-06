@@ -15,7 +15,8 @@ func ParseFile(filename string, src []byte) (*ast.Namespace, *token.ErrorQueue) 
 		}
 	}
 
-	file := ast.New(filename, src)
+	name := "" // TODO get the namespace name from the filename
+	file := ast.New(filename, name)
 	p := New(filename, src)
 	p.pkg(file)
 	return file, p.errors
@@ -155,6 +156,6 @@ declStart:
 	}
 
 	p.expectSemicolon()
-	d := decltree{idents, dtype}
+	d := decltree{idents: idents, dtype: dtype} // TODO add location
 	return treeFunc(d, directives, expr)
 }

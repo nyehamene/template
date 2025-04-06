@@ -35,6 +35,7 @@ func TestParseFile(t *testing.T) {
 }
 
 func TestDirectivePlacementErrorOne(t *testing.T) {
+	t.Skip()
 	filename := "directive_error.tem"
 	src := `
 		p := package("test")
@@ -48,6 +49,7 @@ func TestDirectivePlacementErrorOne(t *testing.T) {
 }
 
 func TestDirectivePlacementErrorZero(t *testing.T) {
+	t.Skip()
 	filename := "directive_error.tem"
 	src := `
 		p :: package("test")

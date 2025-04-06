@@ -17,15 +17,15 @@ User :: record {
 	password: string
 	}
 
-User : """
-	""" A multi-line documentation
-	""" - The record keyword is omitted in the first comment below
-	"""
-	""" - The both the record and type keywords are omitted in the
-	""" - second comment below
-	"""
-	""" Supports markdown syntax
-	"""
+User : ---
+--- A multi-line documentation
+--- - The record keyword is omitted in the first comment below
+---
+--- - The both the record and type keywords are omitted in the
+--- - second comment below
+---
+--- Supports markdown syntax
+---
 
 render : "define a template"
 render : templ : (User) {

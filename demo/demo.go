@@ -22,8 +22,8 @@ var semicolon []byte
 
 func main() {
 	srcs := map[string][]byte{
-		"def.tem":           def,
-		"def_semicolon.tem": semicolon,
+		"def.tem": def,
+		// "def_semicolon.tem": semicolon,
 		// "template.tem": tmpl,
 		// "template_semicolon": tmplSemicolon,
 	}
@@ -40,16 +40,12 @@ func run(name string, source []byte) {
 
 func parse(filename string, src []byte) {
 	file, errs := parser.ParseFile(filename, src)
-	if !errs.Empty() {
-		for !errs.Empty() {
-			err, ok := errs.Pop()
-			if !ok {
-				break
-			}
-			fmt.Printf("%s %s\n", err.Msg, err.Location)
+	for !errs.Empty() {
+		err, ok := errs.Pop()
+		if !ok {
+			break
 		}
-		return
+		fmt.Printf("%s %s\n", err.Msg, err.Location)
 	}
-	prt := ast.NewPrinter(file)
-	prt.Print()
+	ast.PrintSExpr(file)
 }
