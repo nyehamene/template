@@ -13,7 +13,8 @@ type Tree interface {
 }
 
 type badtree struct {
-	loc token.Location
+	expr Expr
+	loc  token.Location
 }
 
 type decltree struct {

@@ -156,7 +156,7 @@ func (p *Parser) empty(tok token.Kind) token.Token {
 
 func (p *Parser) badtree() Tree {
 	loc := p.loc()
-	return badtree{loc}
+	return badtree{loc: loc}
 }
 
 func (p *Parser) badexpr() Expr {

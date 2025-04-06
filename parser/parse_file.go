@@ -136,6 +136,11 @@ declStart:
 
 		expr = exprFunc()
 
+		// infer the tree based on the expr
+		if dtype.Kind() == token.Invalid {
+			return p.inferTreeFromExpr(expr, directives, idents)
+		}
+
 	case kind:
 		if kindCount > 0 {
 			p.errorf(p.loc(), "unexpected %s")
@@ -146,8 +151,6 @@ declStart:
 		goto declStart
 
 	default:
-		// p.errorExpected(p.loc(), fmt.Sprintf(": or %s", kind))
-		// return p.badtree()
 		return fallback(idents)
 	}
 
@@ -158,4 +161,29 @@ declStart:
 	p.expectSemicolon()
 	d := decltree{idents: idents, dtype: dtype} // TODO add location
 	return treeFunc(d, directives, expr)
+}
+
+func (p *Parser) inferTreeFromExpr(expr Expr, directives token.TokenStack, idents token.TokenStack) Tree {
+	d := decltree{idents: idents, dtype: p.empty(token.Import)} // TODO add location
+	var tree Tree
+	switch expr.(type) {
+	case pkgexpr:
+		tree = pkgtree{d, directives, expr}
+	case importexpr:
+		tree = importtree{d, expr}
+	case usingexpr:
+		tree = usingtree{d, expr}
+	case typeexpr:
+		tree = typetree{d, expr}
+	case recordexpr:
+		tree = recordtree{d, expr}
+	case templexpr:
+		tree = templtree{d, expr}
+	case badexpr:
+		tree = badtree{loc: p.loc(), expr: expr}
+	default:
+		tree = badtree{loc: p.loc(), expr: expr}
+	}
+	p.expectSemicolon()
+	return tree
 }
