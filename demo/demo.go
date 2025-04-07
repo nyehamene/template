@@ -28,24 +28,25 @@ func main() {
 		// "template_semicolon": tmplSemicolon,
 	}
 	for name, src := range srcs {
-		run(name, src)
+		str := getString(name, src)
+		fmt.Println(str)
 	}
 }
 
-func run(name string, source []byte) {
+func getString(name string, source []byte) string {
 	log.Printf("Parsing %s", name)
-	parse(name, source)
-	println()
+	return parse(name, source)
 }
 
-func parse(filename string, src []byte) {
+func parse(filename string, src []byte) string {
 	file, errs := parser.ParseFile(filename, src)
 	for !errs.Empty() {
 		err, ok := errs.Pop()
 		if !ok {
 			break
 		}
-		fmt.Printf("%s %s\n", err.Msg, err.Location)
+		fmt.Printf("%s %d\n", err.Message(), err.Offset())
 	}
-	ast.PrintSExpr(file)
+	str := ast.PrintSExpr(file)
+	return str
 }

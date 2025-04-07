@@ -3,11 +3,10 @@ package ast
 import (
 	"fmt"
 	"strings"
-	"temlang/tem/token"
 )
 
 type SExprPrinterContext interface {
-	Location(token.Token) token.Location
+	Location(start, end int) string
 
 	WriteString(string, ...any)
 
@@ -26,12 +25,28 @@ type sexprPrinter struct {
 	sb          strings.Builder
 	indent      int
 	indentation string
-	// ns     *Namespace
+	ns          *Namespace
 }
 
-func (p *sexprPrinter) Location(token.Token) token.Location {
-	l := token.Location{} // TODO get location from namespace
-	return l
+func (p *sexprPrinter) lineOffsetFor(offset int) (line int, lineOffset int) {
+	for i, l := range p.ns.lines {
+		if l > offset {
+			break
+		}
+		line = i
+		lineOffset = l
+	}
+	return
+}
+
+func (p *sexprPrinter) Location(start, end int) string {
+	startLine, startOffset := p.lineOffsetFor(start)
+	endLine, endOffset := p.lineOffsetFor(end)
+
+	startCol := start - startOffset
+	endCol := end - endOffset
+
+	return fmt.Sprintf("[%d, %d] - [%d, %d]", startLine+1, startCol, endLine+1, endCol)
 }
 
 func (p *sexprPrinter) Indent() {
@@ -58,8 +73,10 @@ func (p *sexprPrinter) WriteString(str string, obj ...any) {
 	p.sb.WriteString(s)
 }
 
-func PrintSExpr(n *Namespace) {
-	p := sexprPrinter{}
+func PrintSExpr(n *Namespace) string {
+	p := sexprPrinter{
+		ns: n,
+	}
 
 	for _, d := range n.decl {
 		d.WriteSExpr(&p)
@@ -80,6 +97,9 @@ func PrintSExpr(n *Namespace) {
 		if l := len(chunk[0]); l > longestSExpr {
 			longestSExpr = l
 		}
+		if len(chunk) > 2 {
+			_ = chunk
+		}
 		chunks = append(chunks, chunk)
 	}
 
@@ -89,6 +109,8 @@ func PrintSExpr(n *Namespace) {
 			continue
 		}
 		if length > 2 {
+			fmt.Println(strings.Join(chunk, ""))
+			fmt.Printf("[1]%s [2]%s [3]%s\n", chunk[0], chunk[1], chunk[2])
 			panic("Invalid sexpr")
 		}
 		if length == 1 {
@@ -112,5 +134,5 @@ func PrintSExpr(n *Namespace) {
 		fmtLines.WriteString(fmt.Sprintf("%s  ; %s\n", str, l))
 	}
 
-	fmt.Println(fmtLines.String())
+	return fmtLines.String()
 }

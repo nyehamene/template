@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"log"
 	"temlang/tem/dsa/stack"
 	"temlang/tem/token"
 	"temlang/tem/tokenizer"
@@ -16,19 +15,16 @@ func New(filename string, src []byte) Parser {
 		cur:       token.Token{},
 		errors:    &token.ErrorQueue{},
 	}
-	p.errorf = func(pos token.Location, msg string, argv ...any) {
-		defaultErrorHandler(p.errors, pos, msg, argv...)
+	p.error = func(offset int, msg string) {
+		defaultErrorHandler(p.errors, offset, msg)
 	}
 	p.advance()
 	return p
 }
 
-func defaultErrorHandler(errors *token.ErrorQueue, pos token.Location, msg string, args ...any) {
-	err := token.Error{
-		Msg:      fmt.Sprintf(msg, args...),
-		Location: pos,
-	}
-	log.Printf("%s", err)
+func defaultErrorHandler(errors *token.ErrorQueue, offset int, msg string) {
+	err := token.NewError(offset, msg)
+	// log.Printf("%s", err)
 	errors.Push(err)
 }
 
@@ -38,18 +34,27 @@ type Parser struct {
 	cur          token.Token
 	prev         token.Token
 	lastTreeKind token.Kind
+	idents       *token.TokenStack
+	identOffset  int
 	errors       *token.ErrorQueue
-	errorf       func(p token.Location, msg string, args ...any)
+	error        func(offset int, msg string)
 }
 
-func (p *Parser) errorExpected(pos token.Location, msg string) {
-	p.errorf(pos, fmt.Sprintf("expected '%s' got %s", msg, p.cur.Kind()))
+func (p *Parser) errorExpected(msg string) {
+	offset := p.offset()
+	expected := p.cur.Kind()
+	str := fmt.Sprintf("expected '%s' got %s", msg, expected)
+	p.error(offset, str)
 }
 
 func (p *Parser) expectSemicolon() {
 	if k := p.cur.Kind(); k != token.BraceClose {
 		p.expect(token.Semicolon)
 	}
+}
+
+func (p *Parser) offset() int {
+	return p.tokenizer.Offset()
 }
 
 func (p *Parser) Mark() func() {
@@ -94,14 +99,17 @@ func (p *Parser) match(tok token.Kind) bool {
 
 func (p *Parser) expect(tok token.Kind) bool {
 	if !p.match(tok) {
-		p.errorExpected(p.loc(), tok.String())
+		p.errorExpected(tok.String())
 		return false
 	}
 	return true
 }
 
-func (p *Parser) matchIdents() (token.TokenStack, bool) {
+func (p *Parser) matchIdents() bool {
 	var idents token.TokenStack
+
+	p.idents = nil
+	offset := p.offset()
 
 identStart:
 	switch k := p.cur.Kind(); k {
@@ -116,9 +124,11 @@ identStart:
 			p.advance()
 		}
 	default:
-		return idents, false
+		return false
 	}
-	return idents, true
+	p.idents = &idents
+	p.identOffset = offset
+	return true
 }
 
 type parseTokenSpec func() bool
@@ -148,40 +158,44 @@ func (p *Parser) matchspec(tok token.Kind) parseTokenSpec {
 	}
 }
 
-func (p *Parser) empty(tok token.Kind) token.Token {
-	// pos := p.pos()
-	// FIX: dtype should have zero length because it is not declared in the source code
-	// return token.New(tok, pos.Line, pos.Col)
-	return token.New(tok, 0, 0)
+func (p *Parser) locationStartingAt(offset int) Position {
+	l := Position{Start: offset, End: p.offset()}
+	return l
 }
 
-func (p *Parser) badtree() Tree {
-	loc := p.loc()
-	return badtree{loc: loc}
+func (p *Parser) decltree(dtype token.Token) decltree {
+	l := p.locationStartingAt(p.identOffset)
+	// NOTE: assume p.idents is not nil at this point
+	return decltree{idents: *p.idents, dtype: dtype, Position: l}
 }
 
-func (p *Parser) badexpr() Expr {
-	return badexpr{}
+func (p *Parser) badtree(offset int) Tree {
+	return badtree{Position{Start: offset, End: p.offset()}}
 }
 
-func (p *Parser) badtreeStack() TreeStack {
+func (p *Parser) badexpr(offset int) Expr {
+	return badexpr{Position{Start: offset, End: p.offset()}}
+}
+
+func (p *Parser) badtreeStack(offset int) TreeStack {
 	err := stack.New[Tree](1)
-	err.Push(p.badtree())
+	err.Push(p.badtree(offset))
 	return err
 }
 
-type parseDeclSpec func(token.TokenStack) Tree
+type parseDeclSpec func() Tree
 
-func (p *Parser) parseDocDecl(idents token.TokenStack) Tree {
+func (p *Parser) parseDocDecl() Tree {
 	var lines token.TokenStack
+	offset := p.offset()
 
 	if str := p.cur; p.match(token.String) {
 		lines.Push(str)
 		p.expectSemicolon()
 	} else {
 		if p.cur.Kind() != token.TextBlock {
-			p.errorExpected(p.loc(), "documentation text")
-			return p.badtree()
+			p.errorExpected("documentation text")
+			return p.badtree(offset)
 		}
 		for p.cur.Kind() == token.TextBlock {
 			if !p.expect(token.TextBlock) {
@@ -194,31 +208,37 @@ func (p *Parser) parseDocDecl(idents token.TokenStack) Tree {
 
 	// fix: match optional explicit semicolon
 	p.match(token.Semicolon)
+	// NOTE assume p.idents is not nil at this point
+	idents := *p.idents
 	return doctree{idents: idents, text: lines}
 }
 
-func (p *Parser) parseVarDecl(idents token.TokenStack) Tree {
-	if !p.match(token.Ident) && !p.match(token.Type) {
-		p.errorExpected(p.loc(), "var type")
-		return p.badtree()
+// NOTE this method can be removed
+func (p *Parser) parseIdents(f parseDeclSpec) Tree {
+	offset := p.offset()
+	ok := p.matchIdents()
+	if !ok {
+		p.errorExpected("ident")
+		return p.badtree(offset)
 	}
-	dtype := p.prev
-	return vartree{idents: idents, dtype: dtype} // TODO: add location
+	return f()
 }
 
-func (p *Parser) parseIdents(f parseDeclSpec) Tree {
-	idents, ok := p.matchIdents()
-	if !ok {
-		p.errorExpected(p.loc(), "ident")
-		return p.badtree()
+func (p *Parser) parseVarDecl() Tree {
+	if !p.match(token.Ident) && !p.match(token.Type) {
+		p.errorExpected("var type")
+		return p.badtree(p.identOffset)
 	}
-	return f(idents)
+	dtype := p.prev
+	d := p.decltree(dtype)
+	return vartree(d)
 }
 
 func (p *Parser) parseParamDecl() TreeStack {
+	offset := p.offset()
 	if !p.expect(token.ParenOpen) {
-		p.errorExpected(p.loc(), "(")
-		return p.badtreeStack()
+		p.errorExpected("(")
+		return p.badtreeStack(offset)
 	}
 
 	params := TreeStack{}
@@ -235,26 +255,38 @@ func (p *Parser) parseParamDecl() TreeStack {
 }
 
 // parseAttrDecl should return ast.TokenIndex for the first var added to namespace
-func (p *Parser) parseAttrDecl(idents token.TokenStack) Tree {
-	p.expect(token.Eq)
+func (p *Parser) parseAttrDecl() Tree {
+	ok := p.matchIdents()
+	if !ok {
+		p.errorExpected("attribute key")
+		return p.badtree(p.identOffset)
+	}
+
+	if !p.expect(token.Eq) {
+		return p.badtree(p.identOffset)
+	}
+
 	if !p.expect(token.String) {
-		p.errorExpected(p.loc(), "attribute value")
-		return p.badtree()
+		p.errorExpected("attribute value")
+		return p.badtree(p.identOffset)
 	}
 
 	val := litexpr(p.prev)
-	return attrtree{idents: idents, value: val} // TODO get attr location
+	// NOTE: assume p.idents is not nil at this point
+	idents := *p.idents
+	loc := p.locationStartingAt(p.identOffset)
+	return attrtree{idents: idents, value: val, Position: loc}
 }
 
-func (p *Parser) parseTagDecl(idents token.TokenStack) Tree {
+func (p *Parser) parseTagDecl() Tree {
 	if !p.expect(token.BraceOpen) {
-		p.errorExpected(p.loc(), "{")
-		return p.badtree()
+		p.errorExpected("{")
+		return p.badtree(p.identOffset)
 	}
 
 	var attrs TreeStack
 	for {
-		attr := p.parseIdents(p.parseAttrDecl)
+		attr := p.parseAttrDecl()
 		attrs.Push(attr)
 		p.expectSemicolon()
 		if p.cur.Kind() == token.BraceClose {
@@ -263,15 +295,19 @@ func (p *Parser) parseTagDecl(idents token.TokenStack) Tree {
 	}
 
 	if !p.expect(token.BraceClose) {
-		p.errorExpected(p.loc(), "{")
-		return p.badtree()
+		p.errorExpected("{")
+		return p.badtree(p.identOffset)
 	}
 
 	p.expectSemicolon()
 
+	// NOTE assume p.idents is not nil at this point
+	idents := *p.idents
+	loc := p.locationStartingAt(p.identOffset)
 	tree := tagtree{
-		idents: idents,
-		attrs:  attrs,
+		idents:   idents,
+		attrs:    attrs,
+		Position: loc,
 	}
 	return tree
 }
@@ -280,8 +316,4 @@ func (p *Parser) parseElements() TreeStack {
 	// TODO: parse template elements,text, and expression
 	var ts TreeStack
 	return ts
-}
-
-func (p *Parser) loc() token.Location {
-	return p.tokenizer.Location(p.cur)
 }

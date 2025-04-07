@@ -3,13 +3,13 @@ package token
 import "fmt"
 
 func (t Token) String() string {
-	return fmt.Sprintf("%s %d:%d", t.Kind().String(), t.start, t.end)
+	return t.Kind().String()
 }
 
 func (k Kind) String() string {
 	switch k {
 	case Invalid:
-		return "<?invalid>"
+		return "INVALID"
 	case Comma:
 		return ","
 	case Colon:
@@ -23,7 +23,7 @@ func (k Kind) String() string {
 	case EOL:
 		return "\\n"
 	case EOF:
-		return "<?eof>"
+		return "EOF"
 	case BracketOpen:
 		return "["
 	case BracketClose:

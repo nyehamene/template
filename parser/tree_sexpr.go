@@ -1,41 +1,141 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"temlang/tem/ast"
+	"temlang/tem/dsa/stack"
 	"temlang/tem/token"
 )
 
-func writeLocation(w ast.SExprPrinterContext, loc token.Location) {
-	w.WriteString("[%-2d, %2d] - [%-2d, %2d]\n",
-		loc.Start.Line, loc.Start.Col,
-		loc.End.Line, loc.End.Col,
-	)
+func writePosition(w ast.SExprPrinterContext, loc Position, close ...string) {
+	for _, c := range close {
+		w.WriteString(c)
+	}
+	w.WriteString(" ; %s\n", w.Location(loc.Start, loc.End))
 }
 
-func writeLocationToken(w ast.SExprPrinterContext, tok token.Token) {
-	writeLocation(w, w.Location(tok))
+func writePositionOfToken(w ast.SExprPrinterContext, tok token.Token, close ...string) {
+	l := Position{Start: tok.Start(), End: tok.End()}
+	writePosition(w, l, close...)
 }
 
-func (d decltree) writeIdents(w ast.SExprPrinterContext, close ...string) {
-	if d.idents.Len() < 1 {
-		w.WriteString("%s(ERROR) ; ", w.Indentation())
-		writeLocation(w, d.loc)
-	} else {
+func writePositionOfStack[T any](
+	w ast.SExprPrinterContext,
+	s stack.Stack[T],
+	startOffset func(T) int,
+	endOffset func(T) int,
+	close ...string) {
 
-		for {
-			ident, ok := d.idents.Pop()
-			if !ok {
-				break
-			}
-			writeLiteral(w, ident, "")
+	var first, last *T
+	for {
+		tok, ok := s.Pop()
+		if !ok {
+			break
 		}
+		if last == nil {
+			last = &tok
+			continue
+		}
+		first = &tok
+	}
+	if last == nil {
+		w.WriteString("[]\n")
+		return
+	}
+	if first == nil {
+		first = last
+	}
+	start := startOffset(*first)
+	end := endOffset(*last)
+	l := Position{start, end}
+	writePosition(w, l, close...)
+}
+
+func writePositionOfTokenStack(w ast.SExprPrinterContext, ts token.TokenStack, close ...string) {
+	startFunc := func(t token.Token) int {
+		return t.Start()
+	}
+	endFunc := func(t token.Token) int {
+		return t.End()
+	}
+	writePositionOfStack(w, ts, startFunc, endFunc, close...)
+}
+
+func writeLocationOfTreeStack(w ast.SExprPrinterContext, ts TreeStack, close ...string) {
+	startFunc := func(t Tree) int {
+		return t.Pos().Start
+	}
+	endFunc := func(t Tree) int {
+		return t.Pos().End
+	}
+	writePositionOfStack(w, ts, startFunc, endFunc, close...)
+}
+
+func writeTokenStack(
+	w ast.SExprPrinterContext,
+	t token.TokenStack,
+	close string,
+	closeOthers ...string) {
+	i := 0
+	for {
+		tok, ok := t.Pop()
+		i += 1
+		if !ok {
+			break
+		}
+		if i == t.Len() {
+			closeOthers = append(closeOthers, close)
+			writeLiteral(w, tok, closeOthers...)
+			writePositionOfTokenStack(w, t)
+			break
+		}
+		writeLiteral(w, tok, closeOthers...)
+	}
+}
+
+func writeTreeStack(
+	w ast.SExprPrinterContext,
+	t TreeStack,
+	close string,
+	closeOthers ...string) {
+	i := 0
+	for {
+		attr, ok := t.Pop()
+		if !ok {
+			break
+		}
+		if i == t.Len() {
+			closeOthers = append(closeOthers, close)
+			treeSExpr(w, attr, closeOthers...)
+			break
+		}
+		treeSExpr(w, attr, closeOthers...)
+	}
+}
+
+func writeDecl(w ast.SExprPrinterContext, d decltree, close ...string) {
+	w.WriteString("%s(identifiers", w.Indentation())
+	writePositionOfTokenStack(w, d.idents)
+
+	w.Indent()
+
+	if d.dtype.Kind() == token.Type {
+		writeTokenStack(w, d.idents, ")")
+		w.Dedent()
+		w.WriteString("%s(type)", w.Indentation())
+		writePositionOfToken(w, d.dtype, close...)
+		return
 	}
 
-	w.WriteString("%s(type ; ", w.Indentation())
-	writeLocationToken(w, d.dtype)
-	close = append(close, ")")
+	writeTokenStack(w, d.idents, ")")
+	w.Dedent()
+
+	w.WriteString("%s(type", w.Indentation())
+	writePositionOfToken(w, d.dtype)
+
 	w.Indent()
+	close = append(close, ")")
 	writeLiteral(w, d.dtype, close...)
 	w.Dedent()
 }
@@ -63,121 +163,90 @@ func writeLiteral(w ast.SExprPrinterContext, lit token.Token, close ...string) {
 	case token.Templ:
 		w.WriteString("%s(templ)", w.Indentation())
 	default:
-		w.WriteString("%s(ERROR)", w.Indentation())
+		w.WriteString("%s(ERROR", w.Indentation())
+		writePositionOfToken(w, lit)
+		w.Indent()
+		w.WriteString("%s(%s))", w.Indentation(), lit.String())
 	}
 	for _, c := range close {
 		w.WriteString(c)
 	}
-	w.WriteString(" ; ")
-	writeLocationToken(w, lit)
+	w.WriteString(fmt.Sprintf(" '%s' ", lit.Text()))
+	writePositionOfToken(w, lit)
 }
 
 func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 	w.WriteString("%s(expr", w.Indentation())
-	w.WriteString("\n")
+	writePosition(w, e.Pos())
 	w.Indent()
 	defer w.Dedent()
 
 	switch t := e.(type) {
 	case pkgexpr:
-		w.WriteString("%s(pkg_expr ; ", w.Indentation())
-		writeLocationToken(w, t.name)
+		w.WriteString("%s(pkg_expr", w.Indentation())
+		writePositionOfToken(w, t.name)
 		w.Indent()
-		w.WriteString("%s(name ; ", w.Indentation())
-		writeLocationToken(w, t.name)
+		w.WriteString("%s(name", w.Indentation())
+		writePositionOfToken(w, t.name)
 		w.Indent()
 		close = append(close, ")))")
 		writeLiteral(w, t.name, close...)
 		w.Dedent()
 		w.Dedent()
 	case importexpr:
-		w.WriteString("%s(import_expr ; ", w.Indentation())
-		writeLocationToken(w, t.path)
+		w.WriteString("%s(import_expr", w.Indentation())
+		writePositionOfToken(w, t.path)
 		w.Indent()
-		w.WriteString("%s(path ; ", w.Indentation())
-		writeLocationToken(w, t.path)
+		w.WriteString("%s(path", w.Indentation())
+		writePositionOfToken(w, t.path)
 		w.Indent()
 		close = append(close, ")))")
 		writeLiteral(w, t.path, close...)
 		w.Dedent()
 		w.Dedent()
 	case usingexpr:
-		w.WriteString("%s(using_expr ; ", w.Indentation())
-		writeLocationToken(w, t.target)
+		w.WriteString("%s(using_expr", w.Indentation())
+		writePositionOfToken(w, t.target)
 		w.Indent()
-		w.WriteString("%s(target ; ", w.Indentation())
-		writeLocationToken(w, t.target)
+		w.WriteString("%s(target", w.Indentation())
+		writePositionOfToken(w, t.target)
 		w.Indent()
 		close = append(close, ")))")
 		writeLiteral(w, t.target, close...)
 		w.Dedent()
 		w.Dedent()
 	case typeexpr:
-		w.WriteString("%s(type_expr ; ", w.Indentation())
-		writeLocationToken(w, t.target)
+		w.WriteString("%s(type_expr", w.Indentation())
+		writePositionOfToken(w, t.target)
 		w.Indent()
-		w.WriteString("%s(target ; ", w.Indentation())
-		writeLocationToken(w, t.target)
+		w.WriteString("%s(target", w.Indentation())
+		writePositionOfToken(w, t.target)
 		w.Indent()
 		close = append(close, ")))")
 		writeLiteral(w, t.target, close...)
 		w.Dedent()
 		w.Dedent()
 	case recordexpr:
-		w.WriteString("%s(record_expr ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(record_expr", w.Indentation())
+		writeLocationOfTreeStack(w, t.fields)
 		w.Indent()
 		w.WriteString("%s(fields", w.Indentation())
-		w.WriteString("\n")
+		writeLocationOfTreeStack(w, t.fields)
 		w.Indent()
-		i := 0
-		for {
-			field, ok := t.fields.Pop()
-			if !ok {
-				break
-			}
-			if i == t.fields.Len() {
-				close = append(close, ")))")
-				treeSExpr(w, field, close...)
-			} else {
-				treeSExpr(w, field)
-			}
-		}
+		writeTreeStack(w, t.fields, ")))", close...)
 		w.Dedent()
 		w.Dedent()
 	case templexpr:
-		w.WriteString("%s(templ_expr ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(templ_expr", w.Indentation())
+		writeLocationOfTreeStack(w, t.params)
 		w.Indent()
-		w.WriteString("%s(params ; ", w.Indentation())
+		w.WriteString("%s(params", w.Indentation())
+		writeLocationOfTreeStack(w, t.params)
 		w.Indent()
-		i := 0
-		for {
-			param, ok := t.params.Pop()
-			if !ok {
-				break
-			}
-			if i == t.params.Len() {
-				close = append(close, ")))")
-				treeSExpr(w, param, close...)
-			} else {
-				treeSExpr(w, param)
-			}
-		}
-		w.WriteString("%s(elements ; ", w.Indentation())
-		i = 0
-		for {
-			param, ok := t.elements.Pop()
-			if !ok {
-				break
-			}
-			if i == t.params.Len() {
-				close = append(close, ")))")
-				treeSExpr(w, param, close...)
-			} else {
-				treeSExpr(w, param)
-			}
-		}
+		writeTreeStack(w, t.params, ")))", close...)
+		w.WriteString("%s(elements", w.Indentation())
+		writeLocationOfTreeStack(w, t.elements)
+		writeTreeStack(w, t.elements, ")))", close...)
 		w.Dedent()
 		w.Dedent()
 	case litexpr:
@@ -186,118 +255,157 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 	case badexpr:
 		w.WriteString("%s(ERROR)", w.Indentation())
 		w.WriteString(strings.Join(close, ""))
-		writeLocation(w, t.loc)
+		writePosition(w, t.Position)
 	default:
 		w.WriteString(strings.Join(close, ""))
-		w.WriteString("%s(ERROR) ; ", w.Indentation())
+		w.WriteString("%s(ERROR)", w.Indentation())
 	}
 }
 
 func treeSExpr(w ast.SExprPrinterContext, tree Tree, close ...string) {
-	defer w.Dedent()
-
 	switch t := tree.(type) {
 	case pkgtree:
-		w.WriteString("%s(package_declaration ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(package_declaration", w.Indentation())
+		writePosition(w, t.Position)
+
 		w.Indent()
-		for {
-			dir, ok := t.directives.Pop()
-			if !ok {
-				break
-			}
-			writeLiteral(w, dir)
-		}
+		writeDecl(w, t.decltree)
+
+		w.WriteString("%s(directives", w.Indentation())
+		writePositionOfTokenStack(w, t.directives)
+
+		w.Indent()
+		writeTokenStack(w, t.directives, ")")
+		w.Dedent()
+
 		close := append(close, ")")
 		exprSExpr(w, t.expr, close...)
+
+		w.Dedent()
+
 	case importtree:
-		w.WriteString("%s(import_declaration ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(import_declaration", w.Indentation())
+		writePosition(w, t.Position)
 		w.Indent()
+
+		writeDecl(w, t.decltree)
+
 		close := append(close, ")")
 		exprSExpr(w, t.expr, close...)
+
+		w.Dedent()
+
 	case usingtree:
-		w.WriteString("%s(using_declaration ; ", w.Indentation())
-		writeLocation(w, t.loc)
-		close := append(close, ")")
+		w.WriteString("%s(using_declaration", w.Indentation())
+		writePosition(w, t.Position)
 		w.Indent()
+
+		writeDecl(w, t.decltree)
+
+		close := append(close, ")")
 		exprSExpr(w, t.expr, close...)
+
+		w.Dedent()
+
 	case typetree:
-		w.WriteString("%s(type_declaration ; ", w.Indentation())
-		writeLocation(w, t.loc)
-		close := append(close, ")")
+		w.WriteString("%s(type_declaration", w.Indentation())
+		writePosition(w, t.Position)
 		w.Indent()
+
+		writeDecl(w, t.decltree)
+
+		close := append(close, ")")
 		exprSExpr(w, t.expr, close...)
+
+		w.Dedent()
+
 	case recordtree:
-		w.WriteString("%s(record_declaration ; ", w.Indentation())
-		writeLocation(w, t.loc)
-		close := append(close, ")")
+		w.WriteString("%s(record_declaration", w.Indentation())
+		writePosition(w, t.Position)
 		w.Indent()
+
+		writeDecl(w, t.decltree)
+
+		close := append(close, ")")
 		exprSExpr(w, t.expr, close...)
+
+		w.Dedent()
+
 	case templtree:
-		w.WriteString("%s(templ_declaration ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(templ_declaration", w.Indentation())
+		writePosition(w, t.Position)
+		w.Indent()
+
+		writeDecl(w, t.decltree)
+
 		close := append(close, ")")
-		w.Indent()
 		exprSExpr(w, t.expr, close...)
+
+		w.Dedent()
+
 	case vartree:
-		w.WriteString("%s(var_declaration ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(var_declaration", w.Indentation())
+		writePosition(w, t.Position)
 		w.Indent()
+
 		close = append(close, ")")
-		decltree(t).writeIdents(w, close...)
+		writeDecl(w, decltree(t), close...)
+
+		w.Dedent()
+
 	case doctree:
-		w.WriteString("%s(doc_declaration) ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(doc_declaration)", w.Indentation())
+		writePosition(w, t.Position)
 		w.Indent()
-		if t.text.Empty() {
-			w.WriteString("%s(ERROR) ; ", w.Indentation())
-			writeLocation(w, t.loc)
-			break
-		}
-		i := 0
-		for {
-			text, ok := t.text.Pop()
-			i += 1
-			if !ok {
-				break
-			}
-			if i == t.text.Len() {
-				writeLiteral(w, text, ")")
-				break
-			}
-			writeLiteral(w, text)
-		}
+
+		w.WriteString("%(identifiers", w.Indentation())
+		writePositionOfTokenStack(w, t.idents)
+
+		w.Indent()
+		writeTokenStack(w, t.idents, ")")
+		w.Dedent()
+
+		w.WriteString("%(documentations", w.Indentation())
+		w.Indent()
+		writeTokenStack(w, t.text, ")", close...)
+		w.Dedent()
+
+		w.Dedent()
+
 	case tagtree:
-		w.WriteString("%s(tag_declaratin ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(tag_declaratin", w.Indentation())
+		writePosition(w, t.Position)
 		w.Indent()
-		i := 0
-		for {
-			attr, ok := t.attrs.Pop()
-			if !ok {
-				break
-			}
-			if i == t.attrs.Len() {
-				close = append(close, ")")
-				treeSExpr(w, attr, close...)
-				break
-			}
-			treeSExpr(w, attr, close...)
-		}
+
+		w.WriteString("%s(identifiers", w.Indentation())
+		writePositionOfTokenStack(w, t.idents)
+
+		w.Indent()
+		writeTokenStack(w, t.idents, ")")
+		w.Dedent()
+
+		w.WriteString("%s(attributes", w.Indentation())
+		w.Indent()
+		writeTreeStack(w, t.attrs, ")", close...)
+		w.Dedent()
+
+		w.Dedent()
+
 	case attrtree:
-		w.WriteString("%s(attr_declaratin ; ", w.Indentation())
-		writeLocation(w, t.loc)
+		w.WriteString("%s(attr_declaratin", w.Indentation())
+		writePosition(w, t.Position)
 		w.Indent()
 		close = append(close, ")")
 		exprSExpr(w, t.value, close...)
+
+		w.Dedent()
+
 	case badtree:
-		w.WriteString("%s(ERROR) ; ", w.Indentation())
-		writeLocation(w, t.loc)
-		w.Indent() // because of the dedent above
+		w.WriteString("%s(ERROR)", w.Indentation())
+		writePosition(w, t.Position)
+
 	default:
-		w.WriteString("%s(ERROR) ; ", w.Indentation())
-		w.Indent() // because of the dedent above
+		w.WriteString("%s(ERROR)", w.Indentation())
 	}
 }
 

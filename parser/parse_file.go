@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"os"
 	"temlang/tem/ast"
 	"temlang/tem/token"
@@ -19,6 +20,8 @@ func ParseFile(filename string, src []byte) (*ast.Namespace, *token.ErrorQueue) 
 	file := ast.New(filename, name)
 	p := New(filename, src)
 	parse(file, &p)
+
+	file.SetLines(p.Lines())
 	return file, p.errors
 }
 
@@ -36,19 +39,19 @@ func parse(f *ast.Namespace, p *Parser) {
 		switch p.lastTreeKind {
 		case token.Package:
 			if last != token.Invalid {
-				p.errorf(p.loc(), "expected package declaration")
+				p.error(p.offset(), "expected package declaration")
 			}
 		case token.Import:
 			switch last {
 			case token.Package, token.Import:
 			default:
-				p.errorf(p.loc(), "import must appear before other declarations")
+				p.error(p.offset(), "import must appear before other declarations")
 			}
 		case token.Using:
 			switch last {
 			case token.Package, token.Import, token.Using:
 			default:
-				p.errorf(p.loc(), "using must appear immediately after imports before other declarations")
+				p.error(p.offset(), "using must appear immediately after imports before other declarations")
 			}
 		}
 
@@ -58,31 +61,33 @@ func parse(f *ast.Namespace, p *Parser) {
 
 func (p *Parser) parseDoc(f parseDeclSpec) Tree {
 declStart:
-	idents, ok := p.matchIdents()
+	ok := p.matchIdents()
 	if !ok {
-		p.errorExpected(p.loc(), "ident")
-		return p.badtree()
+		p.errorExpected("ident")
+		return p.badtree(p.offset())
 	}
 
 	switch k := p.cur.Kind(); k {
 	case token.String, token.TextBlock:
-		p.parseDocDecl(idents)
+		p.parseDocDecl()
 		goto declStart
 	case token.BraceOpen:
-		p.parseTagDecl(idents)
+		p.parseTagDecl()
 		goto declStart
 	default:
-		tree := f(idents)
+		tree := f()
 		// FEAT: support trailing documentation and attributes
 		// parseTrailingDoc(f, tree, idents)
 		return tree
 	}
 }
 
-func (p *Parser) parseGenDecl(idents token.TokenStack) Tree {
+func (p *Parser) parseGenDecl() Tree {
 	var dtype token.Token
 	var expr Expr
 	var directives token.TokenStack
+
+	offset := p.identOffset
 
 declStart:
 	switch k := p.cur.Kind(); k {
@@ -94,7 +99,7 @@ declStart:
 			p.advance()
 		}
 
-		expr = p.parseGenExpr()
+		expr = p.parseGenExpr(offset)
 
 	case token.Package,
 		token.Import,
@@ -102,8 +107,8 @@ declStart:
 		token.Type,
 		token.Templ:
 		if dtype.Kind() != token.Invalid {
-			p.errorf(p.loc(), "unexpected %s", k)
-			return p.badtree()
+			p.error(p.offset(), fmt.Sprintf("unexpected %s", k))
+			return p.badtree(offset)
 		}
 		p.advance()
 		dtype = p.prev
@@ -111,20 +116,20 @@ declStart:
 
 	case token.Ident:
 		if dtype.Kind() != token.Invalid {
-			p.errorf(p.loc(), "unexpected %s", k)
-			return p.badtree()
+			p.error(p.offset(), fmt.Sprintf("unexpected %s", k))
+			return p.badtree(offset)
 		}
 		p.advance()
 		dtype = p.prev
 
 	default:
-		tree := p.badtree()
-		p.advance() // advance to avoid infinit loop
+		tree := p.badtree(offset)
+		p.advance() // advance to avoid infinite loop
 		return tree
 	}
 
+	d := p.decltree(dtype)
 	p.expectSemicolon()
-	d := decltree{idents: idents, dtype: p.empty(token.Import)} // TODO add location
 
 	// infer the tree based on the expr
 	if dtype.Kind() == token.Invalid {
@@ -152,37 +157,49 @@ func (p *Parser) createTree(kind token.Token, directives token.TokenStack, d dec
 		return templtree{decltree: d, expr: e}
 	case token.Ident:
 		if e != nil {
-			p.errorf(p.loc(), "expression not allowed in a var declaration")
+			p.error(p.offset(), "expression not allowed in a var declaration")
 		}
 		return vartree(d)
 	default:
-		return badtree{expr: e, loc: p.loc()}
+		return p.badtree(d.Start)
 	}
 }
 
+func (p *Parser) emptyToken(kind token.Kind) token.Token {
+	tok := token.New(kind, 0, 0)
+	return tok
+}
+
 func (p *Parser) inferTreeFromExpr(expr Expr, directives token.TokenStack, d decltree) Tree {
+	var tree Tree
 	switch expr.(type) {
 	case pkgexpr:
-		p.lastTreeKind = token.Package
-		return pkgtree{d, directives, expr}
+		d.dtype = p.emptyToken(token.Package)
+		tree = pkgtree{d, directives, expr}
 	case importexpr:
-		p.lastTreeKind = token.Import
-		return importtree{d, expr}
+		d.dtype = p.emptyToken(token.Import)
+		tree = importtree{d, expr}
 	case usingexpr:
-		p.lastTreeKind = token.Using
-		return usingtree{d, expr}
+		d.dtype = p.emptyToken(token.Using)
+		tree = usingtree{d, expr}
 	case typeexpr:
-		p.lastTreeKind = token.Type
-		return typetree{d, expr}
+		d.dtype = p.emptyToken(token.Type)
+		tree = typetree{d, expr}
 	case recordexpr:
-		p.lastTreeKind = token.Record
-		return recordtree{d, expr}
+		d.dtype = p.emptyToken(token.Type)
+		tree = recordtree{d, expr}
 	case templexpr:
-		p.lastTreeKind = token.Templ
-		return templtree{d, expr}
-	case badexpr:
-		return badtree{loc: p.loc(), expr: expr}
+		d.dtype = p.emptyToken(token.Templ)
+		tree = templtree{d, expr}
+	// case badexpr:
 	default:
-		return badtree{loc: p.loc(), expr: expr}
+		loc := p.locationStartingAt(d.Start)
+		return badtree{loc}
 	}
+	p.lastTreeKind = d.dtype.Kind()
+	return tree
+}
+
+func (p *Parser) Lines() []int {
+	return p.tokenizer.Lines()
 }

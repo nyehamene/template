@@ -1,0 +1,16 @@
+p :: package("main");
+
+a :: import("github.com/name");
+
+A, B :: using(a);
+
+My_A :: type(A);
+
+Foo :: record{
+	bar: String;
+	baz: Int;
+	};
+
+Foo :: templ(f: Foo){};
+
+My_A :: templ(a: type){};

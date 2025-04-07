@@ -10,17 +10,17 @@ type TreeStack = stack.Stack[Tree]
 
 type Tree interface {
 	TreeAst(*ast.Namespace)
+	Pos() Position
 }
 
 type badtree struct {
-	expr Expr
-	loc  token.Location
+	Position
 }
 
 type decltree struct {
 	idents token.TokenStack
 	dtype  token.Token
-	loc    token.Location
+	Position
 }
 
 type pkgtree struct {
@@ -59,28 +59,29 @@ type vartree decltree
 type tagtree struct {
 	idents token.TokenStack
 	attrs  TreeStack
-	loc    token.Location
+	Position
 }
 
 type attrtree struct {
 	idents token.TokenStack
 	value  litexpr
-	loc    token.Location
+	Position
 }
 
 // TODO creae separate stringDoctree and textblockDoctree
 type doctree struct {
 	idents token.TokenStack
 	text   token.TokenStack
-	loc    token.Location
+	Position
 }
 
 type Expr interface {
 	ExprAst(*ast.Namespace)
+	Pos() Position
 }
 
 type badexpr struct {
-	loc token.Location
+	Position
 }
 
 type pkgexpr struct {
@@ -101,13 +102,13 @@ type typeexpr struct {
 
 type recordexpr struct {
 	fields TreeStack
-	loc    token.Location
+	Position
 }
 
 type templexpr struct {
 	params   TreeStack
 	elements TreeStack
-	loc      token.Location
+	Position
 }
 
 type LitExpr interface {

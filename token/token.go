@@ -8,12 +8,26 @@ func New(kind Kind, offset, end int) Token {
 	return Token{kind: kind, start: offset, end: end}
 }
 
+func NewWithText(kind Kind, text string, offset, end int) Token {
+	return Token{
+		kind:  kind,
+		text:  text,
+		start: offset,
+		end:   end,
+	}
+}
+
 type TokenStack = stack.Stack[Token]
 
 type Token struct {
+	text  string
 	kind  Kind
 	start int
 	end   int
+}
+
+func (t Token) Text() string {
+	return t.text
 }
 
 func (t Token) Kind() Kind {

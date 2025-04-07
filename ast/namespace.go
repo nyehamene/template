@@ -8,10 +8,11 @@ func New(file, name string) *Namespace {
 }
 
 type Namespace struct {
-	pkg  string
-	name string
-	file string
-	decl []SExpressionPrinter
+	pkg   string
+	name  string
+	file  string
+	decl  []SExpressionPrinter
+	lines []int
 }
 
 func (n *Namespace) SetPackageName(name string) {
@@ -20,4 +21,8 @@ func (n *Namespace) SetPackageName(name string) {
 
 func (n *Namespace) Add(d SExpressionPrinter) {
 	n.decl = append(n.decl, d)
+}
+
+func (n *Namespace) SetLines(lines []int) {
+	n.lines = lines
 }

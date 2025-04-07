@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"temlang/tem/ast"
 	"testing"
 )
 
@@ -60,5 +61,33 @@ func TestTopLevelVarDeclaration(t *testing.T) {
 
 	if err.Len() != 0 {
 		t.Errorf("ParseFile(%v) failed unexpectedly", filename)
+	}
+}
+
+func TestAstPrinter(t *testing.T) {
+	path := "./testdata"
+	list, err := os.ReadDir(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, d := range list {
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".tem") {
+			continue
+		}
+
+		filename := filepath.Join(path, d.Name())
+		src, err := os.ReadFile(filename)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		file, _ := ParseFile(filename, src)
+
+		printed := ast.PrintSExpr(file)
+		if strings.Contains(printed, "ERROR") {
+			t.Error("parser failed unexpectedly")
+		}
 	}
 }

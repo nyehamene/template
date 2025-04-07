@@ -2,9 +2,9 @@ package parser
 
 import "temlang/tem/token"
 
-type parseExprSpec func() Expr
+type parseExprSpec func(offset int) Expr
 
-func (p *Parser) parseGenExpr() Expr {
+func (p *Parser) parseGenExpr(offset int) Expr {
 	var f parseExprSpec
 	switch k := p.cur.Kind(); k {
 	case token.Package:
@@ -14,52 +14,52 @@ func (p *Parser) parseGenExpr() Expr {
 	case token.Using:
 		f = p.parseUsingExpr
 	default:
-		return p.parseBasicExpr()
+		return p.parseBasicExpr(offset)
 	}
-	return f()
+	return f(offset)
 }
 
-func (p *Parser) parsePackageExpr() Expr {
+func (p *Parser) parsePackageExpr(offset int) Expr {
 	var name token.Token
 
 	switch kind := p.cur.Kind(); kind {
 	case token.Package:
 		p.advance()
 		if !p.expectSurroundParen(token.String) {
-			p.errorExpected(p.loc(), "package name")
-			return p.badexpr()
+			p.errorExpected("package name")
+			return p.badexpr(offset)
 		}
 		name = p.prev
 	default:
-		return p.parseImportExpr()
+		return p.parseImportExpr(offset)
 	}
 
 	return pkgexpr{name}
 }
 
-func (p *Parser) parseImportExpr() Expr {
+func (p *Parser) parseImportExpr(offset int) Expr {
 	if !p.match(token.Import) {
-		return p.parseUsingExpr()
+		return p.parseUsingExpr(offset)
 	}
 	if !p.expectSurroundParen(token.String) {
-		p.errorExpected(p.loc(), "string")
-		return p.badexpr()
+		p.errorExpected("string")
+		return p.badexpr(offset)
 	}
 	return importexpr{p.prev}
 }
 
-func (p *Parser) parseUsingExpr() Expr {
+func (p *Parser) parseUsingExpr(offset int) Expr {
 	if !p.match(token.Using) {
-		return p.parseBasicExpr()
+		return p.parseBasicExpr(offset)
 	}
 	if !p.expectSurroundParen(token.Ident) {
-		p.errorExpected(p.loc(), "ident")
-		return p.badexpr()
+		p.errorExpected("ident")
+		return p.badexpr(offset)
 	}
 	return usingexpr{p.prev}
 }
 
-func (p *Parser) parseBasicExpr() Expr {
+func (p *Parser) parseBasicExpr(offset int) Expr {
 	var f parseExprSpec
 	switch k := p.cur.Kind(); k {
 	case token.Type:
@@ -69,30 +69,30 @@ func (p *Parser) parseBasicExpr() Expr {
 	case token.Templ:
 		f = p.parseTemplExpr
 	default:
-		p.errorExpected(p.loc(), "an expr")
-		return p.badexpr()
+		p.errorExpected("an expr")
+		return p.badexpr(offset)
 	}
-	return f()
+	return f(offset)
 }
 
-func (p *Parser) parseTypeExpr() Expr {
+func (p *Parser) parseTypeExpr(offset int) Expr {
 	if !p.expect(token.Type) {
-		return p.badexpr()
+		return p.badexpr(offset)
 	}
 	if !p.expectSurroundParen(token.Ident) {
-		return p.badexpr()
+		return p.badexpr(offset)
 	}
 	return typeexpr{p.prev}
 }
 
-func (p *Parser) parseRecordExpr() Expr {
+func (p *Parser) parseRecordExpr(offset int) Expr {
 	if !p.expect(token.Record) {
-		p.errorExpected(p.loc(), "record")
-		return p.badexpr()
+		p.errorExpected("record")
+		return p.badexpr(offset)
 	}
 	if !p.expect(token.BraceOpen) {
-		p.errorExpected(p.loc(), "{")
-		return p.badexpr()
+		p.errorExpected("{")
+		return p.badexpr(offset)
 	}
 
 	var fields TreeStack
@@ -106,17 +106,17 @@ func (p *Parser) parseRecordExpr() Expr {
 		}
 	}
 	if !p.expect(token.BraceClose) {
-		p.errorExpected(p.loc(), "}")
-		return p.badexpr()
+		p.errorExpected("}")
+		return p.badexpr(offset)
 	}
 
-	return recordexpr{fields: fields} // TODO get record location
+	return recordexpr{fields: fields}
 }
 
-func (p *Parser) parseTemplExpr() Expr {
+func (p *Parser) parseTemplExpr(offset int) Expr {
 	if !p.expect(token.Templ) {
-		p.errorExpected(p.loc(), "templ")
-		return p.badexpr()
+		p.errorExpected("templ")
+		return p.badexpr(offset)
 	}
 
 	params := p.parseParamDecl()
@@ -124,5 +124,5 @@ func (p *Parser) parseTemplExpr() Expr {
 	elements := p.parseElements()
 	p.expect(token.BraceClose)
 
-	return templexpr{params: params, elements: elements} // TODO get templ location
+	return templexpr{params: params, elements: elements}
 }
