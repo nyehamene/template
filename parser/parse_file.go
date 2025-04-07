@@ -24,9 +24,14 @@ func ParseFile(filename string, src []byte) (*ast.Namespace, *token.ErrorQueue) 
 
 func parse(f *ast.Namespace, p *Parser) {
 	var last token.Kind
+
 	for p.cur.Kind() != token.EOF {
 		tree := p.parseDoc(p.parseGenDecl)
 		tree.TreeAst(f)
+
+		if _, ok := tree.(badtree); ok {
+			continue
+		}
 
 		switch p.lastTreeKind {
 		case token.Package:
@@ -97,13 +102,25 @@ declStart:
 		token.Type,
 		token.Templ:
 		if dtype.Kind() != token.Invalid {
-			p.errorf(p.loc(), "unexpected %s")
+			p.errorf(p.loc(), "unexpected %s", k)
 			return p.badtree()
 		}
 		p.advance()
 		dtype = p.prev
-		p.lastTreeKind = k
 		goto declStart
+
+	case token.Ident:
+		if dtype.Kind() != token.Invalid {
+			p.errorf(p.loc(), "unexpected %s", k)
+			return p.badtree()
+		}
+		p.advance()
+		dtype = p.prev
+
+	default:
+		tree := p.badtree()
+		p.advance() // advance to avoid infinit loop
+		return tree
 	}
 
 	p.expectSemicolon()
@@ -114,6 +131,7 @@ declStart:
 		return p.inferTreeFromExpr(expr, directives, d)
 	}
 
+	p.lastTreeKind = dtype.Kind()
 	return p.createTree(dtype, directives, d, expr)
 }
 
@@ -132,6 +150,11 @@ func (p *Parser) createTree(kind token.Token, directives token.TokenStack, d dec
 		return typetree{decltree: d, expr: e}
 	case token.Templ:
 		return templtree{decltree: d, expr: e}
+	case token.Ident:
+		if e != nil {
+			p.errorf(p.loc(), "expression not allowed in a var declaration")
+		}
+		return vartree(d)
 	default:
 		return badtree{expr: e, loc: p.loc()}
 	}

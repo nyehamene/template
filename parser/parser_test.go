@@ -47,3 +47,18 @@ func TestDirectivePlacementErrorZero(t *testing.T) {
 		t.Error("parser failed unexpectedly")
 	}
 }
+
+func TestTopLevelVarDeclaration(t *testing.T) {
+	src := `
+		p :: package("a")
+
+		name: String
+	`
+
+	filename := "test.tem"
+	_, err := ParseFile(filename, []byte(src))
+
+	if err.Len() != 0 {
+		t.Errorf("ParseFile(%v) failed unexpectedly", filename)
+	}
+}
