@@ -17,8 +17,15 @@ func (p *Parser) parseGenExpr() Expr {
 		f = p.parseImportExpr
 	case token.Using:
 		f = p.parseUsingExpr
+	case token.Type:
+		f = p.parseTypeExpr
+	case token.Record:
+		f = p.parseRecordExpr
+	case token.Templ:
+		f = p.parseTemplExpr
 	default:
-		return p.parseBasicExpr()
+		offset := p.identOffset()
+		return p.badexpr(offset)
 	}
 	return f()
 }
@@ -27,16 +34,14 @@ func (p *Parser) parsePackageExpr() Expr {
 	var name token.Token
 	offset := p.offset()
 
-	switch kind := p.cur.Kind(); kind {
-	case token.Package:
-		p.advance()
-		var ok bool
-		if name, ok = p.expectSurroundParen(token.String); !ok {
-			p.errorExpected("package name")
-			return p.badexpr(offset)
-		}
-	default:
-		return p.parseImportExpr()
+	if !p.expect(token.Package) {
+		return p.badexpr(offset)
+	}
+
+	var ok bool
+	if name, ok = p.expectSurroundParen(token.String); !ok {
+		offset := p.offset()
+		return p.badexpr(offset)
 	}
 
 	b := p.baseexpr(offset, p.prev.End())
@@ -45,12 +50,13 @@ func (p *Parser) parsePackageExpr() Expr {
 
 func (p *Parser) parseImportExpr() Expr {
 	offset := p.offset()
-	if !p.match(token.Import) {
-		return p.parseUsingExpr()
+	if !p.expect(token.Import) {
+		return p.badexpr(offset)
 	}
 	var path token.Token
 	var ok bool
 	if path, ok = p.expectSurroundParen(token.String); !ok {
+		offset := p.offset()
 		p.errorExpected("string")
 		return p.badexpr(offset)
 	}
@@ -60,34 +66,18 @@ func (p *Parser) parseImportExpr() Expr {
 
 func (p *Parser) parseUsingExpr() Expr {
 	offset := p.offset()
-	if !p.match(token.Using) {
-		return p.parseBasicExpr()
+	if !p.expect(token.Using) {
+		return p.badexpr(offset)
 	}
 	var target token.Token
 	var ok bool
 	if target, ok = p.expectSurroundParen(token.Ident); !ok {
 		p.errorExpected("ident")
+		offset := p.offset()
 		return p.badexpr(offset)
 	}
 	b := p.baseexpr(offset, p.prev.End())
 	return usingexpr{baseexpr: b, target: target}
-}
-
-func (p *Parser) parseBasicExpr() Expr {
-	var f parseExprSpec
-	switch k := p.cur.Kind(); k {
-	case token.Type:
-		f = p.parseTypeExpr
-	case token.Record:
-		f = p.parseRecordExpr
-	case token.Templ:
-		f = p.parseTemplExpr
-	default:
-		offset := p.offset()
-		p.errorExpected("an expr")
-		return p.badexpr(offset)
-	}
-	return f()
 }
 
 func (p *Parser) parseTypeExpr() Expr {
