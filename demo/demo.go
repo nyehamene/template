@@ -14,18 +14,18 @@ var def []byte
 //go:embed def_semicolon.tem
 var semicolon []byte
 
-// go:embed template.tem
-// var tmpl []byte
+//go:embed template.tem
+var tmpl []byte
 
-// go:embed def_semicolon.tem
-// var tmplSemicolon []byte
+//go:embed def_semicolon.tem
+var tmplSemicolon []byte
 
 func main() {
 	srcs := map[string][]byte{
-		"def.tem": def,
-		// "def_semicolon.tem": semicolon,
-		// "template.tem": tmpl,
-		// "template_semicolon": tmplSemicolon,
+		"def.tem":           def,
+		"def_semicolon.tem": semicolon,
+		// "template.tem":       tmpl,
+		"template_semicolon": tmplSemicolon,
 	}
 	for name, src := range srcs {
 		str := getString(name, src)
