@@ -2,7 +2,7 @@ package parser
 
 import (
 	"fmt"
-	"temlang/tem/dsa/stack"
+	"temlang/tem/dsa/queue"
 	"temlang/tem/token"
 	"temlang/tem/tokenizer"
 )
@@ -34,7 +34,7 @@ type Parser struct {
 	cur          token.Token
 	prev         token.Token
 	lastTreeKind token.Kind
-	idents       *token.TokenStack
+	idents       *token.TokenQueue
 	identOffset  int
 	errors       *token.ErrorQueue
 	error        func(offset int, msg string)
@@ -106,7 +106,7 @@ func (p *Parser) expect(tok token.Kind) bool {
 }
 
 func (p *Parser) matchIdents() bool {
-	var idents token.TokenStack
+	var idents token.TokenQueue
 
 	p.idents = nil
 	offset := p.offset()
@@ -177,8 +177,8 @@ func (p *Parser) badexpr(offset int) Expr {
 	return badexpr{Position{Start: offset, End: p.offset()}}
 }
 
-func (p *Parser) badtreeStack(offset int) TreeStack {
-	err := stack.New[Tree](1)
+func (p *Parser) badtreeStack(offset int) TreeQueue {
+	err := queue.New[Tree](1)
 	err.Push(p.badtree(offset))
 	return err
 }
@@ -186,7 +186,7 @@ func (p *Parser) badtreeStack(offset int) TreeStack {
 type parseDeclSpec func() Tree
 
 func (p *Parser) parseDocDecl() Tree {
-	var lines token.TokenStack
+	var lines token.TokenQueue
 	offset := p.offset()
 
 	if str := p.cur; p.match(token.String) {
@@ -234,14 +234,14 @@ func (p *Parser) parseVarDecl() Tree {
 	return vartree(d)
 }
 
-func (p *Parser) parseParamDecl() TreeStack {
+func (p *Parser) parseParamDecl() TreeQueue {
 	offset := p.offset()
 	if !p.expect(token.ParenOpen) {
 		p.errorExpected("(")
 		return p.badtreeStack(offset)
 	}
 
-	params := TreeStack{}
+	params := TreeQueue{}
 	for {
 		param := p.parseIdents(p.parseVarDecl)
 		params.Push(param)
@@ -284,7 +284,7 @@ func (p *Parser) parseTagDecl() Tree {
 		return p.badtree(p.identOffset)
 	}
 
-	var attrs TreeStack
+	var attrs TreeQueue
 	for {
 		attr := p.parseAttrDecl()
 		attrs.Push(attr)
@@ -312,8 +312,8 @@ func (p *Parser) parseTagDecl() Tree {
 	return tree
 }
 
-func (p *Parser) parseElements() TreeStack {
+func (p *Parser) parseElements() TreeQueue {
 	// TODO: parse template elements,text, and expression
-	var ts TreeStack
+	var ts TreeQueue
 	return ts
 }

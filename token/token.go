@@ -1,7 +1,7 @@
 package token
 
 import (
-	"temlang/tem/dsa/stack"
+	"temlang/tem/dsa/queue"
 )
 
 func New(kind Kind, offset, end int) Token {
@@ -17,7 +17,7 @@ func NewWithText(kind Kind, text string, offset, end int) Token {
 	}
 }
 
-type TokenStack = stack.Stack[Token]
+type TokenQueue = queue.Queue[Token]
 
 type Token struct {
 	text  string

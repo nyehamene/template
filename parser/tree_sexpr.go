@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"temlang/tem/ast"
-	"temlang/tem/dsa/stack"
+	"temlang/tem/dsa/queue"
 	"temlang/tem/token"
 )
 
@@ -20,61 +20,62 @@ func writePositionOfToken(w ast.SExprPrinterContext, tok token.Token, close ...s
 	writePosition(w, l, close...)
 }
 
-func writePositionOfStack[T any](
+func writePositionOfQueue[T any](
 	w ast.SExprPrinterContext,
-	s stack.Stack[T],
+	s queue.Queue[T],
 	startOffset func(T) int,
 	endOffset func(T) int,
 	close ...string) {
 
 	var first, last *T
+
 	for {
 		tok, ok := s.Pop()
 		if !ok {
 			break
 		}
-		if last == nil {
-			last = &tok
+		if first == nil {
+			first = &tok
 			continue
 		}
-		first = &tok
+		last = &tok
 	}
-	if last == nil {
+	if first == nil {
 		w.WriteString("[]\n")
 		return
 	}
-	if first == nil {
-		first = last
+	if last == nil {
+		last = first
 	}
 	start := startOffset(*first)
 	end := endOffset(*last)
-	l := Position{start, end}
-	writePosition(w, l, close...)
+	pos := Position{start, end}
+	writePosition(w, pos, close...)
 }
 
-func writePositionOfTokenStack(w ast.SExprPrinterContext, ts token.TokenStack, close ...string) {
+func writePositionOfTokenQueue(w ast.SExprPrinterContext, ts token.TokenQueue, close ...string) {
 	startFunc := func(t token.Token) int {
 		return t.Start()
 	}
 	endFunc := func(t token.Token) int {
 		return t.End()
 	}
-	writePositionOfStack(w, ts, startFunc, endFunc, close...)
+	writePositionOfQueue(w, ts, startFunc, endFunc, close...)
 }
 
-func writeLocationOfTreeStack(w ast.SExprPrinterContext, ts TreeStack, close ...string) {
+func writeLocationOfTreeQueue(w ast.SExprPrinterContext, ts TreeQueue, close ...string) {
 	startFunc := func(t Tree) int {
 		return t.Pos().Start
 	}
 	endFunc := func(t Tree) int {
 		return t.Pos().End
 	}
-	writePositionOfStack(w, ts, startFunc, endFunc, close...)
+	writePositionOfQueue(w, ts, startFunc, endFunc, close...)
 }
 
-func writeTokenStack(
+func writeTokenQueue(
 	w ast.SExprPrinterContext,
-	t token.TokenStack,
+	t token.TokenQueue,
 	close string,
 	closeOthers ...string) {
 	i := 0
@@ -87,7 +88,7 @@ func writeTokenStack(
 		if i == t.Len() {
 			closeOthers = append(closeOthers, close)
 			writeLiteral(w, tok, closeOthers...)
-			writePositionOfTokenStack(w, t)
+			writePositionOfTokenQueue(w, t)
 			break
 		}
 		writeLiteral(w, tok, closeOthers...)
@@ -96,7 +97,7 @@ func writeTokenStack(
 
 func writeTreeStack(
 	w ast.SExprPrinterContext,
-	t TreeStack,
+	t TreeQueue,
 	close string,
 	closeOthers ...string) {
 	i := 0
@@ -116,19 +117,19 @@ func writeTreeStack(
 
 func writeDecl(w ast.SExprPrinterContext, d decltree, close ...string) {
 	w.WriteString("%s(identifiers", w.Indentation())
-	writePositionOfTokenStack(w, d.idents)
+	writePositionOfTokenQueue(w, d.idents)
 
 	w.Indent()
 
 	if d.dtype.Kind() == token.Type {
-		writeTokenStack(w, d.idents, ")")
+		writeTokenQueue(w, d.idents, ")")
 		w.Dedent()
 		w.WriteString("%s(type)", w.Indentation())
 		writePositionOfToken(w, d.dtype, close...)
 		return
 	}
 
-	writeTokenStack(w, d.idents, ")")
+	writeTokenQueue(w, d.idents, ")")
 	w.Dedent()
 
 	w.WriteString("%s(type", w.Indentation())
@@ -228,24 +229,24 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.Dedent()
 	case recordexpr:
 		w.WriteString("%s(record_expr", w.Indentation())
-		writeLocationOfTreeStack(w, t.fields)
+		writeLocationOfTreeQueue(w, t.fields)
 		w.Indent()
 		w.WriteString("%s(fields", w.Indentation())
-		writeLocationOfTreeStack(w, t.fields)
+		writeLocationOfTreeQueue(w, t.fields)
 		w.Indent()
 		writeTreeStack(w, t.fields, ")))", close...)
 		w.Dedent()
 		w.Dedent()
 	case templexpr:
 		w.WriteString("%s(templ_expr", w.Indentation())
-		writeLocationOfTreeStack(w, t.params)
+		writeLocationOfTreeQueue(w, t.params)
 		w.Indent()
 		w.WriteString("%s(params", w.Indentation())
-		writeLocationOfTreeStack(w, t.params)
+		writeLocationOfTreeQueue(w, t.params)
 		w.Indent()
 		writeTreeStack(w, t.params, ")))", close...)
 		w.WriteString("%s(elements", w.Indentation())
-		writeLocationOfTreeStack(w, t.elements)
+		writeLocationOfTreeQueue(w, t.elements)
 		writeTreeStack(w, t.elements, ")))", close...)
 		w.Dedent()
 		w.Dedent()
@@ -272,10 +273,10 @@ func treeSExpr(w ast.SExprPrinterContext, tree Tree, close ...string) {
 		writeDecl(w, t.decltree)
 
 		w.WriteString("%s(directives", w.Indentation())
-		writePositionOfTokenStack(w, t.directives)
+		writePositionOfTokenQueue(w, t.directives)
 
 		w.Indent()
-		writeTokenStack(w, t.directives, ")")
+		writeTokenQueue(w, t.directives, ")")
 		w.Dedent()
 
 		close := append(close, ")")
@@ -359,15 +360,15 @@ func treeSExpr(w ast.SExprPrinterContext, tree Tree, close ...string) {
 		w.Indent()
 
 		w.WriteString("%(identifiers", w.Indentation())
-		writePositionOfTokenStack(w, t.idents)
+		writePositionOfTokenQueue(w, t.idents)
 
 		w.Indent()
-		writeTokenStack(w, t.idents, ")")
+		writeTokenQueue(w, t.idents, ")")
 		w.Dedent()
 
 		w.WriteString("%(documentations", w.Indentation())
 		w.Indent()
-		writeTokenStack(w, t.text, ")", close...)
+		writeTokenQueue(w, t.text, ")", close...)
 		w.Dedent()
 
 		w.Dedent()
@@ -378,10 +379,10 @@ func treeSExpr(w ast.SExprPrinterContext, tree Tree, close ...string) {
 		w.Indent()
 
 		w.WriteString("%s(identifiers", w.Indentation())
-		writePositionOfTokenStack(w, t.idents)
+		writePositionOfTokenQueue(w, t.idents)
 
 		w.Indent()
-		writeTokenStack(w, t.idents, ")")
+		writeTokenQueue(w, t.idents, ")")
 		w.Dedent()
 
 		w.WriteString("%s(attributes", w.Indentation())

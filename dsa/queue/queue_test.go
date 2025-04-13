@@ -126,7 +126,7 @@ func TestCompactLeft(t *testing.T) {
 	q.PushAll(1, 2, 3, 4, 5, 6, 7, 8, 9, 0)
 
 	// Pop half the content of the queue
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		v, ok := q.Pop()
 		_, _ = v, ok
 	}

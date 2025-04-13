@@ -2,11 +2,11 @@ package parser
 
 import (
 	"temlang/tem/ast"
-	"temlang/tem/dsa/stack"
+	"temlang/tem/dsa/queue"
 	"temlang/tem/token"
 )
 
-type TreeStack = stack.Stack[Tree]
+type TreeQueue = queue.Queue[Tree]
 
 type Tree interface {
 	TreeAst(*ast.Namespace)
@@ -18,14 +18,14 @@ type badtree struct {
 }
 
 type decltree struct {
-	idents token.TokenStack
+	idents token.TokenQueue
 	dtype  token.Token
 	Position
 }
 
 type pkgtree struct {
 	decltree
-	directives token.TokenStack
+	directives token.TokenQueue
 	expr       Expr
 }
 
@@ -57,21 +57,21 @@ type templtree struct {
 type vartree decltree
 
 type tagtree struct {
-	idents token.TokenStack
-	attrs  TreeStack
+	idents token.TokenQueue
+	attrs  TreeQueue
 	Position
 }
 
 type attrtree struct {
-	idents token.TokenStack
+	idents token.TokenQueue
 	value  litexpr
 	Position
 }
 
 // TODO creae separate stringDoctree and textblockDoctree
 type doctree struct {
-	idents token.TokenStack
-	text   token.TokenStack
+	idents token.TokenQueue
+	text   token.TokenQueue
 	Position
 }
 
@@ -101,13 +101,13 @@ type typeexpr struct {
 }
 
 type recordexpr struct {
-	fields TreeStack
+	fields TreeQueue
 	Position
 }
 
 type templexpr struct {
-	params   TreeStack
-	elements TreeStack
+	params   TreeQueue
+	elements TreeQueue
 	Position
 }
 

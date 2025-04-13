@@ -1,38 +1,42 @@
 package queue
 
-func New[T any](capacity int) Queue[T] {
-	t := make([]T, capacity)
-	return Queue[T]{t, 0, 0}
+func New[T any](cap int) Queue[T] {
+	t := make([]T, cap)
+	return Queue[T]{
+		items:       t,
+		readOffset:  0,
+		writeOffset: 0,
+	}
 }
 
 type Queue[T any] struct {
-	t []T
-	r int
-	w int
+	items       []T
+	readOffset  int
+	writeOffset int
 }
 
 func (q Queue[T]) Len() int {
-	length := q.w - q.r
+	length := q.writeOffset - q.readOffset
 	return length
 }
 
 func (q Queue[T]) Cap() int {
-	return cap(q.t)
+	return cap(q.items)
 }
 
 func (q Queue[T]) Empty() bool {
-	return q.r == q.w
+	return q.readOffset == q.writeOffset
 }
 
 func (q *Queue[T]) Push(t T) {
 	q.compact()
-	if q.w == len(q.t) {
-		q.t = append(q.t, t)
+	if q.writeOffset == len(q.items) {
+		q.items = append(q.items, t)
 	} else {
-		index := q.w
-		q.t[index] = t
+		index := q.writeOffset
+		q.items[index] = t
 	}
-	q.w += 1
+	q.writeOffset += 1
 }
 
 func (q *Queue[T]) PushAll(ts ...T) {
@@ -43,15 +47,13 @@ func (q *Queue[T]) PushAll(ts ...T) {
 
 func (q *Queue[T]) Pop() (T, bool) {
 	if q.Empty() {
-		q.r = 0
-		q.w = 0
 		var empty T
 		return empty, false
 	}
 
-	index := q.r
-	t := q.t[index]
-	q.r += 1
+	index := q.readOffset
+	t := q.items[index]
+	q.readOffset += 1
 	return t, true
 }
 
@@ -60,28 +62,37 @@ func (q *Queue[T]) Peek() (T, bool) {
 		var empty T
 		return empty, false
 	}
-	index := q.r
-	t := q.t[index]
+	index := q.readOffset
+	t := q.items[index]
 	return t, true
 }
 
 func (q *Queue[T]) compact() {
-	size := len(q.t)
+	if q.Empty() {
+		return
+	}
+	if q.writeOffset < 10 {
+		return
+	}
+
+	itemSize := q.Len()
+	size := len(q.items)
 	quotient := 2
 	halfSize := size / quotient
 
-	if q.r < halfSize {
+	if itemSize < halfSize {
 		return
 	}
 
 	var empty T
 	i := 0
 
-	for ; i < q.Len(); i++ {
-		index := q.r + i
-		q.t[i] = q.t[index]
-		q.t[index] = empty
+	for ; i < itemSize; i++ {
+		index := q.readOffset + i
+		cur := q.items[index]
+		q.items[i] = cur
+		q.items[index] = empty
 	}
-	q.w = i
-	q.r = 0
+	q.writeOffset = i
+	q.readOffset = 0
 }

@@ -95,7 +95,7 @@ func (p *Parser) parseRecordExpr(offset int) Expr {
 		return p.badexpr(offset)
 	}
 
-	var fields TreeStack
+	var fields TreeQueue
 
 	for p.cur.Kind() == token.Ident {
 		field := p.parseDoc(p.parseVarDecl)

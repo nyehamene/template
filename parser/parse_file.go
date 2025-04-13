@@ -85,7 +85,7 @@ declStart:
 func (p *Parser) parseGenDecl() Tree {
 	var dtype token.Token
 	var expr Expr
-	var directives token.TokenStack
+	var directives token.TokenQueue
 
 	offset := p.identOffset
 
@@ -140,7 +140,7 @@ declStart:
 	return p.createTree(dtype, directives, d, expr)
 }
 
-func (p *Parser) createTree(kind token.Token, directives token.TokenStack, d decltree, e Expr) Tree {
+func (p *Parser) createTree(kind token.Token, directives token.TokenQueue, d decltree, e Expr) Tree {
 	switch kind.Kind() {
 	case token.Package:
 		return pkgtree{decltree: d, directives: directives, expr: e}
@@ -170,7 +170,7 @@ func (p *Parser) emptyToken(kind token.Kind) token.Token {
 	return tok
 }
 
-func (p *Parser) inferTreeFromExpr(expr Expr, directives token.TokenStack, d decltree) Tree {
+func (p *Parser) inferTreeFromExpr(expr Expr, directives token.TokenQueue, d decltree) Tree {
 	var tree Tree
 	switch expr.(type) {
 	case pkgexpr:
