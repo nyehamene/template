@@ -32,6 +32,14 @@ func TestParseFile(t *testing.T) {
 		if errs.Len() != 0 {
 			t.Errorf("ParseFile(%s) parser failed unexpectedly", filename)
 		}
+
+		for {
+			err, ok := errs.Pop()
+			if !ok {
+				break
+			}
+			t.Error(err)
+		}
 	}
 }
 

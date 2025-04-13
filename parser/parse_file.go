@@ -35,6 +35,12 @@ func parse(f *ast.Namespace, p *Parser) {
 		if _, ok := tree.(badtree); ok {
 			continue
 		}
+		if _, ok := tree.(doctree); ok {
+			continue
+		}
+		if _, ok := tree.(tagtree); ok {
+			continue
+		}
 
 		switch p.lastTreeKind {
 		case token.Package:
