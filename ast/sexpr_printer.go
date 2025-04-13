@@ -107,9 +107,6 @@ func PrintSExpr(n *Namespace) string {
 		if l := len(chunk[0]); l > longestSExpr {
 			longestSExpr = l
 		}
-		if len(chunk) > 2 {
-			_ = chunk
-		}
 		chunks = append(chunks, chunk)
 	}
 
@@ -118,19 +115,29 @@ func PrintSExpr(n *Namespace) string {
 		if length == 0 {
 			continue
 		}
-		if length > 2 {
-			fmt.Println(strings.Join(chunk, ""))
-			panic("Invalid sexpr")
-		}
-		if length == 1 {
-			fmtLines.WriteString(chunk[0])
-			fmtLines.WriteString("\n")
+		if length != 2 {
+			fmtLines.WriteString(strings.Join(chunk, ""))
 			continue
 		}
 
 		e := chunk[0]
 		l := chunk[1]
 		length = len(e)
+
+		if strings.Contains(e, "=") {
+			chunks := strings.Split(e, "=")
+			if len(chunks) != 2 {
+				break
+			}
+			left := chunks[0]
+			right := chunks[1]
+
+			pad := longestSExpr - length
+			left = left + strings.Repeat(" ", pad+1)
+
+			e = left + right
+		}
+
 		var str string
 
 		if length == longestSExpr {

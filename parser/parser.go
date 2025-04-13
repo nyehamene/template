@@ -202,7 +202,7 @@ type parseDeclSpec func() Tree
 
 func (p *Parser) parseDocDecl() Tree {
 	var lines token.TokenQueue
-	offset := p.offset()
+	offset := p.identOffset()
 
 	if str := p.cur; p.match(token.String) {
 		lines.Push(str)
@@ -221,11 +221,12 @@ func (p *Parser) parseDocDecl() Tree {
 		}
 	}
 
-	// fix: match optional explicit semicolon
+	// FIX: match optional explicit semicolon
 	p.match(token.Semicolon)
 	// NOTE assume p.idents is not nil at this point
 	idents := *p.idents
-	return doctree{idents: idents, text: lines}
+	pos := Position{Start: offset, End: p.prev.End()}
+	return doctree{idents: idents, text: lines, Position: pos}
 }
 
 // NOTE this method can be removed

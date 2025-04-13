@@ -60,7 +60,6 @@ func parse(f *ast.Namespace, p *Parser) {
 }
 
 func (p *Parser) parseDoc(f parseDeclSpec) Tree {
-declStart:
 	ok := p.matchIdents()
 	if !ok {
 		p.errorExpected("ident")
@@ -69,16 +68,11 @@ declStart:
 
 	switch k := p.cur.Kind(); k {
 	case token.String, token.TextBlock:
-		p.parseDocDecl()
-		goto declStart
+		return p.parseDocDecl()
 	case token.BraceOpen:
-		p.parseTagDecl()
-		goto declStart
+		return p.parseTagDecl()
 	default:
-		tree := f()
-		// FEAT: support trailing documentation and attributes
-		// parseTrailingDoc(f, tree, idents)
-		return tree
+		return f()
 	}
 }
 
