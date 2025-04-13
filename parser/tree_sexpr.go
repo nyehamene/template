@@ -76,7 +76,6 @@ func writeLocationOfTreeQueue(w ast.SExprPrinterContext, ts TreeQueue, close ...
 func writeTokenQueue(
 	w ast.SExprPrinterContext,
 	t token.TokenQueue,
-	close string,
 	closeOthers ...string) {
 	i := 0
 	for {
@@ -86,7 +85,6 @@ func writeTokenQueue(
 			break
 		}
 		if i == t.Len() {
-			closeOthers = append(closeOthers, close)
 			writeLiteral(w, tok, closeOthers...)
 			writePositionOfTokenQueue(w, t)
 			break
@@ -121,15 +119,16 @@ func writeDecl(w ast.SExprPrinterContext, d decltree, close ...string) {
 
 	w.Indent()
 
+	writeTokenQueue(w, d.idents, ")")
+
 	if d.dtype.Kind() == token.Type {
-		writeTokenQueue(w, d.idents, ")")
 		w.Dedent()
 		w.WriteString("%s(type)", w.Indentation())
+		w.WriteString(" '%s' ", d.dtype.Text())
 		writePositionOfToken(w, d.dtype, close...)
 		return
 	}
 
-	writeTokenQueue(w, d.idents, ")")
 	w.Dedent()
 
 	w.WriteString("%s(type", w.Indentation())
@@ -185,7 +184,7 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 	switch t := e.(type) {
 	case pkgexpr:
 		w.WriteString("%s(pkg_expr", w.Indentation())
-		writePositionOfToken(w, t.name)
+		writePosition(w, t.Pos())
 		w.Indent()
 		w.WriteString("%s(name", w.Indentation())
 		writePositionOfToken(w, t.name)
@@ -196,7 +195,7 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.Dedent()
 	case importexpr:
 		w.WriteString("%s(import_expr", w.Indentation())
-		writePositionOfToken(w, t.path)
+		writePosition(w, t.Pos())
 		w.Indent()
 		w.WriteString("%s(path", w.Indentation())
 		writePositionOfToken(w, t.path)
@@ -207,7 +206,7 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.Dedent()
 	case usingexpr:
 		w.WriteString("%s(using_expr", w.Indentation())
-		writePositionOfToken(w, t.target)
+		writePosition(w, t.Pos())
 		w.Indent()
 		w.WriteString("%s(target", w.Indentation())
 		writePositionOfToken(w, t.target)
@@ -218,7 +217,7 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.Dedent()
 	case typeexpr:
 		w.WriteString("%s(type_expr", w.Indentation())
-		writePositionOfToken(w, t.target)
+		writePosition(w, t.Pos())
 		w.Indent()
 		w.WriteString("%s(target", w.Indentation())
 		writePositionOfToken(w, t.target)
@@ -229,7 +228,7 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.Dedent()
 	case recordexpr:
 		w.WriteString("%s(record_expr", w.Indentation())
-		writeLocationOfTreeQueue(w, t.fields)
+		writePosition(w, t.Pos())
 		w.Indent()
 		w.WriteString("%s(fields", w.Indentation())
 		writeLocationOfTreeQueue(w, t.fields)
@@ -239,7 +238,7 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 		w.Dedent()
 	case templexpr:
 		w.WriteString("%s(templ_expr", w.Indentation())
-		writeLocationOfTreeQueue(w, t.params)
+		writePosition(w, t.Pos())
 		w.Indent()
 		w.WriteString("%s(params", w.Indentation())
 		writeLocationOfTreeQueue(w, t.params)
@@ -256,7 +255,7 @@ func exprSExpr(w ast.SExprPrinterContext, e Expr, close ...string) {
 	case badexpr:
 		w.WriteString("%s(ERROR)", w.Indentation())
 		w.WriteString(strings.Join(close, ""))
-		writePosition(w, t.Position)
+		writePosition(w, t.Pos())
 	default:
 		w.WriteString(strings.Join(close, ""))
 		w.WriteString("%s(ERROR)", w.Indentation())
@@ -320,18 +319,6 @@ func treeSExpr(w ast.SExprPrinterContext, tree Tree, close ...string) {
 
 		w.Dedent()
 
-	case recordtree:
-		w.WriteString("%s(record_declaration", w.Indentation())
-		writePosition(w, t.Position)
-		w.Indent()
-
-		writeDecl(w, t.decltree)
-
-		close := append(close, ")")
-		exprSExpr(w, t.expr, close...)
-
-		w.Dedent()
-
 	case templtree:
 		w.WriteString("%s(templ_declaration", w.Indentation())
 		writePosition(w, t.Position)
@@ -363,12 +350,13 @@ func treeSExpr(w ast.SExprPrinterContext, tree Tree, close ...string) {
 		writePositionOfTokenQueue(w, t.idents)
 
 		w.Indent()
-		writeTokenQueue(w, t.idents, ")")
+		writeTokenQueue(w, t.idents, "|")
 		w.Dedent()
 
 		w.WriteString("%(documentations", w.Indentation())
 		w.Indent()
-		writeTokenQueue(w, t.text, ")", close...)
+		close = append(close, ")")
+		writeTokenQueue(w, t.text, close...)
 		w.Dedent()
 
 		w.Dedent()
@@ -427,10 +415,6 @@ func (t typetree) WriteSExpr(w ast.SExprPrinterContext) {
 }
 
 func (t vartree) WriteSExpr(w ast.SExprPrinterContext) {
-	treeSExpr(w, t)
-}
-
-func (t recordtree) WriteSExpr(w ast.SExprPrinterContext) {
 	treeSExpr(w, t)
 }
 

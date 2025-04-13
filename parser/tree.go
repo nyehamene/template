@@ -44,11 +44,6 @@ type typetree struct {
 	expr Expr
 }
 
-type recordtree struct {
-	decltree
-	expr Expr
-}
-
 type templtree struct {
 	decltree
 	expr Expr
@@ -80,40 +75,43 @@ type Expr interface {
 	Pos() Position
 }
 
+type baseexpr struct {
+	start, end int
+}
+
 type badexpr struct {
-	Position
+	baseexpr
 }
 
 type pkgexpr struct {
+	baseexpr
 	name token.Token
 }
 
 type importexpr struct {
+	baseexpr
 	path token.Token
 }
 
 type usingexpr struct {
+	baseexpr
 	target token.Token
 }
 
 type typeexpr struct {
+	baseexpr
 	target token.Token
 }
 
 type recordexpr struct {
+	baseexpr
 	fields TreeQueue
-	Position
 }
 
 type templexpr struct {
+	baseexpr
 	params   TreeQueue
 	elements TreeQueue
-	Position
-}
-
-type LitExpr interface {
-	Expr
-	LitValue(*ast.Namespace)
 }
 
 type litexpr token.Token
@@ -138,11 +136,6 @@ func (t usingtree) TreeAst(n *ast.Namespace) {
 }
 
 func (t typetree) TreeAst(n *ast.Namespace) {
-	n.Add(t)
-	t.expr.ExprAst(n)
-}
-
-func (t recordtree) TreeAst(n *ast.Namespace) {
 	n.Add(t)
 	t.expr.ExprAst(n)
 }

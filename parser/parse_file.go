@@ -39,19 +39,19 @@ func parse(f *ast.Namespace, p *Parser) {
 		switch p.lastTreeKind {
 		case token.Package:
 			if last != token.Invalid {
-				p.error(p.offset(), "expected package declaration")
+				p.error(p.identOffset(), "expected package declaration")
 			}
 		case token.Import:
 			switch last {
 			case token.Package, token.Import:
 			default:
-				p.error(p.offset(), "import must appear before other declarations")
+				p.error(p.identOffset(), "import must appear before other declarations")
 			}
 		case token.Using:
 			switch last {
 			case token.Package, token.Import, token.Using:
 			default:
-				p.error(p.offset(), "using must appear immediately after imports before other declarations")
+				p.error(p.identOffset(), "using must appear immediately after imports before other declarations")
 			}
 		}
 
@@ -64,7 +64,7 @@ declStart:
 	ok := p.matchIdents()
 	if !ok {
 		p.errorExpected("ident")
-		return p.badtree(p.offset())
+		return p.badtree(p.identOffset())
 	}
 
 	switch k := p.cur.Kind(); k {
@@ -87,11 +87,13 @@ func (p *Parser) parseGenDecl() Tree {
 	var expr Expr
 	var directives token.TokenQueue
 
-	offset := p.identOffset
+	// NOTE: assume p.idents is not null
+	idents := *p.idents
 
 declStart:
 	switch k := p.cur.Kind(); k {
 	case token.Colon:
+		dtypeOffset := p.offset()
 		p.advance()
 
 		for p.cur.Kind() == token.Directive {
@@ -99,7 +101,13 @@ declStart:
 			p.advance()
 		}
 
-		expr = p.parseGenExpr(offset)
+		expr = p.parseGenExpr()
+
+		// infer the tree based on the expr
+		if dtype.Kind() == token.Invalid {
+			kind := p.inferTreeFromExpr(expr)
+			dtype = p.emptyToken(kind, dtypeOffset)
+		}
 
 	case token.Package,
 		token.Import,
@@ -107,7 +115,8 @@ declStart:
 		token.Type,
 		token.Templ:
 		if dtype.Kind() != token.Invalid {
-			p.error(p.offset(), fmt.Sprintf("unexpected %s", k))
+			offset := p.identOffset()
+			p.error(offset, fmt.Sprintf("unexpected %s", k))
 			return p.badtree(offset)
 		}
 		p.advance()
@@ -116,27 +125,24 @@ declStart:
 
 	case token.Ident:
 		if dtype.Kind() != token.Invalid {
-			p.error(p.offset(), fmt.Sprintf("unexpected %s", k))
+			offset := p.identOffset()
+			p.error(offset, fmt.Sprintf("unexpected %s", k))
 			return p.badtree(offset)
 		}
 		p.advance()
 		dtype = p.prev
 
 	default:
+		offset := p.identOffset()
 		tree := p.badtree(offset)
 		p.advance() // advance to avoid infinite loop
 		return tree
 	}
 
-	d := p.decltree(dtype)
+	d := p.decltree(idents, dtype)
 	p.expectSemicolon()
-
-	// infer the tree based on the expr
-	if dtype.Kind() == token.Invalid {
-		return p.inferTreeFromExpr(expr, directives, d)
-	}
-
 	p.lastTreeKind = dtype.Kind()
+
 	return p.createTree(dtype, directives, d, expr)
 }
 
@@ -149,15 +155,12 @@ func (p *Parser) createTree(kind token.Token, directives token.TokenQueue, d dec
 	case token.Using:
 		return usingtree{decltree: d, expr: e}
 	case token.Type:
-		if _, ok := e.(typeexpr); ok {
-			return recordtree{decltree: d, expr: e}
-		}
 		return typetree{decltree: d, expr: e}
 	case token.Templ:
 		return templtree{decltree: d, expr: e}
 	case token.Ident:
 		if e != nil {
-			p.error(p.offset(), "expression not allowed in a var declaration")
+			p.error(p.identOffset(), "expression not allowed in a var declaration")
 		}
 		return vartree(d)
 	default:
@@ -165,39 +168,28 @@ func (p *Parser) createTree(kind token.Token, directives token.TokenQueue, d dec
 	}
 }
 
-func (p *Parser) emptyToken(kind token.Kind) token.Token {
-	tok := token.New(kind, 0, 0)
+func (p *Parser) emptyToken(kind token.Kind, offset int) token.Token {
+	tok := token.New(kind, offset, offset)
 	return tok
 }
 
-func (p *Parser) inferTreeFromExpr(expr Expr, directives token.TokenQueue, d decltree) Tree {
-	var tree Tree
+func (p *Parser) inferTreeFromExpr(expr Expr) token.Kind {
 	switch expr.(type) {
 	case pkgexpr:
-		d.dtype = p.emptyToken(token.Package)
-		tree = pkgtree{d, directives, expr}
+		return token.Package
 	case importexpr:
-		d.dtype = p.emptyToken(token.Import)
-		tree = importtree{d, expr}
+		return token.Import
 	case usingexpr:
-		d.dtype = p.emptyToken(token.Using)
-		tree = usingtree{d, expr}
+		return token.Using
 	case typeexpr:
-		d.dtype = p.emptyToken(token.Type)
-		tree = typetree{d, expr}
+		return token.Type
 	case recordexpr:
-		d.dtype = p.emptyToken(token.Type)
-		tree = recordtree{d, expr}
+		return token.Type
 	case templexpr:
-		d.dtype = p.emptyToken(token.Templ)
-		tree = templtree{d, expr}
-	// case badexpr:
+		return token.Templ
 	default:
-		loc := p.locationStartingAt(d.Start)
-		return badtree{loc}
+		return token.Invalid
 	}
-	p.lastTreeKind = d.dtype.Kind()
-	return tree
 }
 
 func (p *Parser) Lines() []int {

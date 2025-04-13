@@ -30,12 +30,14 @@ type sexprPrinter struct {
 
 func (p *sexprPrinter) lineOffsetFor(offset int) (line int, lineOffset int) {
 	for i, l := range p.ns.lines {
-		if l > offset {
+		if l >= offset {
 			break
 		}
 		line = i
 		lineOffset = l
 	}
+	// 1 based line numbers
+	line += 1
 	return
 }
 
@@ -46,7 +48,15 @@ func (p *sexprPrinter) Location(start, end int) string {
 	startCol := start - startOffset
 	endCol := end - endOffset
 
-	return fmt.Sprintf("[%d, %d] - [%d, %d]", startLine+1, startCol, endLine+1, endCol)
+	if start == 0 && startCol == 0 {
+		startCol = 1
+	}
+
+	// 1 based col numbers
+	// startCol += 1
+	// endCol += 1
+
+	return fmt.Sprintf("%d, %d - %d, %d", startLine, startCol, endLine, endCol)
 }
 
 func (p *sexprPrinter) Indent() {
@@ -110,7 +120,6 @@ func PrintSExpr(n *Namespace) string {
 		}
 		if length > 2 {
 			fmt.Println(strings.Join(chunk, ""))
-			fmt.Printf("[1]%s [2]%s [3]%s\n", chunk[0], chunk[1], chunk[2])
 			panic("Invalid sexpr")
 		}
 		if length == 1 {

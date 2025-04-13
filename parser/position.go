@@ -31,36 +31,9 @@ func (t vartree) Pos() Position {
 	return t.Position
 }
 
-func (t badexpr) Pos() Position {
-	return t.Position
-}
-
-func (e pkgexpr) Pos() Position {
-	pos := Position{Start: e.name.Start(), End: e.name.End()}
-	return pos
-}
-
-func (e importexpr) Pos() Position {
-	pos := Position{Start: e.path.Start(), End: e.path.End()}
-	return pos
-}
-
-func (e usingexpr) Pos() Position {
-	pos := Position{Start: e.target.Start(), End: e.target.End()}
-	return pos
-}
-
-func (e typeexpr) Pos() Position {
-	pos := Position{Start: e.target.Start(), End: e.target.End()}
-	return pos
-}
-
-func (e recordexpr) Pos() Position {
-	return e.Position
-}
-
-func (e templexpr) Pos() Position {
-	return e.Position
+func (e baseexpr) Pos() Position {
+	p := Position{Start: e.start, End: e.end}
+	return p
 }
 
 func (e litexpr) Pos() Position {

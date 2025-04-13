@@ -2,9 +2,13 @@ package parser
 
 import "temlang/tem/token"
 
-type parseExprSpec func(offset int) Expr
+func (p *Parser) baseexpr(start, end int) baseexpr {
+	return baseexpr{start: start, end: end}
+}
 
-func (p *Parser) parseGenExpr(offset int) Expr {
+type parseExprSpec func() Expr
+
+func (p *Parser) parseGenExpr() Expr {
 	var f parseExprSpec
 	switch k := p.cur.Kind(); k {
 	case token.Package:
@@ -14,52 +18,62 @@ func (p *Parser) parseGenExpr(offset int) Expr {
 	case token.Using:
 		f = p.parseUsingExpr
 	default:
-		return p.parseBasicExpr(offset)
+		return p.parseBasicExpr()
 	}
-	return f(offset)
+	return f()
 }
 
-func (p *Parser) parsePackageExpr(offset int) Expr {
+func (p *Parser) parsePackageExpr() Expr {
 	var name token.Token
+	offset := p.offset()
 
 	switch kind := p.cur.Kind(); kind {
 	case token.Package:
 		p.advance()
-		if !p.expectSurroundParen(token.String) {
+		var ok bool
+		if name, ok = p.expectSurroundParen(token.String); !ok {
 			p.errorExpected("package name")
 			return p.badexpr(offset)
 		}
-		name = p.prev
 	default:
-		return p.parseImportExpr(offset)
+		return p.parseImportExpr()
 	}
 
-	return pkgexpr{name}
+	b := p.baseexpr(offset, p.prev.End())
+	return pkgexpr{baseexpr: b, name: name}
 }
 
-func (p *Parser) parseImportExpr(offset int) Expr {
+func (p *Parser) parseImportExpr() Expr {
+	offset := p.offset()
 	if !p.match(token.Import) {
-		return p.parseUsingExpr(offset)
+		return p.parseUsingExpr()
 	}
-	if !p.expectSurroundParen(token.String) {
+	var path token.Token
+	var ok bool
+	if path, ok = p.expectSurroundParen(token.String); !ok {
 		p.errorExpected("string")
 		return p.badexpr(offset)
 	}
-	return importexpr{p.prev}
+	b := p.baseexpr(offset, p.prev.End())
+	return importexpr{baseexpr: b, path: path}
 }
 
-func (p *Parser) parseUsingExpr(offset int) Expr {
+func (p *Parser) parseUsingExpr() Expr {
+	offset := p.offset()
 	if !p.match(token.Using) {
-		return p.parseBasicExpr(offset)
+		return p.parseBasicExpr()
 	}
-	if !p.expectSurroundParen(token.Ident) {
+	var target token.Token
+	var ok bool
+	if target, ok = p.expectSurroundParen(token.Ident); !ok {
 		p.errorExpected("ident")
 		return p.badexpr(offset)
 	}
-	return usingexpr{p.prev}
+	b := p.baseexpr(offset, p.prev.End())
+	return usingexpr{baseexpr: b, target: target}
 }
 
-func (p *Parser) parseBasicExpr(offset int) Expr {
+func (p *Parser) parseBasicExpr() Expr {
 	var f parseExprSpec
 	switch k := p.cur.Kind(); k {
 	case token.Type:
@@ -69,30 +83,38 @@ func (p *Parser) parseBasicExpr(offset int) Expr {
 	case token.Templ:
 		f = p.parseTemplExpr
 	default:
+		offset := p.offset()
 		p.errorExpected("an expr")
 		return p.badexpr(offset)
 	}
-	return f(offset)
+	return f()
 }
 
-func (p *Parser) parseTypeExpr(offset int) Expr {
+func (p *Parser) parseTypeExpr() Expr {
+	offset := p.offset()
 	if !p.expect(token.Type) {
+		offset := p.offset()
 		return p.badexpr(offset)
 	}
-	if !p.expectSurroundParen(token.Ident) {
+	var target token.Token
+	var ok bool
+	if target, ok = p.expectSurroundParen(token.Ident); !ok {
+		offset := p.offset()
 		return p.badexpr(offset)
 	}
-	return typeexpr{p.prev}
+	b := p.baseexpr(offset, p.prev.End())
+	return typeexpr{baseexpr: b, target: target}
 }
 
-func (p *Parser) parseRecordExpr(offset int) Expr {
+func (p *Parser) parseRecordExpr() Expr {
+	offset := p.offset()
 	if !p.expect(token.Record) {
 		p.errorExpected("record")
 		return p.badexpr(offset)
 	}
 	if !p.expect(token.BraceOpen) {
 		p.errorExpected("{")
-		return p.badexpr(offset)
+		return p.badexpr(p.offset())
 	}
 
 	var fields TreeQueue
@@ -110,10 +132,12 @@ func (p *Parser) parseRecordExpr(offset int) Expr {
 		return p.badexpr(offset)
 	}
 
-	return recordexpr{fields: fields}
+	b := p.baseexpr(offset, p.prev.End())
+	return recordexpr{baseexpr: b, fields: fields}
 }
 
-func (p *Parser) parseTemplExpr(offset int) Expr {
+func (p *Parser) parseTemplExpr() Expr {
+	offset := p.offset()
 	if !p.expect(token.Templ) {
 		p.errorExpected("templ")
 		return p.badexpr(offset)
@@ -124,5 +148,6 @@ func (p *Parser) parseTemplExpr(offset int) Expr {
 	elements := p.parseElements()
 	p.expect(token.BraceClose)
 
-	return templexpr{params: params, elements: elements}
+	b := p.baseexpr(offset, p.prev.End())
+	return templexpr{baseexpr: b, params: params, elements: elements}
 }

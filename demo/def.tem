@@ -13,15 +13,15 @@ MyBook :: type(Book);
 User : "Model";
 User : { id = "my-user" };
 User : type : record {
-    first: string;
-    last: string;
-    email: string;
+    first: String;
+    last: String;
+    email: String;
     };
 
 Product : "Model";
 Product :: record {
-    name: string;
-    price: string;
+    name: String;
+    price: String;
     };
 Product : { id = "my-product"; };
 
@@ -31,6 +31,6 @@ Store : ---
 ---
     ;
 Store :: record {
-    name: string;
-    location: string;
+    name: String;
+    location: String;
     };

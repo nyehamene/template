@@ -28,6 +28,14 @@ func defaultErrorHandler(errors *token.ErrorQueue, offset int, msg string) {
 	errors.Push(err)
 }
 
+func queueOffset(q token.TokenQueue) int {
+	tok, ok := q.Peek()
+	if !ok {
+		return -1
+	}
+	return tok.Start()
+}
+
 type Parser struct {
 	tokenizer    tokenizer.Tokenizer
 	filename     string
@@ -35,7 +43,6 @@ type Parser struct {
 	prev         token.Token
 	lastTreeKind token.Kind
 	idents       *token.TokenQueue
-	identOffset  int
 	errors       *token.ErrorQueue
 	error        func(offset int, msg string)
 }
@@ -54,7 +61,14 @@ func (p *Parser) expectSemicolon() {
 }
 
 func (p *Parser) offset() int {
-	return p.tokenizer.Offset()
+	return p.cur.Start()
+}
+
+func (p *Parser) identOffset() int {
+	if p.idents == nil {
+		return -1
+	}
+	return queueOffset(*p.idents)
 }
 
 func (p *Parser) Mark() func() {
@@ -109,7 +123,7 @@ func (p *Parser) matchIdents() bool {
 	var idents token.TokenQueue
 
 	p.idents = nil
-	offset := p.offset()
+	// offset := p.offset()
 
 identStart:
 	switch k := p.cur.Kind(); k {
@@ -127,28 +141,28 @@ identStart:
 		return false
 	}
 	p.idents = &idents
-	p.identOffset = offset
+	// p.identOffset = offset
 	return true
 }
 
 type parseTokenSpec func() bool
 
-func (p *Parser) expectSurround(open token.Kind, close token.Kind, f parseTokenSpec) bool {
+func (p *Parser) expectSurround(open token.Kind, close token.Kind, f parseTokenSpec) (token.Token, bool) {
+	var surrounded token.Token
 	if !p.expect(open) {
-		return false
+		return surrounded, false
 	}
 	if !f() {
-		return false
+		return surrounded, false
 	}
-	surrounded := p.prev
+	surrounded = p.prev
 	if !p.expect(close) {
-		return false
+		return surrounded, false
 	}
-	p.prev = surrounded
-	return true
+	return surrounded, true
 }
 
-func (p *Parser) expectSurroundParen(tok token.Kind) bool {
+func (p *Parser) expectSurroundParen(tok token.Kind) (token.Token, bool) {
 	return p.expectSurround(token.ParenOpen, token.ParenClose, p.matchspec(tok))
 }
 
@@ -163,10 +177,10 @@ func (p *Parser) locationStartingAt(offset int) Position {
 	return l
 }
 
-func (p *Parser) decltree(dtype token.Token) decltree {
-	l := p.locationStartingAt(p.identOffset)
-	// NOTE: assume p.idents is not nil at this point
-	return decltree{idents: *p.idents, dtype: dtype, Position: l}
+func (p *Parser) decltree(idents token.TokenQueue, dtype token.Token) decltree {
+	offset := queueOffset(idents)
+	l := p.locationStartingAt(offset)
+	return decltree{idents: idents, dtype: dtype, Position: l}
 }
 
 func (p *Parser) badtree(offset int) Tree {
@@ -174,7 +188,8 @@ func (p *Parser) badtree(offset int) Tree {
 }
 
 func (p *Parser) badexpr(offset int) Expr {
-	return badexpr{Position{Start: offset, End: p.offset()}}
+	b := p.baseexpr(offset, p.offset())
+	return badexpr{b}
 }
 
 func (p *Parser) badtreeStack(offset int) TreeQueue {
@@ -227,10 +242,12 @@ func (p *Parser) parseIdents(f parseDeclSpec) Tree {
 func (p *Parser) parseVarDecl() Tree {
 	if !p.match(token.Ident) && !p.match(token.Type) {
 		p.errorExpected("var type")
-		return p.badtree(p.identOffset)
+		return p.badtree(p.identOffset())
 	}
+	// NOTE: assume p.idents is not nil
+	idents := *p.idents
 	dtype := p.prev
-	d := p.decltree(dtype)
+	d := p.decltree(idents, dtype)
 	return vartree(d)
 }
 
@@ -259,29 +276,29 @@ func (p *Parser) parseAttrDecl() Tree {
 	ok := p.matchIdents()
 	if !ok {
 		p.errorExpected("attribute key")
-		return p.badtree(p.identOffset)
+		return p.badtree(p.identOffset())
 	}
 
 	if !p.expect(token.Eq) {
-		return p.badtree(p.identOffset)
+		return p.badtree(p.identOffset())
 	}
 
 	if !p.expect(token.String) {
 		p.errorExpected("attribute value")
-		return p.badtree(p.identOffset)
+		return p.badtree(p.identOffset())
 	}
 
 	val := litexpr(p.prev)
 	// NOTE: assume p.idents is not nil at this point
 	idents := *p.idents
-	loc := p.locationStartingAt(p.identOffset)
+	loc := p.locationStartingAt(p.identOffset())
 	return attrtree{idents: idents, value: val, Position: loc}
 }
 
 func (p *Parser) parseTagDecl() Tree {
 	if !p.expect(token.BraceOpen) {
 		p.errorExpected("{")
-		return p.badtree(p.identOffset)
+		return p.badtree(p.identOffset())
 	}
 
 	var attrs TreeQueue
@@ -296,14 +313,14 @@ func (p *Parser) parseTagDecl() Tree {
 
 	if !p.expect(token.BraceClose) {
 		p.errorExpected("{")
-		return p.badtree(p.identOffset)
+		return p.badtree(p.identOffset())
 	}
 
 	p.expectSemicolon()
 
 	// NOTE assume p.idents is not nil at this point
 	idents := *p.idents
-	loc := p.locationStartingAt(p.identOffset)
+	loc := p.locationStartingAt(p.identOffset())
 	tree := tagtree{
 		idents:   idents,
 		attrs:    attrs,
