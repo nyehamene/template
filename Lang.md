@@ -74,8 +74,8 @@ The complete syntax for declaring a template is as follows:
 ```
 User : templ : templ(u: User) {
   <p
-    Hello, (u.name)!
-    Your email is (u.email).
+    Hello, \{u.name}!
+    Your email is \{u.email}.
     />
   }
 ```
@@ -102,8 +102,8 @@ always matches the type on the LHS.
 ```
 User :: templ(u: type) {
   <p
-    Hello, (u.name)!
-    Your email is (u.email).
+    Hello, \{u.name}!
+    Your email is \{u.email}.
     />
   }
 ```
@@ -115,8 +115,8 @@ A template declaration type can be infered implicitly as follows:
 ```
 User :: templ(u: User) {
   <p
-    Hello, (u.name)!
-    Your email is (u.email).
+    Hello, \{u.name}!
+    Your email is \{u.email}.
     />
   }
 ```
@@ -129,8 +129,8 @@ recommended syntax.
 ```
 User :: (u: type) {
   <p
-    Hello, (u.name)!
-    Your email is (u.email).
+    Hello, \{u.name}!
+    Your email is \{u.email}.
     />
   }
 ```
