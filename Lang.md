@@ -36,7 +36,7 @@ parts and not including explicit type inference.
 ### Declaring a custom type based on another type
 
 The complete declaration of a custom type is as follows using the `User`
-type declared in #[Explicit type inference]:
+type declared in [[Explicit type inference]]:
 
 ```
 User : type(Person) : type(Person);
