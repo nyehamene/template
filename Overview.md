@@ -32,7 +32,7 @@ PI :: 3.14
 ## Var
 
 ```
-month_day: Int: 28
+month_day: Int = 28
 month_day := 28
 ```
 
