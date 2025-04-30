@@ -77,6 +77,27 @@ add_user->to_db :: fn(name: String, email: String)(db: sql.DB) {}
 add_user("John", "john@mail.com")->to_db(my_db)
 ```
 
+### Alternate syntax
+
+```
+add_user, to_database :: fn(user: User) (db: sql.DB) {}
+
+add_user(User(name: "John")) to_database(sql.DB.open())
+
+// or
+
+add_user(...),
+  to_database(...)
+
+// or
+
+add_user(
+    ...
+  ) to_database(
+    ...
+  )
+```
+
 ## Record
 
 ```
